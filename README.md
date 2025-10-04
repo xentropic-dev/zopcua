@@ -1,6 +1,13 @@
-# 🏭 zopcua
-
-A Zig wrapper for [open62541](https://github.com/open62541/open62541), an open-source OPC UA implementation.
+<div align="center">
+  <h1>🏭 zopcua</h1>
+  <p>A Zig wrapper for <a href="https://github.com/open62541/open62541">open62541</a>, an open-source OPC UA implementation.</p>
+  <p>
+    <a href="https://opensource.org/licenses/MIT"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-e0af68.svg?style=for-the-badge&logo=opensourceinitiative&logoColor=white" /></a>
+    <a href="https://github.com/xentropic-dev/zopcua/actions"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/xentropic-dev/zopcua/ci.yml?style=for-the-badge&label=CI&logo=github&color=9ece6a" /></a>
+    <a href="https://github.com/xentropic-dev/zopcua/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/xentropic-dev/zopcua?style=for-the-badge&color=7aa2f7&logo=github" /></a>
+    <img alt="Zig 0.14" src="https://img.shields.io/badge/Zig-0.14-f7a41d.svg?style=for-the-badge&logo=zig&logoColor=white" />
+  </p>
+</div>
 
 ## ⚠️ Development Status
 
