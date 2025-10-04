@@ -47,8 +47,8 @@ jobs:
       - name: Install required libraries (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libmbedtls-dev libmbedx509-dev libmbedcrypto-dev
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update && \
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y libmbedtls-dev 
 
       - name: Install required libraries (macOS)
         if: matrix.os == 'macos-latest'
