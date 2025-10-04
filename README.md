@@ -46,6 +46,12 @@ const ua = b.dependency("zopcua", .{
     .optimize = optimize,
 });
 exe.root_module.addImport("ua", ua.module("ua"));
+
+// On Windows, link required socket libraries
+if (target.result.os.tag == .windows) {
+    exe.linkSystemLibrary("ws2_32");
+    exe.linkSystemLibrary("iphlpapi");
+}
 ```
 
 ### mbedTLS Dependency
@@ -61,6 +67,12 @@ const ua = b.dependency("zopcua", .{
     .mbedtls = .system,  // Use system mbedTLS instead of vendored
 });
 exe.root_module.addImport("ua", ua.module("ua"));
+
+// On Windows, link required socket libraries
+if (target.result.os.tag == .windows) {
+    exe.linkSystemLibrary("ws2_32");
+    exe.linkSystemLibrary("iphlpapi");
+}
 ```
 
 When using system mbedTLS, ensure the libraries are installed:

@@ -66,7 +66,6 @@ pub fn build(b: *std.Build) void {
     lib_unit_tests.addIncludePath(b.path("vendor"));
     lib_unit_tests.linkLibC();
 
-    // Link Windows socket libraries for tests
     if (target.result.os.tag == .windows) {
         lib_unit_tests.linkSystemLibrary("ws2_32");
         lib_unit_tests.linkSystemLibrary("iphlpapi");
