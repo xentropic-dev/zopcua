@@ -1,0 +1,16 @@
+.{
+    .name = .server,
+    .version = "0.0.0",
+    .fingerprint = 0x5a6dd5f682718bff,
+    .minimum_zig_version = "0.14.1",
+
+    .dependencies = .{
+        .zopcua = .{ .path = "../../" },
+    },
+
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
