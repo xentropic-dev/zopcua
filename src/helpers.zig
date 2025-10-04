@@ -2,6 +2,7 @@
 //! Due to the library's use of bit fields in certain structs, we need to wrap
 //! some function calls in C code first before exposing them to Zig, as Zig
 //! does not support bit fields directly.
+// zlint-disable
 const c = @import("c.zig");
 
 const ServerResult = extern struct {
