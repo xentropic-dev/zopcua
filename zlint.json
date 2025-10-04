@@ -1,0 +1,17 @@
+{
+  "rules": {
+    "unsafe-undefined": "error",
+    "homeless-try": "error",
+    "avoid-as": "error",
+    "case-convention": "error",
+    "empty-file": "error",
+    "line-length": "error",
+    "must-return-ref": "error",
+    "no-catch-return": "error",
+    "no-return-try": "error",
+    "no-unresolved": "error",
+    "returned-stack-reference": "error",
+    "suppressed-errors": "error",
+    "useless-error-return": "error"
+  }
+}

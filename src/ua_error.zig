@@ -310,7 +310,9 @@ pub fn checkStatus(status: StatusCode) OpcUaError!void {
         toStatusCode(c.UA_STATUSCODE_UNCERTAINREFERENCENOTDELETED) => OpcUaError.UncertainReferenceNotDeleted,
         toStatusCode(c.UA_STATUSCODE_UNCERTAINNOTALLNODESAVAILABLE) => OpcUaError.UncertainNotAllNodesAvailable,
         toStatusCode(c.UA_STATUSCODE_UNCERTAINREFERENCEOUTOFSERVER) => OpcUaError.UncertainReferenceOutOfServer,
-        toStatusCode(c.UA_STATUSCODE_UNCERTAINNOCOMMUNICATIONLASTUSABLEVALUE) => OpcUaError.UncertainNoCommunicationLastUsableValue,
+        toStatusCode(
+            c.UA_STATUSCODE_UNCERTAINNOCOMMUNICATIONLASTUSABLEVALUE,
+        ) => OpcUaError.UncertainNoCommunicationLastUsableValue,
         toStatusCode(c.UA_STATUSCODE_UNCERTAINLASTUSABLEVALUE) => OpcUaError.UncertainLastUsableValue,
         toStatusCode(c.UA_STATUSCODE_UNCERTAINSUBSTITUTEVALUE) => OpcUaError.UncertainSubstituteValue,
         toStatusCode(c.UA_STATUSCODE_UNCERTAININITIALVALUE) => OpcUaError.UncertainInitialValue,
@@ -358,7 +360,9 @@ pub fn checkStatus(status: StatusCode) OpcUaError!void {
         toStatusCode(c.UA_STATUSCODE_BADCERTIFICATEISSUERUSENOTALLOWED) => OpcUaError.BadCertificateIssuerUseNotAllowed,
         toStatusCode(c.UA_STATUSCODE_BADCERTIFICATEUNTRUSTED) => OpcUaError.BadCertificateUntrusted,
         toStatusCode(c.UA_STATUSCODE_BADCERTIFICATEREVOCATIONUNKNOWN) => OpcUaError.BadCertificateRevocationUnknown,
-        toStatusCode(c.UA_STATUSCODE_BADCERTIFICATEISSUERREVOCATIONUNKNOWN) => OpcUaError.BadCertificateIssuerRevocationUnknown,
+        toStatusCode(
+            c.UA_STATUSCODE_BADCERTIFICATEISSUERREVOCATIONUNKNOWN,
+        ) => OpcUaError.BadCertificateIssuerRevocationUnknown,
         toStatusCode(c.UA_STATUSCODE_BADCERTIFICATEREVOKED) => OpcUaError.BadCertificateRevoked,
         toStatusCode(c.UA_STATUSCODE_BADCERTIFICATEISSUERREVOKED) => OpcUaError.BadCertificateIssuerRevoked,
         toStatusCode(c.UA_STATUSCODE_BADCERTIFICATECHAININCOMPLETE) => OpcUaError.BadCertificateChainIncomplete,
@@ -498,7 +502,9 @@ pub fn checkStatus(status: StatusCode) OpcUaError!void {
         toStatusCode(c.UA_STATUSCODE_BADDIALOGNOTACTIVE) => OpcUaError.BadDialogNotActive,
         toStatusCode(c.UA_STATUSCODE_BADDIALOGRESPONSEINVALID) => OpcUaError.BadDialogResponseInvalid,
         toStatusCode(c.UA_STATUSCODE_BADCONDITIONBRANCHALREADYACKED) => OpcUaError.BadConditionBranchAlreadyAcked,
-        toStatusCode(c.UA_STATUSCODE_BADCONDITIONBRANCHALREADYCONFIRMED) => OpcUaError.BadConditionBranchAlreadyConfirmed,
+        toStatusCode(
+            c.UA_STATUSCODE_BADCONDITIONBRANCHALREADYCONFIRMED,
+        ) => OpcUaError.BadConditionBranchAlreadyConfirmed,
         toStatusCode(c.UA_STATUSCODE_BADCONDITIONALREADYSHELVED) => OpcUaError.BadConditionAlreadyShelved,
         toStatusCode(c.UA_STATUSCODE_BADCONDITIONNOTSHELVED) => OpcUaError.BadConditionNotShelved,
         toStatusCode(c.UA_STATUSCODE_BADSHELVINGTIMEOUTOFRANGE) => OpcUaError.BadShelvingTimeOutOfRange,
@@ -524,10 +530,18 @@ pub fn checkStatus(status: StatusCode) OpcUaError!void {
         toStatusCode(c.UA_STATUSCODE_BADDEPENDENTVALUECHANGED) => OpcUaError.BadDependentValueChanged,
         toStatusCode(c.UA_STATUSCODE_BADEDITED_OUTOFRANGE) => OpcUaError.BadEditedOutOfRange,
         toStatusCode(c.UA_STATUSCODE_BADINITIALVALUE_OUTOFRANGE) => OpcUaError.BadInitialValueOutOfRange,
-        toStatusCode(c.UA_STATUSCODE_BADOUTOFRANGE_DOMINANTVALUECHANGED) => OpcUaError.BadOutOfRangeDominantValueChanged,
-        toStatusCode(c.UA_STATUSCODE_BADEDITED_OUTOFRANGE_DOMINANTVALUECHANGED) => OpcUaError.BadEditedOutOfRangeDominantValueChanged,
-        toStatusCode(c.UA_STATUSCODE_BADOUTOFRANGE_DOMINANTVALUECHANGED_DEPENDENTVALUECHANGED) => OpcUaError.BadOutOfRangeDominantValueChangedDependentValueChanged,
-        toStatusCode(c.UA_STATUSCODE_BADEDITED_OUTOFRANGE_DOMINANTVALUECHANGED_DEPENDENTVALUECHANGED) => OpcUaError.BadEditedOutOfRangeDominantValueChangedDependentValueChanged,
+        toStatusCode(
+            c.UA_STATUSCODE_BADOUTOFRANGE_DOMINANTVALUECHANGED,
+        ) => OpcUaError.BadOutOfRangeDominantValueChanged,
+        toStatusCode(
+            c.UA_STATUSCODE_BADEDITED_OUTOFRANGE_DOMINANTVALUECHANGED,
+        ) => OpcUaError.BadEditedOutOfRangeDominantValueChanged,
+        toStatusCode(
+            c.UA_STATUSCODE_BADOUTOFRANGE_DOMINANTVALUECHANGED_DEPENDENTVALUECHANGED,
+        ) => OpcUaError.BadOutOfRangeDominantValueChangedDependentValueChanged,
+        toStatusCode(
+            c.UA_STATUSCODE_BADEDITED_OUTOFRANGE_DOMINANTVALUECHANGED_DEPENDENTVALUECHANGED,
+        ) => OpcUaError.BadEditedOutOfRangeDominantValueChangedDependentValueChanged,
         toStatusCode(c.UA_STATUSCODE_BADINVALIDARGUMENT) => OpcUaError.BadInvalidArgument,
         toStatusCode(c.UA_STATUSCODE_BADCONNECTIONREJECTED) => OpcUaError.BadConnectionRejected,
         toStatusCode(c.UA_STATUSCODE_BADDISCONNECT) => OpcUaError.BadDisconnect,
