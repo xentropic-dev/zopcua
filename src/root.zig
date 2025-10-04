@@ -6,3 +6,7 @@ pub const ua_error = @import("ua_error.zig");
 
 pub const Server = server.Server;
 pub const NodeId = types.NodeId;
+
+test {
+    _ = @import("ua_error.zig");
+}

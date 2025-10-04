@@ -1,11 +1,18 @@
 const std = @import("std");
+const c = @import("c.zig");
 
 pub const StatusCode = u32;
 
-// Status code constants
-pub const GOOD: StatusCode = 0x00000000;
-pub const UNCERTAIN: StatusCode = 0x40000000;
-pub const BAD: StatusCode = 0x80000000;
+/// Helper function to convert status codes from c.zig to StatusCode (u32)
+/// This reinterprets the bits to handle values with the sign bit set
+inline fn toStatusCode(value: anytype) StatusCode {
+    return @as(StatusCode, @intCast(value));
+}
+
+// Status code constants from imported c.zig
+pub const GOOD: StatusCode = toStatusCode(c.UA_STATUSCODE_GOOD);
+pub const UNCERTAIN: StatusCode = toStatusCode(c.UA_STATUSCODE_UNCERTAIN);
+pub const BAD: StatusCode = toStatusCode(c.UA_STATUSCODE_BAD);
 
 pub const OpcUaError = error{
     // Uncertain status codes
@@ -300,246 +307,246 @@ pub fn checkStatus(status: StatusCode) OpcUaError!void {
     return switch (status) {
         // Uncertain codes
         UNCERTAIN => OpcUaError.Uncertain,
-        0x40BC0000 => OpcUaError.UncertainReferenceNotDeleted,
-        0x40C00000 => OpcUaError.UncertainNotAllNodesAvailable,
-        0x406C0000 => OpcUaError.UncertainReferenceOutOfServer,
-        0x408F0000 => OpcUaError.UncertainNoCommunicationLastUsableValue,
-        0x40900000 => OpcUaError.UncertainLastUsableValue,
-        0x40910000 => OpcUaError.UncertainSubstituteValue,
-        0x40920000 => OpcUaError.UncertainInitialValue,
-        0x40930000 => OpcUaError.UncertainSensorNotAccurate,
-        0x40940000 => OpcUaError.UncertainEngineeringUnitsExceeded,
-        0x40950000 => OpcUaError.UncertainSubnormal,
-        0x40A40000 => OpcUaError.UncertainDataSubnormal,
-        0x40DE0000 => OpcUaError.UncertainDominantValueChanged,
-        0x40E20000 => OpcUaError.UncertainDependentValueChanged,
-        0x42080000 => OpcUaError.UncertainTransducerInManual,
-        0x42090000 => OpcUaError.UncertainSimulatedValue,
-        0x420A0000 => OpcUaError.UncertainSensorCalibration,
-        0x420F0000 => OpcUaError.UncertainConfigurationError,
+        toStatusCode(c.UA_STATUSCODE_UNCERTAINREFERENCENOTDELETED) => OpcUaError.UncertainReferenceNotDeleted,
+        toStatusCode(c.UA_STATUSCODE_UNCERTAINNOTALLNODESAVAILABLE) => OpcUaError.UncertainNotAllNodesAvailable,
+        toStatusCode(c.UA_STATUSCODE_UNCERTAINREFERENCEOUTOFSERVER) => OpcUaError.UncertainReferenceOutOfServer,
+        toStatusCode(c.UA_STATUSCODE_UNCERTAINNOCOMMUNICATIONLASTUSABLEVALUE) => OpcUaError.UncertainNoCommunicationLastUsableValue,
+        toStatusCode(c.UA_STATUSCODE_UNCERTAINLASTUSABLEVALUE) => OpcUaError.UncertainLastUsableValue,
+        toStatusCode(c.UA_STATUSCODE_UNCERTAINSUBSTITUTEVALUE) => OpcUaError.UncertainSubstituteValue,
+        toStatusCode(c.UA_STATUSCODE_UNCERTAININITIALVALUE) => OpcUaError.UncertainInitialValue,
+        toStatusCode(c.UA_STATUSCODE_UNCERTAINSENSORNOTACCURATE) => OpcUaError.UncertainSensorNotAccurate,
+        toStatusCode(c.UA_STATUSCODE_UNCERTAINENGINEERINGUNITSEXCEEDED) => OpcUaError.UncertainEngineeringUnitsExceeded,
+        toStatusCode(c.UA_STATUSCODE_UNCERTAINSUBNORMAL) => OpcUaError.UncertainSubnormal,
+        toStatusCode(c.UA_STATUSCODE_UNCERTAINDATASUBNORMAL) => OpcUaError.UncertainDataSubnormal,
+        toStatusCode(c.UA_STATUSCODE_UNCERTAINDOMINANTVALUECHANGED) => OpcUaError.UncertainDominantValueChanged,
+        toStatusCode(c.UA_STATUSCODE_UNCERTAINDEPENDENTVALUECHANGED) => OpcUaError.UncertainDependentValueChanged,
+        toStatusCode(c.UA_STATUSCODE_UNCERTAINTRANSDUCERINMANUAL) => OpcUaError.UncertainTransducerInManual,
+        toStatusCode(c.UA_STATUSCODE_UNCERTAINSIMULATEDVALUE) => OpcUaError.UncertainSimulatedValue,
+        toStatusCode(c.UA_STATUSCODE_UNCERTAINSENSORCALIBRATION) => OpcUaError.UncertainSensorCalibration,
+        toStatusCode(c.UA_STATUSCODE_UNCERTAINCONFIGURATIONERROR) => OpcUaError.UncertainConfigurationError,
 
         // Bad codes
         BAD => OpcUaError.BadUnexpectedError,
-        0x80010000 => OpcUaError.BadUnexpectedError,
-        0x80020000 => OpcUaError.BadInternalError,
-        0x80030000 => OpcUaError.BadOutOfMemory,
-        0x80040000 => OpcUaError.BadResourceUnavailable,
-        0x80050000 => OpcUaError.BadCommunicationError,
-        0x80060000 => OpcUaError.BadEncodingError,
-        0x80070000 => OpcUaError.BadDecodingError,
-        0x80080000 => OpcUaError.BadEncodingLimitsExceeded,
-        0x80B80000 => OpcUaError.BadRequestTooLarge,
-        0x80B90000 => OpcUaError.BadResponseTooLarge,
-        0x80090000 => OpcUaError.BadUnknownResponse,
-        0x800A0000 => OpcUaError.BadTimeout,
-        0x800B0000 => OpcUaError.BadServiceUnsupported,
-        0x800C0000 => OpcUaError.BadShutdown,
-        0x800D0000 => OpcUaError.BadServerNotConnected,
-        0x800E0000 => OpcUaError.BadServerHalted,
-        0x800F0000 => OpcUaError.BadNothingToDo,
-        0x80100000 => OpcUaError.BadTooManyOperations,
-        0x80DB0000 => OpcUaError.BadTooManyMonitoredItems,
-        0x80110000 => OpcUaError.BadDataTypeIdUnknown,
-        0x80120000 => OpcUaError.BadCertificateInvalid,
-        0x80130000 => OpcUaError.BadSecurityChecksFailed,
-        0x81140000 => OpcUaError.BadCertificatePolicyCheckFailed,
-        0x80140000 => OpcUaError.BadCertificateTimeInvalid,
-        0x80150000 => OpcUaError.BadCertificateIssuerTimeInvalid,
-        0x80160000 => OpcUaError.BadCertificateHostNameInvalid,
-        0x80170000 => OpcUaError.BadCertificateUriInvalid,
-        0x80180000 => OpcUaError.BadCertificateUseNotAllowed,
-        0x80190000 => OpcUaError.BadCertificateIssuerUseNotAllowed,
-        0x801A0000 => OpcUaError.BadCertificateUntrusted,
-        0x801B0000 => OpcUaError.BadCertificateRevocationUnknown,
-        0x801C0000 => OpcUaError.BadCertificateIssuerRevocationUnknown,
-        0x801D0000 => OpcUaError.BadCertificateRevoked,
-        0x801E0000 => OpcUaError.BadCertificateIssuerRevoked,
-        0x810D0000 => OpcUaError.BadCertificateChainIncomplete,
-        0x801F0000 => OpcUaError.BadUserAccessDenied,
-        0x80200000 => OpcUaError.BadIdentityTokenInvalid,
-        0x80210000 => OpcUaError.BadIdentityTokenRejected,
-        0x80220000 => OpcUaError.BadSecureChannelIdInvalid,
-        0x80230000 => OpcUaError.BadInvalidTimestamp,
-        0x80240000 => OpcUaError.BadNonceInvalid,
-        0x80250000 => OpcUaError.BadSessionIdInvalid,
-        0x80260000 => OpcUaError.BadSessionClosed,
-        0x80270000 => OpcUaError.BadSessionNotActivated,
-        0x80280000 => OpcUaError.BadSubscriptionIdInvalid,
-        0x802A0000 => OpcUaError.BadRequestHeaderInvalid,
-        0x802B0000 => OpcUaError.BadTimestampsToReturnInvalid,
-        0x802C0000 => OpcUaError.BadRequestCancelledByClient,
-        0x80E50000 => OpcUaError.BadTooManyArguments,
-        0x810E0000 => OpcUaError.BadLicenseExpired,
-        0x810F0000 => OpcUaError.BadLicenseLimitsExceeded,
-        0x81100000 => OpcUaError.BadLicenseNotAvailable,
-        0x80310000 => OpcUaError.BadNoCommunication,
-        0x80320000 => OpcUaError.BadWaitingForInitialData,
-        0x80330000 => OpcUaError.BadNodeIdInvalid,
-        0x80340000 => OpcUaError.BadNodeIdUnknown,
-        0x80350000 => OpcUaError.BadAttributeIdInvalid,
-        0x80360000 => OpcUaError.BadIndexRangeInvalid,
-        0x80370000 => OpcUaError.BadIndexRangeNoData,
-        0x80380000 => OpcUaError.BadDataEncodingInvalid,
-        0x80390000 => OpcUaError.BadDataEncodingUnsupported,
-        0x803A0000 => OpcUaError.BadNotReadable,
-        0x803B0000 => OpcUaError.BadNotWritable,
-        0x803C0000 => OpcUaError.BadOutOfRange,
-        0x803D0000 => OpcUaError.BadNotSupported,
-        0x803E0000 => OpcUaError.BadNotFound,
-        0x803F0000 => OpcUaError.BadObjectDeleted,
-        0x80400000 => OpcUaError.BadNotImplemented,
-        0x80410000 => OpcUaError.BadMonitoringModeInvalid,
-        0x80420000 => OpcUaError.BadMonitoredItemIdInvalid,
-        0x80430000 => OpcUaError.BadMonitoredItemFilterInvalid,
-        0x80440000 => OpcUaError.BadMonitoredItemFilterUnsupported,
-        0x80450000 => OpcUaError.BadFilterNotAllowed,
-        0x80460000 => OpcUaError.BadStructureMissing,
-        0x80470000 => OpcUaError.BadEventFilterInvalid,
-        0x80480000 => OpcUaError.BadContentFilterInvalid,
-        0x80C10000 => OpcUaError.BadFilterOperatorInvalid,
-        0x80C20000 => OpcUaError.BadFilterOperatorUnsupported,
-        0x80C30000 => OpcUaError.BadFilterOperandCountMismatch,
-        0x80490000 => OpcUaError.BadFilterOperandInvalid,
-        0x80C40000 => OpcUaError.BadFilterElementInvalid,
-        0x80C50000 => OpcUaError.BadFilterLiteralInvalid,
-        0x804A0000 => OpcUaError.BadContinuationPointInvalid,
-        0x804B0000 => OpcUaError.BadNoContinuationPoints,
-        0x804C0000 => OpcUaError.BadReferenceTypeIdInvalid,
-        0x804D0000 => OpcUaError.BadBrowseDirectionInvalid,
-        0x804E0000 => OpcUaError.BadNodeNotInView,
-        0x81120000 => OpcUaError.BadNumericOverflow,
-        0x804F0000 => OpcUaError.BadServerUriInvalid,
-        0x80500000 => OpcUaError.BadServerNameMissing,
-        0x80510000 => OpcUaError.BadDiscoveryUrlMissing,
-        0x80520000 => OpcUaError.BadSemaphoreFileMissing,
-        0x80530000 => OpcUaError.BadRequestTypeInvalid,
-        0x80540000 => OpcUaError.BadSecurityModeRejected,
-        0x80550000 => OpcUaError.BadSecurityPolicyRejected,
-        0x80560000 => OpcUaError.BadTooManySessions,
-        0x80570000 => OpcUaError.BadUserSignatureInvalid,
-        0x80580000 => OpcUaError.BadApplicationSignatureInvalid,
-        0x80590000 => OpcUaError.BadNoValidCertificates,
-        0x80C60000 => OpcUaError.BadIdentityChangeNotSupported,
-        0x805A0000 => OpcUaError.BadRequestCancelledByRequest,
-        0x805B0000 => OpcUaError.BadParentNodeIdInvalid,
-        0x805C0000 => OpcUaError.BadReferenceNotAllowed,
-        0x805D0000 => OpcUaError.BadNodeIdRejected,
-        0x805E0000 => OpcUaError.BadNodeIdExists,
-        0x805F0000 => OpcUaError.BadNodeClassInvalid,
-        0x80600000 => OpcUaError.BadBrowseNameInvalid,
-        0x80610000 => OpcUaError.BadBrowseNameDuplicated,
-        0x80620000 => OpcUaError.BadNodeAttributesInvalid,
-        0x80630000 => OpcUaError.BadTypeDefinitionInvalid,
-        0x80640000 => OpcUaError.BadSourceNodeIdInvalid,
-        0x80650000 => OpcUaError.BadTargetNodeIdInvalid,
-        0x80660000 => OpcUaError.BadDuplicateReferenceNotAllowed,
-        0x80670000 => OpcUaError.BadInvalidSelfReference,
-        0x80680000 => OpcUaError.BadReferenceLocalOnly,
-        0x80690000 => OpcUaError.BadNoDeleteRights,
-        0x806A0000 => OpcUaError.BadServerIndexInvalid,
-        0x806B0000 => OpcUaError.BadViewIdUnknown,
-        0x80C90000 => OpcUaError.BadViewTimestampInvalid,
-        0x80CA0000 => OpcUaError.BadViewParameterMismatch,
-        0x80CB0000 => OpcUaError.BadViewVersionInvalid,
-        0x80C80000 => OpcUaError.BadNotTypeDefinition,
-        0x806D0000 => OpcUaError.BadTooManyMatches,
-        0x806E0000 => OpcUaError.BadQueryTooComplex,
-        0x806F0000 => OpcUaError.BadNoMatch,
-        0x80700000 => OpcUaError.BadMaxAgeInvalid,
-        0x80E60000 => OpcUaError.BadSecurityModeInsufficient,
-        0x80710000 => OpcUaError.BadHistoryOperationInvalid,
-        0x80720000 => OpcUaError.BadHistoryOperationUnsupported,
-        0x80BD0000 => OpcUaError.BadInvalidTimestampArgument,
-        0x80730000 => OpcUaError.BadWriteNotSupported,
-        0x80740000 => OpcUaError.BadTypeMismatch,
-        0x80750000 => OpcUaError.BadMethodInvalid,
-        0x80760000 => OpcUaError.BadArgumentsMissing,
-        0x81110000 => OpcUaError.BadNotExecutable,
-        0x80770000 => OpcUaError.BadTooManySubscriptions,
-        0x80780000 => OpcUaError.BadTooManyPublishRequests,
-        0x80790000 => OpcUaError.BadNoSubscription,
-        0x807A0000 => OpcUaError.BadSequenceNumberUnknown,
-        0x807B0000 => OpcUaError.BadMessageNotAvailable,
-        0x807C0000 => OpcUaError.BadInsufficientClientProfile,
-        0x80BF0000 => OpcUaError.BadStateNotActive,
-        0x81150000 => OpcUaError.BadAlreadyExists,
-        0x807D0000 => OpcUaError.BadTcpServerTooBusy,
-        0x807E0000 => OpcUaError.BadTcpMessageTypeInvalid,
-        0x807F0000 => OpcUaError.BadTcpSecureChannelUnknown,
-        0x80800000 => OpcUaError.BadTcpMessageTooLarge,
-        0x80810000 => OpcUaError.BadTcpNotEnoughResources,
-        0x80820000 => OpcUaError.BadTcpInternalError,
-        0x80830000 => OpcUaError.BadTcpEndpointUrlInvalid,
-        0x80840000 => OpcUaError.BadRequestInterrupted,
-        0x80850000 => OpcUaError.BadRequestTimeout,
-        0x80860000 => OpcUaError.BadSecureChannelClosed,
-        0x80870000 => OpcUaError.BadSecureChannelTokenUnknown,
-        0x80880000 => OpcUaError.BadSequenceNumberInvalid,
-        0x80BE0000 => OpcUaError.BadProtocolVersionUnsupported,
-        0x80890000 => OpcUaError.BadConfigurationError,
-        0x808A0000 => OpcUaError.BadNotConnected,
-        0x808B0000 => OpcUaError.BadDeviceFailure,
-        0x808C0000 => OpcUaError.BadSensorFailure,
-        0x808D0000 => OpcUaError.BadOutOfService,
-        0x808E0000 => OpcUaError.BadDeadbandFilterInvalid,
-        0x80970000 => OpcUaError.BadRefreshInProgress,
-        0x80980000 => OpcUaError.BadConditionAlreadyDisabled,
-        0x80CC0000 => OpcUaError.BadConditionAlreadyEnabled,
-        0x80990000 => OpcUaError.BadConditionDisabled,
-        0x809A0000 => OpcUaError.BadEventIdUnknown,
-        0x80BB0000 => OpcUaError.BadEventNotAcknowledgeable,
-        0x80CD0000 => OpcUaError.BadDialogNotActive,
-        0x80CE0000 => OpcUaError.BadDialogResponseInvalid,
-        0x80CF0000 => OpcUaError.BadConditionBranchAlreadyAcked,
-        0x80D00000 => OpcUaError.BadConditionBranchAlreadyConfirmed,
-        0x80D10000 => OpcUaError.BadConditionAlreadyShelved,
-        0x80D20000 => OpcUaError.BadConditionNotShelved,
-        0x80D30000 => OpcUaError.BadShelvingTimeOutOfRange,
-        0x809B0000 => OpcUaError.BadNoData,
-        0x80D70000 => OpcUaError.BadBoundNotFound,
-        0x80D80000 => OpcUaError.BadBoundNotSupported,
-        0x809D0000 => OpcUaError.BadDataLost,
-        0x809E0000 => OpcUaError.BadDataUnavailable,
-        0x809F0000 => OpcUaError.BadEntryExists,
-        0x80A00000 => OpcUaError.BadNoEntryExists,
-        0x80A10000 => OpcUaError.BadTimestampNotSupported,
-        0x80D40000 => OpcUaError.BadAggregateListMismatch,
-        0x80D50000 => OpcUaError.BadAggregateNotSupported,
-        0x80D60000 => OpcUaError.BadAggregateInvalidInputs,
-        0x80DA0000 => OpcUaError.BadAggregateConfigurationRejected,
-        0x80E40000 => OpcUaError.BadRequestNotAllowed,
-        0x81130000 => OpcUaError.BadRequestNotComplete,
-        0x80E80000 => OpcUaError.BadTransactionPending,
-        0x811F0000 => OpcUaError.BadTicketRequired,
-        0x81200000 => OpcUaError.BadTicketInvalid,
-        0x80E90000 => OpcUaError.BadLocked,
-        0x80E10000 => OpcUaError.BadDominantValueChanged,
-        0x80E30000 => OpcUaError.BadDependentValueChanged,
-        0x81190000 => OpcUaError.BadEditedOutOfRange,
-        0x811A0000 => OpcUaError.BadInitialValueOutOfRange,
-        0x811B0000 => OpcUaError.BadOutOfRangeDominantValueChanged,
-        0x811C0000 => OpcUaError.BadEditedOutOfRangeDominantValueChanged,
-        0x811D0000 => OpcUaError.BadOutOfRangeDominantValueChangedDependentValueChanged,
-        0x811E0000 => OpcUaError.BadEditedOutOfRangeDominantValueChangedDependentValueChanged,
-        0x80AB0000 => OpcUaError.BadInvalidArgument,
-        0x80AC0000 => OpcUaError.BadConnectionRejected,
-        0x80AD0000 => OpcUaError.BadDisconnect,
-        0x80AE0000 => OpcUaError.BadConnectionClosed,
-        0x80AF0000 => OpcUaError.BadInvalidState,
-        0x80B00000 => OpcUaError.BadEndOfStream,
-        0x80B10000 => OpcUaError.BadNoDataAvailable,
-        0x80B20000 => OpcUaError.BadWaitingForResponse,
-        0x80B30000 => OpcUaError.BadOperationAbandoned,
-        0x80B40000 => OpcUaError.BadExpectedStreamToBlock,
-        0x80B50000 => OpcUaError.BadWouldBlock,
-        0x80B60000 => OpcUaError.BadSyntaxError,
-        0x80B70000 => OpcUaError.BadMaxConnectionsReached,
-        0x80E70000 => OpcUaError.BadDataSetIdInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADUNEXPECTEDERROR) => OpcUaError.BadUnexpectedError,
+        toStatusCode(c.UA_STATUSCODE_BADINTERNALERROR) => OpcUaError.BadInternalError,
+        toStatusCode(c.UA_STATUSCODE_BADOUTOFMEMORY) => OpcUaError.BadOutOfMemory,
+        toStatusCode(c.UA_STATUSCODE_BADRESOURCEUNAVAILABLE) => OpcUaError.BadResourceUnavailable,
+        toStatusCode(c.UA_STATUSCODE_BADCOMMUNICATIONERROR) => OpcUaError.BadCommunicationError,
+        toStatusCode(c.UA_STATUSCODE_BADENCODINGERROR) => OpcUaError.BadEncodingError,
+        toStatusCode(c.UA_STATUSCODE_BADDECODINGERROR) => OpcUaError.BadDecodingError,
+        toStatusCode(c.UA_STATUSCODE_BADENCODINGLIMITSEXCEEDED) => OpcUaError.BadEncodingLimitsExceeded,
+        toStatusCode(c.UA_STATUSCODE_BADREQUESTTOOLARGE) => OpcUaError.BadRequestTooLarge,
+        toStatusCode(c.UA_STATUSCODE_BADRESPONSETOOLARGE) => OpcUaError.BadResponseTooLarge,
+        toStatusCode(c.UA_STATUSCODE_BADUNKNOWNRESPONSE) => OpcUaError.BadUnknownResponse,
+        toStatusCode(c.UA_STATUSCODE_BADTIMEOUT) => OpcUaError.BadTimeout,
+        toStatusCode(c.UA_STATUSCODE_BADSERVICEUNSUPPORTED) => OpcUaError.BadServiceUnsupported,
+        toStatusCode(c.UA_STATUSCODE_BADSHUTDOWN) => OpcUaError.BadShutdown,
+        toStatusCode(c.UA_STATUSCODE_BADSERVERNOTCONNECTED) => OpcUaError.BadServerNotConnected,
+        toStatusCode(c.UA_STATUSCODE_BADSERVERHALTED) => OpcUaError.BadServerHalted,
+        toStatusCode(c.UA_STATUSCODE_BADNOTHINGTODO) => OpcUaError.BadNothingToDo,
+        toStatusCode(c.UA_STATUSCODE_BADTOOMANYOPERATIONS) => OpcUaError.BadTooManyOperations,
+        toStatusCode(c.UA_STATUSCODE_BADTOOMANYMONITOREDITEMS) => OpcUaError.BadTooManyMonitoredItems,
+        toStatusCode(c.UA_STATUSCODE_BADDATATYPEIDUNKNOWN) => OpcUaError.BadDataTypeIdUnknown,
+        toStatusCode(c.UA_STATUSCODE_BADCERTIFICATEINVALID) => OpcUaError.BadCertificateInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADSECURITYCHECKSFAILED) => OpcUaError.BadSecurityChecksFailed,
+        toStatusCode(c.UA_STATUSCODE_BADCERTIFICATEPOLICYCHECKFAILED) => OpcUaError.BadCertificatePolicyCheckFailed,
+        toStatusCode(c.UA_STATUSCODE_BADCERTIFICATETIMEINVALID) => OpcUaError.BadCertificateTimeInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADCERTIFICATEISSUERTIMEINVALID) => OpcUaError.BadCertificateIssuerTimeInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADCERTIFICATEHOSTNAMEINVALID) => OpcUaError.BadCertificateHostNameInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADCERTIFICATEURIINVALID) => OpcUaError.BadCertificateUriInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADCERTIFICATEUSENOTALLOWED) => OpcUaError.BadCertificateUseNotAllowed,
+        toStatusCode(c.UA_STATUSCODE_BADCERTIFICATEISSUERUSENOTALLOWED) => OpcUaError.BadCertificateIssuerUseNotAllowed,
+        toStatusCode(c.UA_STATUSCODE_BADCERTIFICATEUNTRUSTED) => OpcUaError.BadCertificateUntrusted,
+        toStatusCode(c.UA_STATUSCODE_BADCERTIFICATEREVOCATIONUNKNOWN) => OpcUaError.BadCertificateRevocationUnknown,
+        toStatusCode(c.UA_STATUSCODE_BADCERTIFICATEISSUERREVOCATIONUNKNOWN) => OpcUaError.BadCertificateIssuerRevocationUnknown,
+        toStatusCode(c.UA_STATUSCODE_BADCERTIFICATEREVOKED) => OpcUaError.BadCertificateRevoked,
+        toStatusCode(c.UA_STATUSCODE_BADCERTIFICATEISSUERREVOKED) => OpcUaError.BadCertificateIssuerRevoked,
+        toStatusCode(c.UA_STATUSCODE_BADCERTIFICATECHAININCOMPLETE) => OpcUaError.BadCertificateChainIncomplete,
+        toStatusCode(c.UA_STATUSCODE_BADUSERACCESSDENIED) => OpcUaError.BadUserAccessDenied,
+        toStatusCode(c.UA_STATUSCODE_BADIDENTITYTOKENINVALID) => OpcUaError.BadIdentityTokenInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADIDENTITYTOKENREJECTED) => OpcUaError.BadIdentityTokenRejected,
+        toStatusCode(c.UA_STATUSCODE_BADSECURECHANNELIDINVALID) => OpcUaError.BadSecureChannelIdInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADINVALIDTIMESTAMP) => OpcUaError.BadInvalidTimestamp,
+        toStatusCode(c.UA_STATUSCODE_BADNONCEINVALID) => OpcUaError.BadNonceInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADSESSIONIDINVALID) => OpcUaError.BadSessionIdInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADSESSIONCLOSED) => OpcUaError.BadSessionClosed,
+        toStatusCode(c.UA_STATUSCODE_BADSESSIONNOTACTIVATED) => OpcUaError.BadSessionNotActivated,
+        toStatusCode(c.UA_STATUSCODE_BADSUBSCRIPTIONIDINVALID) => OpcUaError.BadSubscriptionIdInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADREQUESTHEADERINVALID) => OpcUaError.BadRequestHeaderInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADTIMESTAMPSTORETURNINVALID) => OpcUaError.BadTimestampsToReturnInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADREQUESTCANCELLEDBYCLIENT) => OpcUaError.BadRequestCancelledByClient,
+        toStatusCode(c.UA_STATUSCODE_BADTOOMANYARGUMENTS) => OpcUaError.BadTooManyArguments,
+        toStatusCode(c.UA_STATUSCODE_BADLICENSEEXPIRED) => OpcUaError.BadLicenseExpired,
+        toStatusCode(c.UA_STATUSCODE_BADLICENSELIMITSEXCEEDED) => OpcUaError.BadLicenseLimitsExceeded,
+        toStatusCode(c.UA_STATUSCODE_BADLICENSENOTAVAILABLE) => OpcUaError.BadLicenseNotAvailable,
+        toStatusCode(c.UA_STATUSCODE_BADNOCOMMUNICATION) => OpcUaError.BadNoCommunication,
+        toStatusCode(c.UA_STATUSCODE_BADWAITINGFORINITIALDATA) => OpcUaError.BadWaitingForInitialData,
+        toStatusCode(c.UA_STATUSCODE_BADNODEIDINVALID) => OpcUaError.BadNodeIdInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADNODEIDUNKNOWN) => OpcUaError.BadNodeIdUnknown,
+        toStatusCode(c.UA_STATUSCODE_BADATTRIBUTEIDINVALID) => OpcUaError.BadAttributeIdInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADINDEXRANGEINVALID) => OpcUaError.BadIndexRangeInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADINDEXRANGENODATA) => OpcUaError.BadIndexRangeNoData,
+        toStatusCode(c.UA_STATUSCODE_BADDATAENCODINGINVALID) => OpcUaError.BadDataEncodingInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADDATAENCODINGUNSUPPORTED) => OpcUaError.BadDataEncodingUnsupported,
+        toStatusCode(c.UA_STATUSCODE_BADNOTREADABLE) => OpcUaError.BadNotReadable,
+        toStatusCode(c.UA_STATUSCODE_BADNOTWRITABLE) => OpcUaError.BadNotWritable,
+        toStatusCode(c.UA_STATUSCODE_BADOUTOFRANGE) => OpcUaError.BadOutOfRange,
+        toStatusCode(c.UA_STATUSCODE_BADNOTSUPPORTED) => OpcUaError.BadNotSupported,
+        toStatusCode(c.UA_STATUSCODE_BADNOTFOUND) => OpcUaError.BadNotFound,
+        toStatusCode(c.UA_STATUSCODE_BADOBJECTDELETED) => OpcUaError.BadObjectDeleted,
+        toStatusCode(c.UA_STATUSCODE_BADNOTIMPLEMENTED) => OpcUaError.BadNotImplemented,
+        toStatusCode(c.UA_STATUSCODE_BADMONITORINGMODEINVALID) => OpcUaError.BadMonitoringModeInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADMONITOREDITEMIDINVALID) => OpcUaError.BadMonitoredItemIdInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADMONITOREDITEMFILTERINVALID) => OpcUaError.BadMonitoredItemFilterInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADMONITOREDITEMFILTERUNSUPPORTED) => OpcUaError.BadMonitoredItemFilterUnsupported,
+        toStatusCode(c.UA_STATUSCODE_BADFILTERNOTALLOWED) => OpcUaError.BadFilterNotAllowed,
+        toStatusCode(c.UA_STATUSCODE_BADSTRUCTUREMISSING) => OpcUaError.BadStructureMissing,
+        toStatusCode(c.UA_STATUSCODE_BADEVENTFILTERINVALID) => OpcUaError.BadEventFilterInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADCONTENTFILTERINVALID) => OpcUaError.BadContentFilterInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADFILTEROPERATORINVALID) => OpcUaError.BadFilterOperatorInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADFILTEROPERATORUNSUPPORTED) => OpcUaError.BadFilterOperatorUnsupported,
+        toStatusCode(c.UA_STATUSCODE_BADFILTEROPERANDCOUNTMISMATCH) => OpcUaError.BadFilterOperandCountMismatch,
+        toStatusCode(c.UA_STATUSCODE_BADFILTEROPERANDINVALID) => OpcUaError.BadFilterOperandInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADFILTERELEMENTINVALID) => OpcUaError.BadFilterElementInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADFILTERLITERALINVALID) => OpcUaError.BadFilterLiteralInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADCONTINUATIONPOINTINVALID) => OpcUaError.BadContinuationPointInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADNOCONTINUATIONPOINTS) => OpcUaError.BadNoContinuationPoints,
+        toStatusCode(c.UA_STATUSCODE_BADREFERENCETYPEIDINVALID) => OpcUaError.BadReferenceTypeIdInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADBROWSEDIRECTIONINVALID) => OpcUaError.BadBrowseDirectionInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADNODENOTINVIEW) => OpcUaError.BadNodeNotInView,
+        toStatusCode(c.UA_STATUSCODE_BADNUMERICOVERFLOW) => OpcUaError.BadNumericOverflow,
+        toStatusCode(c.UA_STATUSCODE_BADSERVERURIINVALID) => OpcUaError.BadServerUriInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADSERVERNAMEMISSING) => OpcUaError.BadServerNameMissing,
+        toStatusCode(c.UA_STATUSCODE_BADDISCOVERYURLMISSING) => OpcUaError.BadDiscoveryUrlMissing,
+        toStatusCode(c.UA_STATUSCODE_BADSEMPAHOREFILEMISSING) => OpcUaError.BadSemaphoreFileMissing,
+        toStatusCode(c.UA_STATUSCODE_BADREQUESTTYPEINVALID) => OpcUaError.BadRequestTypeInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADSECURITYMODEREJECTED) => OpcUaError.BadSecurityModeRejected,
+        toStatusCode(c.UA_STATUSCODE_BADSECURITYPOLICYREJECTED) => OpcUaError.BadSecurityPolicyRejected,
+        toStatusCode(c.UA_STATUSCODE_BADTOOMANYSESSIONS) => OpcUaError.BadTooManySessions,
+        toStatusCode(c.UA_STATUSCODE_BADUSERSIGNATUREINVALID) => OpcUaError.BadUserSignatureInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADAPPLICATIONSIGNATUREINVALID) => OpcUaError.BadApplicationSignatureInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADNOVALIDCERTIFICATES) => OpcUaError.BadNoValidCertificates,
+        toStatusCode(c.UA_STATUSCODE_BADIDENTITYCHANGENOTSUPPORTED) => OpcUaError.BadIdentityChangeNotSupported,
+        toStatusCode(c.UA_STATUSCODE_BADREQUESTCANCELLEDBYREQUEST) => OpcUaError.BadRequestCancelledByRequest,
+        toStatusCode(c.UA_STATUSCODE_BADPARENTNODEIDINVALID) => OpcUaError.BadParentNodeIdInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADREFERENCENOTALLOWED) => OpcUaError.BadReferenceNotAllowed,
+        toStatusCode(c.UA_STATUSCODE_BADNODEIDREJECTED) => OpcUaError.BadNodeIdRejected,
+        toStatusCode(c.UA_STATUSCODE_BADNODEIDEXISTS) => OpcUaError.BadNodeIdExists,
+        toStatusCode(c.UA_STATUSCODE_BADNODECLASSINVALID) => OpcUaError.BadNodeClassInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADBROWSENAMEINVALID) => OpcUaError.BadBrowseNameInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADBROWSENAMEDUPLICATED) => OpcUaError.BadBrowseNameDuplicated,
+        toStatusCode(c.UA_STATUSCODE_BADNODEATTRIBUTESINVALID) => OpcUaError.BadNodeAttributesInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADTYPEDEFINITIONINVALID) => OpcUaError.BadTypeDefinitionInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADSOURCENODEIDINVALID) => OpcUaError.BadSourceNodeIdInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADTARGETNODEIDINVALID) => OpcUaError.BadTargetNodeIdInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADDUPLICATEREFERENCENOTALLOWED) => OpcUaError.BadDuplicateReferenceNotAllowed,
+        toStatusCode(c.UA_STATUSCODE_BADINVALIDSELFREFERENCE) => OpcUaError.BadInvalidSelfReference,
+        toStatusCode(c.UA_STATUSCODE_BADREFERENCELOCALONLY) => OpcUaError.BadReferenceLocalOnly,
+        toStatusCode(c.UA_STATUSCODE_BADNODELETERIGHTS) => OpcUaError.BadNoDeleteRights,
+        toStatusCode(c.UA_STATUSCODE_BADSERVERINDEXINVALID) => OpcUaError.BadServerIndexInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADVIEWIDUNKNOWN) => OpcUaError.BadViewIdUnknown,
+        toStatusCode(c.UA_STATUSCODE_BADVIEWTIMESTAMPINVALID) => OpcUaError.BadViewTimestampInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADVIEWPARAMETERMISMATCH) => OpcUaError.BadViewParameterMismatch,
+        toStatusCode(c.UA_STATUSCODE_BADVIEWVERSIONINVALID) => OpcUaError.BadViewVersionInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADNOTTYPEDEFINITION) => OpcUaError.BadNotTypeDefinition,
+        toStatusCode(c.UA_STATUSCODE_BADTOOMANYMATCHES) => OpcUaError.BadTooManyMatches,
+        toStatusCode(c.UA_STATUSCODE_BADQUERYTOOCOMPLEX) => OpcUaError.BadQueryTooComplex,
+        toStatusCode(c.UA_STATUSCODE_BADNOMATCH) => OpcUaError.BadNoMatch,
+        toStatusCode(c.UA_STATUSCODE_BADMAXAGEINVALID) => OpcUaError.BadMaxAgeInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADSECURITYMODEINSUFFICIENT) => OpcUaError.BadSecurityModeInsufficient,
+        toStatusCode(c.UA_STATUSCODE_BADHISTORYOPERATIONINVALID) => OpcUaError.BadHistoryOperationInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADHISTORYOPERATIONUNSUPPORTED) => OpcUaError.BadHistoryOperationUnsupported,
+        toStatusCode(c.UA_STATUSCODE_BADINVALIDTIMESTAMPARGUMENT) => OpcUaError.BadInvalidTimestampArgument,
+        toStatusCode(c.UA_STATUSCODE_BADWRITENOTSUPPORTED) => OpcUaError.BadWriteNotSupported,
+        toStatusCode(c.UA_STATUSCODE_BADTYPEMISMATCH) => OpcUaError.BadTypeMismatch,
+        toStatusCode(c.UA_STATUSCODE_BADMETHODINVALID) => OpcUaError.BadMethodInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADARGUMENTSMISSING) => OpcUaError.BadArgumentsMissing,
+        toStatusCode(c.UA_STATUSCODE_BADNOTEXECUTABLE) => OpcUaError.BadNotExecutable,
+        toStatusCode(c.UA_STATUSCODE_BADTOOMANYSUBSCRIPTIONS) => OpcUaError.BadTooManySubscriptions,
+        toStatusCode(c.UA_STATUSCODE_BADTOOMANYPUBLISHREQUESTS) => OpcUaError.BadTooManyPublishRequests,
+        toStatusCode(c.UA_STATUSCODE_BADNOSUBSCRIPTION) => OpcUaError.BadNoSubscription,
+        toStatusCode(c.UA_STATUSCODE_BADSEQUENCENUMBERUNKNOWN) => OpcUaError.BadSequenceNumberUnknown,
+        toStatusCode(c.UA_STATUSCODE_BADMESSAGENOTAVAILABLE) => OpcUaError.BadMessageNotAvailable,
+        toStatusCode(c.UA_STATUSCODE_BADINSUFFICIENTCLIENTPROFILE) => OpcUaError.BadInsufficientClientProfile,
+        toStatusCode(c.UA_STATUSCODE_BADSTATENOTACTIVE) => OpcUaError.BadStateNotActive,
+        toStatusCode(c.UA_STATUSCODE_BADALREADYEXISTS) => OpcUaError.BadAlreadyExists,
+        toStatusCode(c.UA_STATUSCODE_BADTCPSERVERTOOBUSY) => OpcUaError.BadTcpServerTooBusy,
+        toStatusCode(c.UA_STATUSCODE_BADTCPMESSAGETYPEINVALID) => OpcUaError.BadTcpMessageTypeInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADTCPSECURECHANNELUNKNOWN) => OpcUaError.BadTcpSecureChannelUnknown,
+        toStatusCode(c.UA_STATUSCODE_BADTCPMESSAGETOOLARGE) => OpcUaError.BadTcpMessageTooLarge,
+        toStatusCode(c.UA_STATUSCODE_BADTCPNOTENOUGHRESOURCES) => OpcUaError.BadTcpNotEnoughResources,
+        toStatusCode(c.UA_STATUSCODE_BADTCPINTERNALERROR) => OpcUaError.BadTcpInternalError,
+        toStatusCode(c.UA_STATUSCODE_BADTCPENDPOINTURLINVALID) => OpcUaError.BadTcpEndpointUrlInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADREQUESTINTERRUPTED) => OpcUaError.BadRequestInterrupted,
+        toStatusCode(c.UA_STATUSCODE_BADREQUESTTIMEOUT) => OpcUaError.BadRequestTimeout,
+        toStatusCode(c.UA_STATUSCODE_BADSECURECHANNELCLOSED) => OpcUaError.BadSecureChannelClosed,
+        toStatusCode(c.UA_STATUSCODE_BADSECURECHANNELTOKENUNKNOWN) => OpcUaError.BadSecureChannelTokenUnknown,
+        toStatusCode(c.UA_STATUSCODE_BADSEQUENCENUMBERINVALID) => OpcUaError.BadSequenceNumberInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADPROTOCOLVERSIONUNSUPPORTED) => OpcUaError.BadProtocolVersionUnsupported,
+        toStatusCode(c.UA_STATUSCODE_BADCONFIGURATIONERROR) => OpcUaError.BadConfigurationError,
+        toStatusCode(c.UA_STATUSCODE_BADNOTCONNECTED) => OpcUaError.BadNotConnected,
+        toStatusCode(c.UA_STATUSCODE_BADDEVICEFAILURE) => OpcUaError.BadDeviceFailure,
+        toStatusCode(c.UA_STATUSCODE_BADSENSORFAILURE) => OpcUaError.BadSensorFailure,
+        toStatusCode(c.UA_STATUSCODE_BADOUTOFSERVICE) => OpcUaError.BadOutOfService,
+        toStatusCode(c.UA_STATUSCODE_BADDEADBANDFILTERINVALID) => OpcUaError.BadDeadbandFilterInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADREFRESHINPROGRESS) => OpcUaError.BadRefreshInProgress,
+        toStatusCode(c.UA_STATUSCODE_BADCONDITIONALREADYDISABLED) => OpcUaError.BadConditionAlreadyDisabled,
+        toStatusCode(c.UA_STATUSCODE_BADCONDITIONALREADYENABLED) => OpcUaError.BadConditionAlreadyEnabled,
+        toStatusCode(c.UA_STATUSCODE_BADCONDITIONDISABLED) => OpcUaError.BadConditionDisabled,
+        toStatusCode(c.UA_STATUSCODE_BADEVENTIDUNKNOWN) => OpcUaError.BadEventIdUnknown,
+        toStatusCode(c.UA_STATUSCODE_BADEVENTNOTACKNOWLEDGEABLE) => OpcUaError.BadEventNotAcknowledgeable,
+        toStatusCode(c.UA_STATUSCODE_BADDIALOGNOTACTIVE) => OpcUaError.BadDialogNotActive,
+        toStatusCode(c.UA_STATUSCODE_BADDIALOGRESPONSEINVALID) => OpcUaError.BadDialogResponseInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADCONDITIONBRANCHALREADYACKED) => OpcUaError.BadConditionBranchAlreadyAcked,
+        toStatusCode(c.UA_STATUSCODE_BADCONDITIONBRANCHALREADYCONFIRMED) => OpcUaError.BadConditionBranchAlreadyConfirmed,
+        toStatusCode(c.UA_STATUSCODE_BADCONDITIONALREADYSHELVED) => OpcUaError.BadConditionAlreadyShelved,
+        toStatusCode(c.UA_STATUSCODE_BADCONDITIONNOTSHELVED) => OpcUaError.BadConditionNotShelved,
+        toStatusCode(c.UA_STATUSCODE_BADSHELVINGTIMEOUTOFRANGE) => OpcUaError.BadShelvingTimeOutOfRange,
+        toStatusCode(c.UA_STATUSCODE_BADNODATA) => OpcUaError.BadNoData,
+        toStatusCode(c.UA_STATUSCODE_BADBOUNDNOTFOUND) => OpcUaError.BadBoundNotFound,
+        toStatusCode(c.UA_STATUSCODE_BADBOUNDNOTSUPPORTED) => OpcUaError.BadBoundNotSupported,
+        toStatusCode(c.UA_STATUSCODE_BADDATALOST) => OpcUaError.BadDataLost,
+        toStatusCode(c.UA_STATUSCODE_BADDATAUNAVAILABLE) => OpcUaError.BadDataUnavailable,
+        toStatusCode(c.UA_STATUSCODE_BADENTRYEXISTS) => OpcUaError.BadEntryExists,
+        toStatusCode(c.UA_STATUSCODE_BADNOENTRYEXISTS) => OpcUaError.BadNoEntryExists,
+        toStatusCode(c.UA_STATUSCODE_BADTIMESTAMPNOTSUPPORTED) => OpcUaError.BadTimestampNotSupported,
+        toStatusCode(c.UA_STATUSCODE_BADAGGREGATELISTMISMATCH) => OpcUaError.BadAggregateListMismatch,
+        toStatusCode(c.UA_STATUSCODE_BADAGGREGATENOTSUPPORTED) => OpcUaError.BadAggregateNotSupported,
+        toStatusCode(c.UA_STATUSCODE_BADAGGREGATEINVALIDINPUTS) => OpcUaError.BadAggregateInvalidInputs,
+        toStatusCode(c.UA_STATUSCODE_BADAGGREGATECONFIGURATIONREJECTED) => OpcUaError.BadAggregateConfigurationRejected,
+        toStatusCode(c.UA_STATUSCODE_BADREQUESTNOTALLOWED) => OpcUaError.BadRequestNotAllowed,
+        toStatusCode(c.UA_STATUSCODE_BADREQUESTNOTCOMPLETE) => OpcUaError.BadRequestNotComplete,
+        toStatusCode(c.UA_STATUSCODE_BADTRANSACTIONPENDING) => OpcUaError.BadTransactionPending,
+        toStatusCode(c.UA_STATUSCODE_BADTICKETREQUIRED) => OpcUaError.BadTicketRequired,
+        toStatusCode(c.UA_STATUSCODE_BADTICKETINVALID) => OpcUaError.BadTicketInvalid,
+        toStatusCode(c.UA_STATUSCODE_BADLOCKED) => OpcUaError.BadLocked,
+        toStatusCode(c.UA_STATUSCODE_BADDOMINANTVALUECHANGED) => OpcUaError.BadDominantValueChanged,
+        toStatusCode(c.UA_STATUSCODE_BADDEPENDENTVALUECHANGED) => OpcUaError.BadDependentValueChanged,
+        toStatusCode(c.UA_STATUSCODE_BADEDITED_OUTOFRANGE) => OpcUaError.BadEditedOutOfRange,
+        toStatusCode(c.UA_STATUSCODE_BADINITIALVALUE_OUTOFRANGE) => OpcUaError.BadInitialValueOutOfRange,
+        toStatusCode(c.UA_STATUSCODE_BADOUTOFRANGE_DOMINANTVALUECHANGED) => OpcUaError.BadOutOfRangeDominantValueChanged,
+        toStatusCode(c.UA_STATUSCODE_BADEDITED_OUTOFRANGE_DOMINANTVALUECHANGED) => OpcUaError.BadEditedOutOfRangeDominantValueChanged,
+        toStatusCode(c.UA_STATUSCODE_BADOUTOFRANGE_DOMINANTVALUECHANGED_DEPENDENTVALUECHANGED) => OpcUaError.BadOutOfRangeDominantValueChangedDependentValueChanged,
+        toStatusCode(c.UA_STATUSCODE_BADEDITED_OUTOFRANGE_DOMINANTVALUECHANGED_DEPENDENTVALUECHANGED) => OpcUaError.BadEditedOutOfRangeDominantValueChangedDependentValueChanged,
+        toStatusCode(c.UA_STATUSCODE_BADINVALIDARGUMENT) => OpcUaError.BadInvalidArgument,
+        toStatusCode(c.UA_STATUSCODE_BADCONNECTIONREJECTED) => OpcUaError.BadConnectionRejected,
+        toStatusCode(c.UA_STATUSCODE_BADDISCONNECT) => OpcUaError.BadDisconnect,
+        toStatusCode(c.UA_STATUSCODE_BADCONNECTIONCLOSED) => OpcUaError.BadConnectionClosed,
+        toStatusCode(c.UA_STATUSCODE_BADINVALIDSTATE) => OpcUaError.BadInvalidState,
+        toStatusCode(c.UA_STATUSCODE_BADENDOFSTREAM) => OpcUaError.BadEndOfStream,
+        toStatusCode(c.UA_STATUSCODE_BADNODATAAVAILABLE) => OpcUaError.BadNoDataAvailable,
+        toStatusCode(c.UA_STATUSCODE_BADWAITINGFORRESPONSE) => OpcUaError.BadWaitingForResponse,
+        toStatusCode(c.UA_STATUSCODE_BADOPERATIONABANDONED) => OpcUaError.BadOperationAbandoned,
+        toStatusCode(c.UA_STATUSCODE_BADEXPECTEDSTREAMTOBLOCK) => OpcUaError.BadExpectedStreamToBlock,
+        toStatusCode(c.UA_STATUSCODE_BADWOULDBLOCK) => OpcUaError.BadWouldBlock,
+        toStatusCode(c.UA_STATUSCODE_BADSYNTAXERROR) => OpcUaError.BadSyntaxError,
+        toStatusCode(c.UA_STATUSCODE_BADMAXCONNECTIONSREACHED) => OpcUaError.BadMaxConnectionsReached,
+        toStatusCode(c.UA_STATUSCODE_BADDATASETIDINVALID) => OpcUaError.BadDataSetIdInvalid,
         else => OpcUaError.BadUnexpectedError,
     };
 }
 
-/// Check if a status code represent/// Check if a status code represents success (top 2 bits are 00)
+/// Check if a status code represents success (top 2 bits are 00)
 pub fn isGood(status: StatusCode) bool {
     return (status >> 30) == 0x00;
 }
@@ -559,10 +566,113 @@ pub fn isEqualTop(s1: StatusCode, s2: StatusCode) bool {
     return (s1 & 0xFFFF0000) == (s2 & 0xFFFF0000);
 }
 
-// Example usage:
-pub fn exampleFunction() !void {
-    const status: StatusCode = 0x80340000; // BadNodeIdUnknown
+// Unit Tests
+const testing = std.testing;
 
-    try checkStatus(status);
-    // This will return error.BadNodeIdUnknown
+test "toStatusCode converts c_int to StatusCode correctly" {
+    const good = toStatusCode(c.UA_STATUSCODE_GOOD);
+    try testing.expectEqual(@as(StatusCode, 0x00000000), good);
+
+    const uncertain = toStatusCode(c.UA_STATUSCODE_UNCERTAIN);
+    try testing.expectEqual(@as(StatusCode, 0x40000000), uncertain);
+
+    const bad = toStatusCode(c.UA_STATUSCODE_BAD);
+    try testing.expectEqual(@as(StatusCode, 0x80000000), bad);
+}
+
+test "checkStatus returns void for GOOD status" {
+    try checkStatus(GOOD);
+    try checkStatus(0x00000000);
+    try checkStatus(0x00123456); // Any good variant
+}
+
+test "checkStatus returns correct errors for uncertain codes" {
+    const result = checkStatus(UNCERTAIN);
+    try testing.expectError(OpcUaError.Uncertain, result);
+
+    const ref_not_deleted = checkStatus(toStatusCode(c.UA_STATUSCODE_UNCERTAINREFERENCENOTDELETED));
+    try testing.expectError(OpcUaError.UncertainReferenceNotDeleted, ref_not_deleted);
+
+    const last_usable = checkStatus(toStatusCode(c.UA_STATUSCODE_UNCERTAINLASTUSABLEVALUE));
+    try testing.expectError(OpcUaError.UncertainLastUsableValue, last_usable);
+}
+
+test "checkStatus returns correct errors for bad codes" {
+    const internal_error = checkStatus(toStatusCode(c.UA_STATUSCODE_BADINTERNALERROR));
+    try testing.expectError(OpcUaError.BadInternalError, internal_error);
+
+    const timeout = checkStatus(toStatusCode(c.UA_STATUSCODE_BADTIMEOUT));
+    try testing.expectError(OpcUaError.BadTimeout, timeout);
+
+    const node_unknown = checkStatus(toStatusCode(c.UA_STATUSCODE_BADNODEIDUNKNOWN));
+    try testing.expectError(OpcUaError.BadNodeIdUnknown, node_unknown);
+
+    const cert_invalid = checkStatus(toStatusCode(c.UA_STATUSCODE_BADCERTIFICATEINVALID));
+    try testing.expectError(OpcUaError.BadCertificateInvalid, cert_invalid);
+}
+
+test "checkStatus returns BadUnexpectedError for unknown status codes" {
+    const unknown = checkStatus(0x8FFF0000);
+    try testing.expectError(OpcUaError.BadUnexpectedError, unknown);
+}
+
+test "isGood identifies good status codes" {
+    try testing.expect(isGood(GOOD));
+    try testing.expect(isGood(0x00000000));
+    try testing.expect(isGood(0x00123456));
+    try testing.expect(!isGood(UNCERTAIN));
+    try testing.expect(!isGood(BAD));
+    try testing.expect(!isGood(0x80340000));
+}
+
+test "isUncertain identifies uncertain status codes" {
+    try testing.expect(isUncertain(UNCERTAIN));
+    try testing.expect(isUncertain(0x40BC0000));
+    try testing.expect(isUncertain(0x40900000));
+    try testing.expect(!isUncertain(GOOD));
+    try testing.expect(!isUncertain(BAD));
+}
+
+test "isBad identifies bad status codes" {
+    try testing.expect(isBad(BAD));
+    try testing.expect(isBad(0x80000000));
+    try testing.expect(isBad(0x80340000));
+    try testing.expect(isBad(0xC0000000)); // Also bad (top 2 bits = 11)
+    try testing.expect(!isBad(GOOD));
+    try testing.expect(!isBad(UNCERTAIN));
+}
+
+test "isEqualTop compares top 16 bits correctly" {
+    try testing.expect(isEqualTop(0x80340000, 0x80340000));
+    try testing.expect(isEqualTop(0x80340000, 0x80341234)); // Different bottom 16 bits
+    try testing.expect(!isEqualTop(0x80340000, 0x80350000));
+    try testing.expect(isEqualTop(GOOD, 0x00001234));
+}
+
+test "comprehensive status code mapping" {
+    // Test a sample of each category to ensure mapping works
+
+    // Certificate errors
+    const cert_time = checkStatus(toStatusCode(c.UA_STATUSCODE_BADCERTIFICATETIMEINVALID));
+    try testing.expectError(OpcUaError.BadCertificateTimeInvalid, cert_time);
+
+    // Session errors
+    const session_closed = checkStatus(toStatusCode(c.UA_STATUSCODE_BADSESSIONCLOSED));
+    try testing.expectError(OpcUaError.BadSessionClosed, session_closed);
+
+    // Node errors
+    const not_writable = checkStatus(toStatusCode(c.UA_STATUSCODE_BADNOTWRITABLE));
+    try testing.expectError(OpcUaError.BadNotWritable, not_writable);
+
+    // TCP errors
+    const tcp_timeout = checkStatus(toStatusCode(c.UA_STATUSCODE_BADREQUESTTIMEOUT));
+    try testing.expectError(OpcUaError.BadRequestTimeout, tcp_timeout);
+
+    // Device errors
+    const device_failure = checkStatus(toStatusCode(c.UA_STATUSCODE_BADDEVICEFAILURE));
+    try testing.expectError(OpcUaError.BadDeviceFailure, device_failure);
+
+    // Connection errors
+    const conn_rejected = checkStatus(toStatusCode(c.UA_STATUSCODE_BADCONNECTIONREJECTED));
+    try testing.expectError(OpcUaError.BadConnectionRejected, conn_rejected);
 }
