@@ -4,6 +4,14 @@ const builtin = @import("builtin");
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
+    // Add build option for mbedtls linking strategy
+    const mbedtls_link = b.option(
+        enum { static, system },
+        "mbedtls",
+        "Link mbedtls statically (vendored) or use system libraries (default: static)",
+    ) orelse .static;
+
     const module = b.addModule("ua", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
@@ -31,20 +39,8 @@ pub fn build(b: *std.Build) void {
     });
     lib.addIncludePath(b.path("vendor"));
 
-    // Add mbedtls for macOS
-    if (target.result.os.tag == .macos) {
-        const brew_prefix = if (target.result.cpu.arch == .aarch64)
-            "/opt/homebrew"
-        else
-            "/usr/local";
-
-        lib.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include", .{brew_prefix}) });
-        lib.addLibraryPath(.{ .cwd_relative = b.fmt("{s}/lib", .{brew_prefix}) });
-    }
-
-    lib.linkSystemLibrary("mbedtls");
-    lib.linkSystemLibrary("mbedx509");
-    lib.linkSystemLibrary("mbedcrypto");
+    // Link mbedtls based on build option
+    linkMbedtls(b, lib, target, optimize, mbedtls_link);
 
     module.linkLibrary(lib);
     b.installArtifact(lib);
@@ -66,20 +62,8 @@ pub fn build(b: *std.Build) void {
     lib_unit_tests.addIncludePath(b.path("vendor"));
     lib_unit_tests.linkLibC();
 
-    // Add mbedtls for macOS (tests)
-    if (target.result.os.tag == .macos) {
-        const brew_prefix = if (target.result.cpu.arch == .aarch64)
-            "/opt/homebrew"
-        else
-            "/usr/local";
-
-        lib_unit_tests.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include", .{brew_prefix}) });
-        lib_unit_tests.addLibraryPath(.{ .cwd_relative = b.fmt("{s}/lib", .{brew_prefix}) });
-    }
-
-    lib_unit_tests.linkSystemLibrary("mbedtls");
-    lib_unit_tests.linkSystemLibrary("mbedx509");
-    lib_unit_tests.linkSystemLibrary("mbedcrypto");
+    // Link mbedtls for tests
+    linkMbedtls(b, lib_unit_tests, target, optimize, mbedtls_link);
 
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
     const test_step = b.step("test", "Run unit tests");
@@ -99,4 +83,43 @@ pub fn build(b: *std.Build) void {
         .install_subdir = "docs",
     });
     docs_step.dependOn(&install_docs.step);
+}
+
+fn linkMbedtls(
+    b: *std.Build,
+    step: *std.Build.Step.Compile,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    link_mode: enum { static, system },
+) void {
+    switch (link_mode) {
+        .static => {
+            // Use vendored mbedtls
+            const mbedtls = b.dependency("libmbedtls", .{
+                .target = target,
+                .optimize = optimize,
+            });
+            step.addIncludePath(mbedtls.path("vendor/include"));
+            step.linkLibrary(mbedtls.artifact("mbedtls"));
+            step.linkLibrary(mbedtls.artifact("mbedcrypto"));
+            step.linkLibrary(mbedtls.artifact("mbedx509"));
+        },
+        .system => {
+            // Use system mbedtls
+            if (target.result.os.tag == .macos) {
+                const brew_prefix = if (target.result.cpu.arch == .aarch64)
+                    "/opt/homebrew"
+                else
+                    "/usr/local";
+                step.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include", .{brew_prefix}) });
+                step.addLibraryPath(.{ .cwd_relative = b.fmt("{s}/lib", .{brew_prefix}) });
+            }
+            // On Linux, pkg-config or standard paths should find it
+            // On Windows with vcpkg, you'd set VCPKG_ROOT and add those paths here
+
+            step.linkSystemLibrary("mbedtls");
+            step.linkSystemLibrary("mbedx509");
+            step.linkSystemLibrary("mbedcrypto");
+        },
+    }
 }

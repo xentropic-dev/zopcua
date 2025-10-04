@@ -38,16 +38,29 @@ const ua = b.dependency("zopcua", .{
     .target = target,
     .optimize = optimize,
 });
-
 exe.root_module.addImport("ua", ua.module("ua"));
-
-// open62541 requires mbedTLS for cryptographic operations and secure communication
-// Currently, these must be installed as system libraries
-// Future versions will support statically linking mbedTLS dependenciesexe.linkSystemLibrary("mbedtls");
-exe.linkSystemLibrary("mbedtls");
-exe.linkSystemLibrary("mbedx509");
-exe.linkSystemLibrary("mbedcrypto");
 ```
+
+### mbedTLS Dependency
+
+zopcua requires mbedTLS for cryptographic operations and secure communication. **By default, mbedTLS is statically linked from vendored sources** - no system installation required.
+
+If you prefer to use system-installed mbedTLS libraries instead:
+
+```zig
+const ua = b.dependency("zopcua", .{
+    .target = target,
+    .optimize = optimize,
+    .mbedtls = .system,  // Use system mbedTLS instead of vendored
+});
+exe.root_module.addImport("ua", ua.module("ua"));
+```
+
+When using system mbedTLS, ensure the libraries are installed:
+
+- **macOS**: `brew install mbedtls`
+- **Ubuntu/Debian**: `sudo apt install libmbedtls-dev`
+- **Other Linux**: Use your distribution's package manager
 
 ## Usage
 
@@ -66,8 +79,14 @@ pub fn main() !void {
 ## Building
 
 ```bash
-# Build the library
+# Build the library (uses vendored mbedTLS by default)
 zig build
+
+# Build with system mbedTLS
+zig build -Dmbedtls=system
+
+# Run tests
+zig build test
 
 # Generate documentation
 zig build docs
