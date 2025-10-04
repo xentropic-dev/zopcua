@@ -1,13 +1,14 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
+const MbedtlsLinkMode = enum { static, system };
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    // Add build option for mbedtls linking strategy
     const mbedtls_link = b.option(
-        enum { static, system },
+        MbedtlsLinkMode,
         "mbedtls",
         "Link mbedtls statically (vendored) or use system libraries (default: static)",
     ) orelse .static;
@@ -39,13 +40,11 @@ pub fn build(b: *std.Build) void {
     });
     lib.addIncludePath(b.path("vendor"));
 
-    // Link mbedtls based on build option
     linkMbedtls(b, lib, target, optimize, mbedtls_link);
 
     module.linkLibrary(lib);
     b.installArtifact(lib);
 
-    // Unit tests
     const lib_unit_tests = b.addTest(.{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
@@ -62,14 +61,12 @@ pub fn build(b: *std.Build) void {
     lib_unit_tests.addIncludePath(b.path("vendor"));
     lib_unit_tests.linkLibC();
 
-    // Link mbedtls for tests
     linkMbedtls(b, lib_unit_tests, target, optimize, mbedtls_link);
 
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_lib_unit_tests.step);
 
-    // Documentation generation
     const docs_lib = b.addStaticLibrary(.{
         .name = "ua",
         .root_source_file = b.path("src/root.zig"),
@@ -90,11 +87,10 @@ fn linkMbedtls(
     step: *std.Build.Step.Compile,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
-    link_mode: enum { static, system },
+    link_mode: MbedtlsLinkMode,
 ) void {
     switch (link_mode) {
         .static => {
-            // Use vendored mbedtls
             const mbedtls = b.dependency("libmbedtls", .{
                 .target = target,
                 .optimize = optimize,
@@ -105,7 +101,6 @@ fn linkMbedtls(
             step.linkLibrary(mbedtls.artifact("mbedx509"));
         },
         .system => {
-            // Use system mbedtls
             if (target.result.os.tag == .macos) {
                 const brew_prefix = if (target.result.cpu.arch == .aarch64)
                     "/opt/homebrew"
@@ -114,8 +109,6 @@ fn linkMbedtls(
                 step.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include", .{brew_prefix}) });
                 step.addLibraryPath(.{ .cwd_relative = b.fmt("{s}/lib", .{brew_prefix}) });
             }
-            // On Linux, pkg-config or standard paths should find it
-            // On Windows with vcpkg, you'd set VCPKG_ROOT and add those paths here
 
             step.linkSystemLibrary("mbedtls");
             step.linkSystemLibrary("mbedx509");
