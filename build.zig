@@ -7,7 +7,6 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    // Add build option for mbedtls linking strategy
     const mbedtls_link = b.option(
         MbedtlsLinkMode,
         "mbedtls",
@@ -26,25 +25,24 @@ pub fn build(b: *std.Build) void {
         .link_libc = true,
     }) });
 
-    // Platform-specific C flags
-    const c_flags = getCFlags(target.result.os.tag);
-
     lib.addCSourceFiles(.{
         .files = &.{
             "vendor/open62541.c",
             "vendor/helpers.c",
         },
-        .flags = c_flags,
+        .flags = &.{
+            "-D_DARWIN_C_SOURCE",
+            "-D_POSIX_C_SOURCE=200112L",
+            "-std=c99",
+        },
     });
     lib.addIncludePath(b.path("vendor"));
 
-    // Link mbedtls based on build option
     linkMbedtls(b, lib, target, optimize, mbedtls_link);
 
     module.linkLibrary(lib);
     b.installArtifact(lib);
 
-    // Unit tests
     const lib_unit_tests = b.addTest(.{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
@@ -56,19 +54,21 @@ pub fn build(b: *std.Build) void {
             "vendor/open62541.c",
             "vendor/helpers.c",
         },
-        .flags = c_flags,
+        .flags = &.{
+            "-D_DARWIN_C_SOURCE",
+            "-D_POSIX_C_SOURCE=200112L",
+            "-std=c99",
+        },
     });
     lib_unit_tests.addIncludePath(b.path("vendor"));
     lib_unit_tests.linkLibC();
 
-    // Link mbedtls for tests
     linkMbedtls(b, lib_unit_tests, target, optimize, mbedtls_link);
 
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_lib_unit_tests.step);
 
-    // Documentation generation
     const docs_lib = b.addStaticLibrary(.{
         .name = "ua",
         .root_source_file = b.path("src/root.zig"),
@@ -84,25 +84,6 @@ pub fn build(b: *std.Build) void {
     docs_step.dependOn(&install_docs.step);
 }
 
-fn getCFlags(os_tag: std.Target.Os.Tag) []const []const u8 {
-    return switch (os_tag) {
-        .windows => &[_][]const u8{
-            "-UUA_ARCHITECTURE_POSIX", // Undefine POSIX
-            "-DUA_ARCHITECTURE_WIN32", // Define Windows
-            "-D_WIN32_WINNT=0x0600", // Windows Vista+
-            "-std=c99",
-        },
-        .macos => &[_][]const u8{
-            "-D_DARWIN_C_SOURCE",
-            "-D_POSIX_C_SOURCE=200112L",
-            "-std=c99",
-        },
-        else => &[_][]const u8{
-            "-D_POSIX_C_SOURCE=200112L",
-            "-std=c99",
-        },
-    };
-}
 fn linkMbedtls(
     b: *std.Build,
     step: *std.Build.Step.Compile,
@@ -112,7 +93,6 @@ fn linkMbedtls(
 ) void {
     switch (link_mode) {
         .static => {
-            // Use vendored mbedtls
             const mbedtls = b.dependency("libmbedtls", .{
                 .target = target,
                 .optimize = optimize,
@@ -123,7 +103,6 @@ fn linkMbedtls(
             step.linkLibrary(mbedtls.artifact("mbedx509"));
         },
         .system => {
-            // Use system mbedtls
             if (target.result.os.tag == .macos) {
                 const brew_prefix = if (target.result.cpu.arch == .aarch64)
                     "/opt/homebrew"
