@@ -1,6 +1,6 @@
 /* THIS IS A SINGLE-FILE DISTRIBUTION CONCATENATED FROM THE OPEN62541 SOURCES
  * visit http://open62541.org/ for information about this software
- * Git-Revision: v1.4.13
+ * Git-Revision: v1.4.12
  */
 
 /*
@@ -30,10 +30,10 @@
  * ----------------- */
 #define UA_OPEN62541_VER_MAJOR 1
 #define UA_OPEN62541_VER_MINOR 4
-#define UA_OPEN62541_VER_PATCH 13
+#define UA_OPEN62541_VER_PATCH 12
 #define UA_OPEN62541_VER_LABEL "" /* Release candidate label, etc. */
-#define UA_OPEN62541_VER_COMMIT "v1.4.13"
-#define UA_OPEN62541_VERSION "v1.4.13"
+#define UA_OPEN62541_VER_COMMIT "v1.4.12"
+#define UA_OPEN62541_VERSION "v1.4.12"
 
 /**
  * Architecture
@@ -41,7 +41,7 @@
  * Define one of the following. */
 
 /* #undef UA_ARCHITECTURE_WIN32 */
-#define UA_ARCHITECTURE_POSIX
+// #define UA_ARCHITECTURE_POSIX
 
 /* Select default architecture if none is selected */
 #if !defined(UA_ARCHITECTURE_WIN32) && !defined(UA_ARCHITECTURE_POSIX)
@@ -23266,12 +23266,12 @@ typedef struct {
     UA_UInt16     sourcePicoseconds;
     UA_UInt16     serverPicoseconds;
     UA_StatusCode status;
-    UA_Boolean    hasValue             : 1;
-    UA_Boolean    hasStatus            : 1;
-    UA_Boolean    hasSourceTimestamp   : 1;
-    UA_Boolean    hasServerTimestamp   : 1;
-    UA_Boolean    hasSourcePicoseconds : 1;
-    UA_Boolean    hasServerPicoseconds : 1;
+    UA_Boolean    hasValue             ;
+    UA_Boolean    hasStatus            ;
+    UA_Boolean    hasSourceTimestamp   ;
+    UA_Boolean    hasServerTimestamp   ;
+    UA_Boolean    hasSourcePicoseconds ;
+    UA_Boolean    hasServerPicoseconds ;
 } UA_DataValue;
 
 /* Copy the DataValue, but use only a subset of the (multidimensional) array of
@@ -23292,13 +23292,13 @@ UA_DataValue_copyVariantRange(const UA_DataValue *src, UA_DataValue * UA_RESTRIC
  * A structure that contains detailed error and diagnostic information
  * associated with a StatusCode. */
 typedef struct UA_DiagnosticInfo {
-    UA_Boolean    hasSymbolicId          : 1;
-    UA_Boolean    hasNamespaceUri        : 1;
-    UA_Boolean    hasLocalizedText       : 1;
-    UA_Boolean    hasLocale              : 1;
-    UA_Boolean    hasAdditionalInfo      : 1;
-    UA_Boolean    hasInnerStatusCode     : 1;
-    UA_Boolean    hasInnerDiagnosticInfo : 1;
+    UA_Boolean    hasSymbolicId          ;
+    UA_Boolean    hasNamespaceUri        ;
+    UA_Boolean    hasLocalizedText       ;
+    UA_Boolean    hasLocale              ;
+    UA_Boolean    hasAdditionalInfo      ;
+    UA_Boolean    hasInnerStatusCode     ;
+    UA_Boolean    hasInnerDiagnosticInfo ;
     UA_Int32      symbolicId;
     UA_Int32      namespaceUri;
     UA_Int32      localizedText;
@@ -23398,13 +23398,13 @@ struct UA_DataType {
     UA_NodeId typeId;           /* The nodeid of the type */
     UA_NodeId binaryEncodingId; /* NodeId of datatype when encoded as binary */
     //UA_NodeId xmlEncodingId;  /* NodeId of datatype when encoded as XML */
-    UA_UInt32 memSize     : 16; /* Size of the struct in memory */
-    UA_UInt32 typeKind    : 6;  /* Dispatch index for the handling routines */
-    UA_UInt32 pointerFree : 1;  /* The type (and its members) contains no
+    UA_UInt32 memSize     ; /* Size of the struct in memory */
+    UA_UInt32 typeKind    ;  /* Dispatch index for the handling routines */
+    UA_UInt32 pointerFree ;  /* The type (and its members) contains no
                                  * pointers that need to be freed */
-    UA_UInt32 overlayable : 1;  /* The type has the identical memory layout
+    UA_UInt32 overlayable ;  /* The type has the identical memory layout
                                  * in memory and on the binary stream. */
-    UA_UInt32 membersSize : 8;  /* How many members does the type have? */
+    UA_UInt32 membersSize ;  /* How many members does the type have? */
     UA_DataTypeMember *members;
 };
 
@@ -42836,8 +42836,6 @@ _UA_BEGIN_DECLS
  *
  * Usually, implementations of the certificate verification plugin provide an
  * initialization method that takes a trust-list and a revocation-list as input.
- * This initialization method should call the ``clear`` method if valid, before
- * attempting to initialize it with new values.
  * The lifecycle of the plugin is attached to a server or client config. The
  * ``clear`` method is called automatically when the config is destroyed. */
 
@@ -43401,13 +43399,11 @@ struct UA_EventLoop {
 
     /* Timed Callbacks
      * ~~~~~~~~~~~~~~~
-     * Cyclic callbacks are executed regularly with an interval. A timed
-     * callback is executed only once. The timer subsystem always uses the
-     * monotonic clock. */
+     * Cyclic callbacks are executed regularly with an interval.
+     * A timed callback is executed only once. */
 
     /* Time of the next cyclic callback. Returns the max DateTime if no cyclic
-     * callback is registered. Returns the current monotonic time if a delayed
-     * callback is registered for immediate execution. */
+     * callback is registered. */
     UA_DateTime (*nextCyclicTime)(UA_EventLoop *el);
 
     /* The execution interval is in ms. Returns the callbackId if the pointer is
@@ -50715,20 +50711,14 @@ _UA_END_DECLS
 
 _UA_BEGIN_DECLS
 
-/* Default implementation that accepts all certificates
- * Any plugin implementation should invalidate an existing certificate verification
- * by first calling the internal clear() method if it is not NULL.
- * Refer to the default implementation in src/plugins/crypto/ua_pki_none.c */
+/* Default implementation that accepts all certificates */
 UA_EXPORT void
 UA_CertificateVerification_AcceptAll(UA_CertificateVerification *cv);
 
 #ifdef UA_ENABLE_ENCRYPTION
 
-/* Accept certificates based on a trust-list and a revocation-list. Based on mbedTLS.
- * Any plugin implementation should invalidate an existing certificate verification
- * by first calling the internal clear() method if it is not NULL.
- * Refer to the default implementation in src/plugins/crypto/mbedtls/ua_pki_mbedtls.c
- * or src/plugins/crypto/openssl/ua_pki_openssl.c */
+/* Accept certificates based on a trust-list and a revocation-list. Based on
+ * mbedTLS. */
 UA_EXPORT UA_StatusCode
 UA_CertificateVerification_Trustlist(UA_CertificateVerification *cv,
                                      const UA_ByteString *certificateTrustList,

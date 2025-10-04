@@ -1,6 +1,13 @@
-# 🏭 zopcua
-
-A Zig wrapper for [open62541](https://github.com/open62541/open62541), an open-source OPC UA implementation.
+<div align="center">
+  <h1>🏭 zopcua</h1>
+  <p>A Zig wrapper for <a href="https://github.com/open62541/open62541">open62541</a>, an open-source OPC UA implementation.</p>
+  <p>
+    <a href="https://opensource.org/licenses/MIT"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-e0af68.svg?style=for-the-badge&logo=opensourceinitiative&logoColor=white" /></a>
+    <a href="https://github.com/xentropic-dev/zopcua/actions"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/xentropic-dev/zopcua/ci.yml?style=for-the-badge&label=CI&logo=github&color=9ece6a" /></a>
+    <a href="https://github.com/xentropic-dev/zopcua/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/xentropic-dev/zopcua?style=for-the-badge&color=7aa2f7&logo=github" /></a>
+    <img alt="Zig 0.14" src="https://img.shields.io/badge/Zig-0.14-f7a41d.svg?style=for-the-badge&logo=zig&logoColor=white" />
+  </p>
+</div>
 
 ## ⚠️ Development Status
 
@@ -34,12 +41,33 @@ zig fetch --save git+https://github.com/xentropic-dev/zopcua.git
 Then in your `build.zig`:
 
 ```zig
-const ua = b.dependency("zopcua", .{
-    .target = target,
-    .optimize = optimize,
-});
-exe.root_module.addImport("ua", ua.module("ua"));
+const std = @import("std");
+const zopcua = @import("zopcua");
+
+pub fn build(b: *std.Build) void {
+    const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+
+    const exe = b.addExecutable(.{
+        .name = "my-app",
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Add zopcua - automatically handles module import and platform-specific linking
+    zopcua.setup(exe, .{});
+
+    b.installArtifact(exe);
+}
 ```
+
+That's it! The `setup` function automatically:
+
+- Adds the `ua` module to your executable
+- Links required system libraries (ws2_32, advapi32, crypt32, bcrypt on Windows)
+- Links required frameworks (Security, CoreFoundation on macOS)
+- Handles all platform-specific configuration
 
 ### mbedTLS Dependency
 
@@ -48,12 +76,9 @@ zopcua requires mbedTLS for cryptographic operations and secure communication. *
 If you prefer to use system-installed mbedTLS libraries instead:
 
 ```zig
-const ua = b.dependency("zopcua", .{
-    .target = target,
-    .optimize = optimize,
+zopcua.setup(exe, .{
     .mbedtls = .system,  // Use system mbedTLS instead of vendored
 });
-exe.root_module.addImport("ua", ua.module("ua"));
 ```
 
 When using system mbedTLS, ensure the libraries are installed:

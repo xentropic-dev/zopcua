@@ -3,6 +3,44 @@ const builtin = @import("builtin");
 
 const MbedtlsLinkMode = enum { static, system };
 
+pub const SetupOptions = struct {
+    mbedtls: MbedtlsLinkMode = .static,
+};
+
+/// Setup function for downstream users.
+/// Example:
+///   const ua = @import("ua");
+///   pub fn build(b: *std.Build) void {
+///       const exe = b.addExecutable(.{ ... });
+///       ua.setup(exe, .{});
+///   }
+pub fn setup(step: *std.Build.Step.Compile, opts: SetupOptions) void {
+    const ua = step.step.owner.dependencyFromBuildZig(@This(), .{
+        .mbedtls = opts.mbedtls,
+    });
+    step.root_module.addImport("ua", ua.module("ua"));
+
+    linkSystemLibraries(step, step.root_module.resolved_target.?);
+}
+
+/// Links platform-specific system libraries required by open62541
+fn linkSystemLibraries(step: *std.Build.Step.Compile, target: std.Build.ResolvedTarget) void {
+    switch (target.result.os.tag) {
+        .windows => {
+            step.linkSystemLibrary("ws2_32");
+            step.linkSystemLibrary("advapi32");
+            step.linkSystemLibrary("crypt32");
+            step.linkSystemLibrary("bcrypt");
+            step.linkSystemLibrary("iphlpapi");
+        },
+        .macos => {
+            step.linkFramework("Security");
+            step.linkFramework("CoreFoundation");
+        },
+        else => {},
+    }
+}
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -25,18 +63,16 @@ pub fn build(b: *std.Build) void {
         .link_libc = true,
     }) });
 
-    const c_flags = &[_][]const u8{
-        "-D_DARWIN_C_SOURCE",
-        "-D_POSIX_C_SOURCE=200112L",
-        "-std=c99",
-    };
-
     lib.addCSourceFiles(.{
         .files = &.{
             "vendor/open62541.c",
             "vendor/helpers.c",
         },
-        .flags = c_flags,
+        .flags = &.{
+            "-D_DARWIN_C_SOURCE",
+            "-D_POSIX_C_SOURCE=200112L",
+            "-std=c99",
+        },
     });
     lib.addIncludePath(b.path("vendor"));
 
@@ -56,12 +92,17 @@ pub fn build(b: *std.Build) void {
             "vendor/open62541.c",
             "vendor/helpers.c",
         },
-        .flags = c_flags,
+        .flags = &.{
+            "-D_DARWIN_C_SOURCE",
+            "-D_POSIX_C_SOURCE=200112L",
+            "-std=c99",
+        },
     });
     lib_unit_tests.addIncludePath(b.path("vendor"));
     lib_unit_tests.linkLibC();
 
     linkMbedtls(b, lib_unit_tests, target, optimize, mbedtls_link);
+    linkSystemLibraries(lib_unit_tests, target);
 
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
     const test_step = b.step("test", "Run unit tests");
