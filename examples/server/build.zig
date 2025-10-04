@@ -1,4 +1,5 @@
 const std = @import("std");
+const ua = @import("zopcua");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
@@ -16,11 +17,7 @@ pub fn build(b: *std.Build) void {
         .root_module = exe_mod,
     });
 
-    const opc = b.dependency("zopcua", .{ .target = target, .optimize = optimize });
-    exe.root_module.addImport("ua", opc.module("ua"));
-    exe.linkSystemLibrary("mbedtls");
-    exe.linkSystemLibrary("mbedx509");
-    exe.linkSystemLibrary("mbedcrypto");
+    ua.setup(exe, .{});
 
     b.installArtifact(exe);
 

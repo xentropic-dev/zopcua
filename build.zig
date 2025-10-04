@@ -1,10 +1,48 @@
 const std = @import("std");
 const builtin = @import("builtin");
+
 const MbedtlsLinkMode = enum { static, system };
+
+pub const SetupOptions = struct {
+    mbedtls: MbedtlsLinkMode = .static,
+};
+
+/// Setup function for downstream users.
+/// Example:
+///   const ua = @import("ua");
+///   pub fn build(b: *std.Build) void {
+///       const exe = b.addExecutable(.{ ... });
+///       ua.setup(exe, .{});
+///   }
+pub fn setup(step: *std.Build.Step.Compile, opts: SetupOptions) void {
+    const ua = step.step.owner.dependencyFromBuildZig(@This(), .{
+        .mbedtls = opts.mbedtls,
+    });
+    step.root_module.addImport("ua", ua.module("ua"));
+
+    linkSystemLibraries(step, step.root_module.resolved_target.?);
+}
+
+fn linkSystemLibraries(step: *std.Build.Step.Compile, target: std.Build.ResolvedTarget) void {
+    switch (target.result.os.tag) {
+        .windows => {
+            step.linkSystemLibrary("ws2_32");
+            step.linkSystemLibrary("advapi32");
+            step.linkSystemLibrary("crypt32");
+            step.linkSystemLibrary("bcrypt");
+        },
+        .macos => {
+            step.linkFramework("Security");
+            step.linkFramework("CoreFoundation");
+        },
+        else => {},
+    }
+}
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
     const mbedtls_link = b.option(
         MbedtlsLinkMode,
         "mbedtls",
@@ -36,13 +74,8 @@ pub fn build(b: *std.Build) void {
     });
     lib.addIncludePath(b.path("vendor"));
 
-    // Link Windows socket libraries
-    if (target.result.os.tag == .windows) {
-        lib.linkSystemLibrary("ws2_32");
-        lib.linkSystemLibrary("iphlpapi");
-    }
-
     linkMbedtls(b, lib, target, optimize, mbedtls_link);
+
     module.linkLibrary(lib);
     b.installArtifact(lib);
 
@@ -66,11 +99,6 @@ pub fn build(b: *std.Build) void {
     lib_unit_tests.addIncludePath(b.path("vendor"));
     lib_unit_tests.linkLibC();
 
-    if (target.result.os.tag == .windows) {
-        lib_unit_tests.linkSystemLibrary("ws2_32");
-        lib_unit_tests.linkSystemLibrary("iphlpapi");
-    }
-
     linkMbedtls(b, lib_unit_tests, target, optimize, mbedtls_link);
 
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
@@ -83,7 +111,6 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-
     const docs_step = b.step("docs", "Generate documentation");
     const install_docs = b.addInstallDirectory(.{
         .source_dir = docs_lib.getEmittedDocs(),
@@ -120,6 +147,7 @@ fn linkMbedtls(
                 step.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include", .{brew_prefix}) });
                 step.addLibraryPath(.{ .cwd_relative = b.fmt("{s}/lib", .{brew_prefix}) });
             }
+
             step.linkSystemLibrary("mbedtls");
             step.linkSystemLibrary("mbedx509");
             step.linkSystemLibrary("mbedcrypto");
