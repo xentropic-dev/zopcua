@@ -87,6 +87,9 @@ pub fn build(b: *std.Build) void {
 fn getCFlags(os_tag: std.Target.Os.Tag) []const []const u8 {
     return switch (os_tag) {
         .windows => &[_][]const u8{
+            "-UUA_ARCHITECTURE_POSIX", // Undefine POSIX
+            "-DUA_ARCHITECTURE_WIN32", // Define Windows
+            "-D_WIN32_WINNT=0x0600", // Windows Vista+
             "-std=c99",
         },
         .macos => &[_][]const u8{
@@ -100,7 +103,6 @@ fn getCFlags(os_tag: std.Target.Os.Tag) []const []const u8 {
         },
     };
 }
-
 fn linkMbedtls(
     b: *std.Build,
     step: *std.Build.Step.Compile,
