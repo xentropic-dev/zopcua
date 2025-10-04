@@ -20,26 +20,24 @@ pub fn setup(step: *std.Build.Step.Compile, opts: SetupOptions) void {
     });
     step.root_module.addImport("ua", ua.module("ua"));
 
-    // Link required platform-specific system libraries
     linkSystemLibraries(step, step.root_module.resolved_target.?);
 }
 
-/// Links platform-specific system libraries required by ua/open62541
+/// Links platform-specific system libraries required by open62541
 fn linkSystemLibraries(step: *std.Build.Step.Compile, target: std.Build.ResolvedTarget) void {
     switch (target.result.os.tag) {
         .windows => {
-            step.linkSystemLibrary("ws2_32"); // Winsock 2
-            step.linkSystemLibrary("advapi32"); // Advanced Windows API
-            step.linkSystemLibrary("crypt32"); // Cryptography API
-            step.linkSystemLibrary("bcrypt"); // Cryptography primitives
+            step.linkSystemLibrary("ws2_32");
+            step.linkSystemLibrary("advapi32");
+            step.linkSystemLibrary("crypt32");
+            step.linkSystemLibrary("bcrypt");
+            step.linkSystemLibrary("iphlpapi");
         },
         .macos => {
             step.linkFramework("Security");
             step.linkFramework("CoreFoundation");
         },
-        else => {
-            // Linux/Unix typically don't need additional libraries beyond libc
-        },
+        else => {},
     }
 }
 
