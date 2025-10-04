@@ -20,22 +20,26 @@ pub fn setup(step: *std.Build.Step.Compile, opts: SetupOptions) void {
     });
     step.root_module.addImport("ua", ua.module("ua"));
 
+    // Link required platform-specific system libraries
     linkSystemLibraries(step, step.root_module.resolved_target.?);
 }
 
+/// Links platform-specific system libraries required by ua/open62541
 fn linkSystemLibraries(step: *std.Build.Step.Compile, target: std.Build.ResolvedTarget) void {
     switch (target.result.os.tag) {
         .windows => {
-            step.linkSystemLibrary("ws2_32");
-            step.linkSystemLibrary("advapi32");
-            step.linkSystemLibrary("crypt32");
-            step.linkSystemLibrary("bcrypt");
+            step.linkSystemLibrary("ws2_32"); // Winsock 2
+            step.linkSystemLibrary("advapi32"); // Advanced Windows API
+            step.linkSystemLibrary("crypt32"); // Cryptography API
+            step.linkSystemLibrary("bcrypt"); // Cryptography primitives
         },
         .macos => {
             step.linkFramework("Security");
             step.linkFramework("CoreFoundation");
         },
-        else => {},
+        else => {
+            // Linux/Unix typically don't need additional libraries beyond libc
+        },
     }
 }
 
@@ -100,6 +104,7 @@ pub fn build(b: *std.Build) void {
     lib_unit_tests.linkLibC();
 
     linkMbedtls(b, lib_unit_tests, target, optimize, mbedtls_link);
+    linkSystemLibraries(lib_unit_tests, target);
 
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
     const test_step = b.step("test", "Run unit tests");
