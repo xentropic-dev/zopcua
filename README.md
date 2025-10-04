@@ -40,6 +40,13 @@ const ua = b.dependency("ua", .{
 });
 
 exe.root_module.addImport("ua", ua.module("ua"));
+
+// open62541 requires mbedTLS for cryptographic operations and secure communication
+// Currently, these must be installed as system libraries
+// Future versions will support statically linking mbedTLS dependenciesexe.linkSystemLibrary("mbedtls");
+exe.linkSystemLibrary("mbedtls");
+exe.linkSystemLibrary("mbedx509");
+exe.linkSystemLibrary("mbedcrypto");
 ```
 
 ## Usage
