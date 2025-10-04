@@ -28,13 +28,13 @@ This library will not reach full feature parity with open62541 for some time. If
 Add zopcua to your project:
 
 ```bash
-zig fetch --save https://github.com/xentropic-dev/zopcua.git
+zig fetch --save git+https://github.com/xentropic-dev/zopcua.git
 ```
 
 Then in your `build.zig`:
 
 ```zig
-const ua = b.dependency("ua", .{
+const ua = b.dependency("zopcua", .{
     .target = target,
     .optimize = optimize,
 });
