@@ -1,12 +1,10 @@
 const std = @import("std");
 const builtin = @import("builtin");
-
 const MbedtlsLinkMode = enum { static, system };
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-
     const mbedtls_link = b.option(
         MbedtlsLinkMode,
         "mbedtls",
@@ -38,8 +36,13 @@ pub fn build(b: *std.Build) void {
     });
     lib.addIncludePath(b.path("vendor"));
 
-    linkMbedtls(b, lib, target, optimize, mbedtls_link);
+    // Link Windows socket libraries
+    if (target.result.os.tag == .windows) {
+        lib.linkSystemLibrary("ws2_32");
+        lib.linkSystemLibrary("iphlpapi");
+    }
 
+    linkMbedtls(b, lib, target, optimize, mbedtls_link);
     module.linkLibrary(lib);
     b.installArtifact(lib);
 
@@ -63,6 +66,12 @@ pub fn build(b: *std.Build) void {
     lib_unit_tests.addIncludePath(b.path("vendor"));
     lib_unit_tests.linkLibC();
 
+    // Link Windows socket libraries for tests
+    if (target.result.os.tag == .windows) {
+        lib_unit_tests.linkSystemLibrary("ws2_32");
+        lib_unit_tests.linkSystemLibrary("iphlpapi");
+    }
+
     linkMbedtls(b, lib_unit_tests, target, optimize, mbedtls_link);
 
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
@@ -75,6 +84,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
     const docs_step = b.step("docs", "Generate documentation");
     const install_docs = b.addInstallDirectory(.{
         .source_dir = docs_lib.getEmittedDocs(),
@@ -111,7 +121,6 @@ fn linkMbedtls(
                 step.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include", .{brew_prefix}) });
                 step.addLibraryPath(.{ .cwd_relative = b.fmt("{s}/lib", .{brew_prefix}) });
             }
-
             step.linkSystemLibrary("mbedtls");
             step.linkSystemLibrary("mbedx509");
             step.linkSystemLibrary("mbedcrypto");
