@@ -15,14 +15,14 @@
  *  http://www.itu.int/ITU-T/studygroups/com17/languages/X.690-0207.pdf
  */
 
-#include "x509_internal.h"
+#include "common.h"
 
 #if defined(MBEDTLS_X509_CSR_PARSE_C)
 
 #include "mbedtls/x509_csr.h"
+#include "x509_internal.h"
 #include "mbedtls/error.h"
 #include "mbedtls/oid.h"
-#include "x509_oid.h"
 #include "mbedtls/platform_util.h"
 
 #include <string.h>
@@ -115,7 +115,7 @@ static int x509_csr_parse_extensions(mbedtls_x509_csr *csr,
         /*
          * Detect supported extensions and skip unsupported extensions
          */
-        ret = mbedtls_x509_oid_get_x509_ext_type(&extn_oid, &ext_type);
+        ret = mbedtls_oid_get_x509_ext_type(&extn_oid, &ext_type);
 
         if (ret != 0) {
             /* Give the callback (if any) a chance to handle the extension */
@@ -408,7 +408,8 @@ static int mbedtls_x509_csr_parse_der_internal(mbedtls_x509_csr *csr,
     }
 
     if ((ret = mbedtls_x509_get_sig_alg(&csr->sig_oid, &sig_params,
-                                        &csr->sig_md, &csr->sig_pk)) != 0) {
+                                        &csr->sig_md, &csr->sig_pk,
+                                        &csr->sig_opts)) != 0) {
         mbedtls_x509_csr_free(csr);
         return MBEDTLS_ERR_X509_UNKNOWN_SIG_ALG;
     }
@@ -519,8 +520,8 @@ int mbedtls_x509_csr_parse_file(mbedtls_x509_csr *csr, const char *path)
 #endif /* MBEDTLS_FS_IO */
 
 #if !defined(MBEDTLS_X509_REMOVE_INFO)
-#define MBEDTLS_BEFORE_COLON       14
-#define MBEDTLS_BEFORE_COLON_STR   "14"
+#define BEFORE_COLON    14
+#define BC              "14"
 /*
  * Return an informational string about the CSR.
  */
@@ -530,7 +531,7 @@ int mbedtls_x509_csr_info(char *buf, size_t size, const char *prefix,
     int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     size_t n;
     char *p;
-    char key_size_str[MBEDTLS_BEFORE_COLON];
+    char key_size_str[BEFORE_COLON];
 
     p = buf;
     n = size;
@@ -547,16 +548,17 @@ int mbedtls_x509_csr_info(char *buf, size_t size, const char *prefix,
     ret = mbedtls_snprintf(p, n, "\n%ssigned using  : ", prefix);
     MBEDTLS_X509_SAFE_SNPRINTF;
 
-    ret = mbedtls_x509_sig_alg_gets(p, n, &csr->sig_oid, csr->sig_pk, csr->sig_md);
+    ret = mbedtls_x509_sig_alg_gets(p, n, &csr->sig_oid, csr->sig_pk, csr->sig_md,
+                                    csr->sig_opts);
     MBEDTLS_X509_SAFE_SNPRINTF;
 
-    if ((ret = mbedtls_x509_key_size_helper(key_size_str, MBEDTLS_BEFORE_COLON,
+    if ((ret = mbedtls_x509_key_size_helper(key_size_str, BEFORE_COLON,
                                             mbedtls_pk_get_name(&csr->pk))) != 0) {
         return ret;
     }
 
-    ret = mbedtls_snprintf(p, n, "\n%s%-" MBEDTLS_BEFORE_COLON_STR "s: %d bits\n",
-                           prefix, key_size_str, (int) mbedtls_pk_get_bitlen(&csr->pk));
+    ret = mbedtls_snprintf(p, n, "\n%s%-" BC "s: %d bits\n", prefix, key_size_str,
+                           (int) mbedtls_pk_get_bitlen(&csr->pk));
     MBEDTLS_X509_SAFE_SNPRINTF;
 
     /*
@@ -619,6 +621,10 @@ void mbedtls_x509_csr_free(mbedtls_x509_csr *csr)
     }
 
     mbedtls_pk_free(&csr->pk);
+
+#if defined(MBEDTLS_X509_RSASSA_PSS_SUPPORT)
+    mbedtls_free(csr->sig_opts);
+#endif
 
     mbedtls_asn1_free_named_data_list_shallow(csr->subject.next);
     mbedtls_asn1_sequence_free(csr->subject_alt_names.next);

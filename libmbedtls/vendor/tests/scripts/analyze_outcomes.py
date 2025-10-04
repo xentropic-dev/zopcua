@@ -47,11 +47,27 @@ class CoverageTask(outcome_analysis.CoverageTask):
             # We don't run ssl-opt.sh with Valgrind on the CI because
             # it's extremely slow. We don't intend to change this.
             'DTLS fragmenting: proxy MTU: auto-reduction (with valgrind)',
-            # TLS doesn't use restartable ECDH yet.
-            # https://github.com/Mbed-TLS/mbedtls/issues/7294
-            re.compile(r'EC restart:.*no USE_PSA.*'),
+            # It seems that we don't run `ssl-opt.sh` with
+            # `MBEDTLS_USE_PSA_CRYPTO` enabled but `MBEDTLS_SSL_ASYNC_PRIVATE`
+            # disabled.
+            # https://github.com/Mbed-TLS/mbedtls/issues/9581
+            'Opaque key for server authentication: invalid key: decrypt with ECC key, no async',
+            'Opaque key for server authentication: invalid key: ecdh with RSA key, no async',
         ],
         'test_suite_config.mbedtls_boolean': [
+            # We never test with CBC/PKCS5/PKCS12 enabled but
+            # PKCS7 padding disabled.
+            # https://github.com/Mbed-TLS/mbedtls/issues/9580
+            'Config: !MBEDTLS_CIPHER_PADDING_PKCS7',
+            # https://github.com/Mbed-TLS/mbedtls/issues/9583
+            'Config: !MBEDTLS_ECP_NIST_OPTIM',
+            # MBEDTLS_ECP_NO_FALLBACK only affects builds using a partial
+            # alternative implementation of ECP arithmetic (with
+            # MBEDTLS_ECP_INTERNAL_ALT enabled). We don't test those builds.
+            # The configuration enumeration script skips xxx_ALT options
+            # but not MBEDTLS_ECP_NO_FALLBACK, so it appears in the report,
+            # but we don't care about it.
+            'Config: MBEDTLS_ECP_NO_FALLBACK',
             # Missing coverage of test configurations.
             # https://github.com/Mbed-TLS/mbedtls/issues/9585
             'Config: !MBEDTLS_SSL_DTLS_ANTI_REPLAY',
@@ -61,12 +77,34 @@ class CoverageTask(outcome_analysis.CoverageTask):
             # We don't run test_suite_config when we test this.
             # https://github.com/Mbed-TLS/mbedtls/issues/9586
             'Config: !MBEDTLS_SSL_TLS1_3_KEY_EXCHANGE_MODE_PSK_ENABLED',
-        ],
-        'test_suite_config.crypto_combinations': [
-            # New thing in crypto. Not intended to be tested separately
-            # in mbedtls.
-            # https://github.com/Mbed-TLS/mbedtls/issues/10300
-            'Config: entropy: NV seed only',
+            # We only test multithreading with pthreads.
+            # https://github.com/Mbed-TLS/mbedtls/issues/9584
+            'Config: !MBEDTLS_THREADING_PTHREAD',
+            # Built but not tested.
+            # https://github.com/Mbed-TLS/mbedtls/issues/9587
+            'Config: MBEDTLS_AES_USE_HARDWARE_ONLY',
+            # Untested platform-specific optimizations.
+            # https://github.com/Mbed-TLS/mbedtls/issues/9588
+            'Config: MBEDTLS_HAVE_SSE2',
+            # Obsolete configuration option, to be replaced by
+            # PSA entropy drivers.
+            # https://github.com/Mbed-TLS/mbedtls/issues/8150
+            'Config: MBEDTLS_NO_PLATFORM_ENTROPY',
+            # Untested aspect of the platform interface.
+            # https://github.com/Mbed-TLS/mbedtls/issues/9589
+            'Config: MBEDTLS_PLATFORM_NO_STD_FUNCTIONS',
+            # In a client-server build, test_suite_config runs in the
+            # client configuration, so it will never report
+            # MBEDTLS_PSA_CRYPTO_SPM as enabled. That's ok.
+            'Config: MBEDTLS_PSA_CRYPTO_SPM',
+            # We don't test on armv8 yet.
+            'Config: MBEDTLS_SHA256_USE_A64_CRYPTO_IF_PRESENT',
+            'Config: MBEDTLS_SHA256_USE_A64_CRYPTO_ONLY',
+            'Config: MBEDTLS_SHA256_USE_ARMV8_A_CRYPTO_ONLY',
+            'Config: MBEDTLS_SHA512_USE_A64_CRYPTO_ONLY',
+            # We don't run test_suite_config when we test this.
+            # https://github.com/Mbed-TLS/mbedtls/issues/9586
+            'Config: MBEDTLS_TEST_CONSTANT_FLOW_VALGRIND',
         ],
         'test_suite_config.psa_boolean': [
             # We don't test with HMAC disabled.
@@ -103,6 +141,8 @@ class CoverageTask(outcome_analysis.CoverageTask):
             'Config: PSA_WANT_ALG_CBC_MAC',
             # Algorithm declared but not supported.
             'Config: PSA_WANT_ALG_XTS',
+            # Family declared but not supported.
+            'Config: PSA_WANT_ECC_SECP_K1_224',
             # More granularity of key pair type enablement macros
             # than we care to test.
             # https://github.com/Mbed-TLS/mbedtls/issues/9590
@@ -110,33 +150,6 @@ class CoverageTask(outcome_analysis.CoverageTask):
             'Config: PSA_WANT_KEY_TYPE_ECC_KEY_PAIR',
             'Config: PSA_WANT_KEY_TYPE_RSA_KEY_PAIR',
             'Config: PSA_WANT_KEY_TYPE_RSA_KEY_PAIR_DERIVE',
-            # https://github.com/Mbed-TLS/mbedtls/issues/9583
-            'Config: !MBEDTLS_ECP_NIST_OPTIM',
-            # We never test without the PSA client code. Should we?
-            # https://github.com/Mbed-TLS/TF-PSA-Crypto/issues/112
-            'Config: !MBEDTLS_PSA_CRYPTO_CLIENT',
-                        # We only test multithreading with pthreads.
-            # https://github.com/Mbed-TLS/mbedtls/issues/9584
-            'Config: !MBEDTLS_THREADING_PTHREAD',
-            # Built but not tested.
-            # https://github.com/Mbed-TLS/mbedtls/issues/9587
-            'Config: MBEDTLS_AES_USE_HARDWARE_ONLY',
-            # Untested platform-specific optimizations.
-            # https://github.com/Mbed-TLS/mbedtls/issues/9588
-            'Config: MBEDTLS_HAVE_SSE2',
-            # Untested aspect of the platform interface.
-            # https://github.com/Mbed-TLS/mbedtls/issues/9589
-            'Config: MBEDTLS_PLATFORM_NO_STD_FUNCTIONS',
-            # In a client-server build, test_suite_config runs in the
-            # client configuration, so it will never report
-            # MBEDTLS_PSA_CRYPTO_SPM as enabled. That's ok.
-            'Config: MBEDTLS_PSA_CRYPTO_SPM',
-            # We don't test on armv8 yet.
-            'Config: MBEDTLS_SHA256_USE_ARMV8_A_CRYPTO_ONLY',
-            'Config: MBEDTLS_SHA512_USE_A64_CRYPTO_ONLY',
-            # We don't run test_suite_config when we test this.
-            # https://github.com/Mbed-TLS/mbedtls/issues/9586
-            'Config: MBEDTLS_TEST_CONSTANT_FLOW_VALGRIND',
         ],
         'test_suite_config.psa_combinations': [
             # We don't test this unusual, but sensible configuration.
@@ -192,10 +205,19 @@ class CoverageTask(outcome_analysis.CoverageTask):
             # We don't test this unusual, but sensible configuration.
             # https://github.com/Mbed-TLS/mbedtls/issues/9592
             re.compile(r'.*: !ECDSA but DETERMINISTIC_ECDSA with ECC_.*'),
+            # PBKDF2_HMAC is not in the default configuration, so we don't
+            # enable it in depends.py where we remove hashes.
+            # https://github.com/Mbed-TLS/mbedtls/issues/9576
+            re.compile(r'PSA key_derivation PBKDF2_HMAC\(\w+\): !(?!PBKDF2_HMAC\Z).*'),
+
             # We never test with the HMAC algorithm enabled but the HMAC
             # key type disabled. Those dependencies don't really make sense.
             # https://github.com/Mbed-TLS/mbedtls/issues/9573
             re.compile(r'.* !HMAC with HMAC'),
+            # There's something wrong with PSA_WANT_ALG_RSA_PSS_ANY_SALT
+            # differing from PSA_WANT_ALG_RSA_PSS.
+            # https://github.com/Mbed-TLS/mbedtls/issues/9578
+            re.compile(r'PSA sign RSA_PSS_ANY_SALT.*!(?:MD|RIPEMD|SHA).*'),
             # We don't test with ECDH disabled but the key type enabled.
             # https://github.com/Mbed-TLS/TF-PSA-Crypto/issues/161
             re.compile(r'PSA key_agreement.* !ECDH with ECC_KEY_PAIR\(.*'),
@@ -292,15 +314,15 @@ class DriverVSReference_cipher_aead_cmac(outcome_analysis.DriverVSReference):
     IGNORED_SUITES = [
         # low-level (block/stream) cipher modules
         'aes', 'aria', 'camellia', 'des', 'chacha20',
-        # AEAD modes, CMAC and POLY1305
-        'ccm', 'chachapoly', 'cmac', 'gcm', 'poly1305',
+        # AEAD modes and CMAC
+        'ccm', 'chachapoly', 'cmac', 'gcm',
         # The Cipher abstraction layer
         'cipher',
     ]
     IGNORED_TESTS = {
         'test_suite_config': [
             re.compile(r'.*\bMBEDTLS_(AES|ARIA|CAMELLIA|CHACHA20|DES)_.*'),
-            re.compile(r'.*\bMBEDTLS_(CCM|CHACHAPOLY|CMAC|GCM|POLY1305)_.*'),
+            re.compile(r'.*\bMBEDTLS_(CCM|CHACHAPOLY|CMAC|GCM)_.*'),
             re.compile(r'.*\bMBEDTLS_AES(\w+)_C\b.*'),
             re.compile(r'.*\bMBEDTLS_CIPHER_.*'),
         ],
@@ -320,6 +342,10 @@ class DriverVSReference_cipher_aead_cmac(outcome_analysis.DriverVSReference):
         'test_suite_error': [
             'Low and high error',
             'Single low error'
+        ],
+        # Similar to test_suite_error above.
+        'test_suite_version': [
+            'Check for MBEDTLS_AES_C when already present',
         ],
         # The en/decryption part of PKCS#12 is not supported so far.
         # The rest of PKCS#12 (key derivation) works though.
@@ -384,6 +410,10 @@ class DriverVSReference_ecp_light_only(outcome_analysis.DriverVSReference):
             re.compile(r'ECP point multiplication .*'),
             re.compile(r'ECP test vectors .*'),
         ],
+        'test_suite_ssl': [
+            # This deprecated function is only present when ECP_C is On.
+            'Test configuration of EC groups through mbedtls_ssl_conf_curves()',
+        ],
     }
 
 class DriverVSReference_no_ecp_at_all(outcome_analysis.DriverVSReference):
@@ -419,6 +449,10 @@ class DriverVSReference_no_ecp_at_all(outcome_analysis.DriverVSReference):
             # while checking driver's coverage.
             re.compile(r'Parse EC Key .*compressed\)'),
             re.compile(r'Parse Public EC Key .*compressed\)'),
+        ],
+        # See ecp_light_only
+        'test_suite_ssl': [
+            'Test configuration of EC groups through mbedtls_ssl_conf_curves()',
         ],
     }
 
@@ -463,6 +497,10 @@ class DriverVSReference_ecc_no_bignum(outcome_analysis.DriverVSReference):
         'test_suite_debug': [
             re.compile(r'Debug print mbedtls_mpi.*'),
         ],
+        # See ecp_light_only
+        'test_suite_ssl': [
+            'Test configuration of EC groups through mbedtls_ssl_conf_curves()',
+        ],
     }
 
 class DriverVSReference_ecc_ffdh_no_bignum(outcome_analysis.DriverVSReference):
@@ -470,16 +508,24 @@ class DriverVSReference_ecc_ffdh_no_bignum(outcome_analysis.DriverVSReference):
     DRIVER = 'test_psa_crypto_config_accel_ecc_ffdh_no_bignum'
     IGNORED_SUITES = [
         # Modules replaced by drivers
-        'ecp', 'ecdsa', 'ecdh', 'ecjpake',
+        'ecp', 'ecdsa', 'ecdh', 'ecjpake', 'dhm',
         'bignum_core', 'bignum_random', 'bignum_mod', 'bignum_mod_raw',
         'bignum.generated', 'bignum.misc',
         # Unit tests for the built-in implementation
         'psa_crypto_ecp',
     ]
     IGNORED_TESTS = {
+        'ssl-opt': [
+            # DHE support in TLS 1.2 requires built-in MBEDTLS_DHM_C
+            # (because it needs custom groups, which PSA does not
+            # provide), even with MBEDTLS_USE_PSA_CRYPTO.
+            re.compile(r'PSK callback:.*\bdhe-psk\b.*'),
+        ],
         'test_suite_config': [
             re.compile(r'.*\bMBEDTLS_BIGNUM_C\b.*'),
+            re.compile(r'.*\bMBEDTLS_DHM_C\b.*'),
             re.compile(r'.*\bMBEDTLS_(ECDH|ECDSA|ECJPAKE|ECP)_.*'),
+            re.compile(r'.*\bMBEDTLS_KEY_EXCHANGE_DHE_PSK_ENABLED\b.*'),
             re.compile(r'.*\bMBEDTLS_PK_PARSE_EC_COMPRESSED\b.*'),
         ],
         'test_suite_platform': [
@@ -506,12 +552,20 @@ class DriverVSReference_ecc_ffdh_no_bignum(outcome_analysis.DriverVSReference):
         'test_suite_debug': [
             re.compile(r'Debug print mbedtls_mpi.*'),
         ],
+        # See ecp_light_only
+        'test_suite_ssl': [
+            'Test configuration of EC groups through mbedtls_ssl_conf_curves()',
+        ],
     }
 
 class DriverVSReference_ffdh_alg(outcome_analysis.DriverVSReference):
     REFERENCE = 'test_psa_crypto_config_reference_ffdh'
     DRIVER = 'test_psa_crypto_config_accel_ffdh'
+    IGNORED_SUITES = ['dhm']
     IGNORED_TESTS = {
+        'test_suite_config': [
+            re.compile(r'.*\bMBEDTLS_DHM_C\b.*'),
+        ],
         'test_suite_platform': [
             # Incompatible with sanitizers (e.g. ASan). If the driver
             # component uses a sanitizer but the reference component
@@ -564,10 +618,6 @@ class DriverVSReference_rsa(outcome_analysis.DriverVSReference):
         'pk', 'pkwrite', 'pkparse'
     ]
     IGNORED_TESTS = {
-        'test_suite_bignum.misc': [
-            re.compile(r'.*\bmbedtls_mpi_is_prime.*'),
-            re.compile(r'.*\bmbedtls_mpi_gen_prime.*'),
-        ],
         'test_suite_config': [
             re.compile(r'.*\bMBEDTLS_(PKCS1|RSA)_.*'),
             re.compile(r'.*\bMBEDTLS_GENPRIME\b.*')
@@ -648,6 +698,10 @@ class DriverVSReference_block_cipher_dispatch(outcome_analysis.DriverVSReference
             # really, just need to know some error code is there.
             'Single low error',
             'Low and high error',
+        ],
+        'test_suite_version': [
+            # Similar to test_suite_error above.
+            'Check for MBEDTLS_AES_C when already present',
         ],
         'test_suite_platform': [
             # Incompatible with sanitizers (e.g. ASan). If the driver

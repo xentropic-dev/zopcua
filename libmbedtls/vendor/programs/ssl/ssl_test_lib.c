@@ -8,7 +8,6 @@
  *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 
-#define MBEDTLS_DECLARE_PRIVATE_IDENTIFIERS
 
 #include "ssl_test_lib.h"
 
@@ -83,11 +82,13 @@ void rng_init(rng_context_t *rng)
 
 int rng_seed(rng_context_t *rng, int reproducible, const char *pers)
 {
+#if defined(MBEDTLS_USE_PSA_CRYPTO)
     if (reproducible) {
         mbedtls_fprintf(stderr,
-                        "reproducible mode is not supported.\n");
+                        "MBEDTLS_USE_PSA_CRYPTO does not support reproducible mode.\n");
         return -1;
     }
+#endif
 #if defined(MBEDTLS_TEST_USE_PSA_CRYPTO_RNG)
     /* The PSA crypto RNG does its own seeding. */
     (void) rng;
@@ -112,9 +113,9 @@ int rng_seed(rng_context_t *rng, int reproducible, const char *pers)
                                     (const unsigned char *) pers,
                                     strlen(pers));
 #elif defined(MBEDTLS_HMAC_DRBG_C)
-#if defined(PSA_WANT_ALG_SHA_256)
+#if defined(MBEDTLS_MD_CAN_SHA256)
     const mbedtls_md_type_t md_type = MBEDTLS_MD_SHA256;
-#elif defined(PSA_WANT_ALG_SHA_512)
+#elif defined(MBEDTLS_MD_CAN_SHA512)
     const mbedtls_md_type_t md_type = MBEDTLS_MD_SHA512;
 #else
 #error "No message digest available for HMAC_DRBG"
@@ -196,6 +197,7 @@ int key_opaque_alg_parse(const char *arg, const char **alg1, const char **alg2)
         strcmp(*alg1, "rsa-sign-pss-sha256") != 0 &&
         strcmp(*alg1, "rsa-sign-pss-sha384") != 0 &&
         strcmp(*alg1, "rsa-sign-pss-sha512") != 0 &&
+        strcmp(*alg1, "rsa-decrypt") != 0 &&
         strcmp(*alg1, "ecdsa-sign") != 0 &&
         strcmp(*alg1, "ecdh") != 0) {
         return 1;
@@ -206,6 +208,7 @@ int key_opaque_alg_parse(const char *arg, const char **alg1, const char **alg2)
         strcmp(*alg1, "rsa-sign-pss-sha256") != 0 &&
         strcmp(*alg1, "rsa-sign-pss-sha384") != 0 &&
         strcmp(*alg1, "rsa-sign-pss-sha512") != 0 &&
+        strcmp(*alg2, "rsa-decrypt") != 0 &&
         strcmp(*alg2, "ecdsa-sign") != 0 &&
         strcmp(*alg2, "ecdh") != 0 &&
         strcmp(*alg2, "none") != 0) {
@@ -215,6 +218,7 @@ int key_opaque_alg_parse(const char *arg, const char **alg1, const char **alg2)
     return 0;
 }
 
+#if defined(MBEDTLS_USE_PSA_CRYPTO)
 int key_opaque_set_alg_usage(const char *alg1, const char *alg2,
                              psa_algorithm_t *psa_alg1,
                              psa_algorithm_t *psa_alg2,
@@ -241,8 +245,11 @@ int key_opaque_set_alg_usage(const char *alg1, const char *alg2,
             } else if (strcmp(algs[i], "rsa-sign-pss-sha512") == 0) {
                 *psa_algs[i] = PSA_ALG_RSA_PSS(PSA_ALG_SHA_512);
                 *usage |= PSA_KEY_USAGE_SIGN_HASH;
+            } else if (strcmp(algs[i], "rsa-decrypt") == 0) {
+                *psa_algs[i] = PSA_ALG_RSA_PKCS1V15_CRYPT;
+                *usage |= PSA_KEY_USAGE_DECRYPT;
             } else if (strcmp(algs[i], "ecdsa-sign") == 0) {
-                *psa_algs[i] = MBEDTLS_PK_ALG_ECDSA(PSA_ALG_ANY_HASH);
+                *psa_algs[i] = PSA_ALG_ECDSA(PSA_ALG_ANY_HASH);
                 *usage |= PSA_KEY_USAGE_SIGN_HASH;
             } else if (strcmp(algs[i], "ecdh") == 0) {
                 *psa_algs[i] = PSA_ALG_ECDH;
@@ -253,7 +260,7 @@ int key_opaque_set_alg_usage(const char *alg1, const char *alg2,
         }
     } else {
         if (key_type == MBEDTLS_PK_ECKEY) {
-            *psa_alg1 = MBEDTLS_PK_ALG_ECDSA(PSA_ALG_ANY_HASH);
+            *psa_alg1 = PSA_ALG_ECDSA(PSA_ALG_ANY_HASH);
             *psa_alg2 = PSA_ALG_ECDH;
             *usage = PSA_KEY_USAGE_SIGN_HASH | PSA_KEY_USAGE_DERIVE;
         } else if (key_type == MBEDTLS_PK_RSA) {
@@ -290,7 +297,7 @@ int pk_wrap_as_opaque(mbedtls_pk_context *pk, psa_algorithm_t psa_alg, psa_algor
     }
     mbedtls_pk_free(pk);
     mbedtls_pk_init(pk);
-    ret = mbedtls_pk_wrap_psa(pk, *key_id);
+    ret = mbedtls_pk_setup_opaque(pk, *key_id);
     if (ret != 0) {
         return ret;
     }
@@ -298,6 +305,7 @@ int pk_wrap_as_opaque(mbedtls_pk_context *pk, psa_algorithm_t psa_alg, psa_algor
     return 0;
 }
 #endif /* MBEDTLS_PK_C */
+#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
 #if defined(MBEDTLS_X509_TRUSTED_CERTIFICATE_CALLBACK)
 int ca_callback(void *data, mbedtls_x509_crt const *child,
@@ -470,47 +478,67 @@ static const struct {
     uint8_t is_supported;
 } tls_id_group_name_table[] =
 {
-#if defined(PSA_WANT_ECC_SECP_R1_521)
+#if defined(MBEDTLS_ECP_DP_SECP521R1_ENABLED) || defined(PSA_WANT_ECC_SECP_R1_521)
     { MBEDTLS_SSL_IANA_TLS_GROUP_SECP521R1, "secp521r1", 1 },
 #else
     { MBEDTLS_SSL_IANA_TLS_GROUP_SECP521R1, "secp521r1", 0 },
 #endif
-#if defined(PSA_WANT_ECC_BRAINPOOL_P_R1_512)
+#if defined(MBEDTLS_ECP_DP_BP512R1_ENABLED) || defined(PSA_WANT_ECC_BRAINPOOL_P_R1_512)
     { MBEDTLS_SSL_IANA_TLS_GROUP_BP512R1, "brainpoolP512r1", 1 },
 #else
     { MBEDTLS_SSL_IANA_TLS_GROUP_BP512R1, "brainpoolP512r1", 0 },
 #endif
-#if defined(PSA_WANT_ECC_SECP_R1_384)
+#if defined(MBEDTLS_ECP_DP_SECP384R1_ENABLED) || defined(PSA_WANT_ECC_SECP_R1_384)
     { MBEDTLS_SSL_IANA_TLS_GROUP_SECP384R1, "secp384r1", 1 },
 #else
     { MBEDTLS_SSL_IANA_TLS_GROUP_SECP384R1, "secp384r1", 0 },
 #endif
-#if defined(PSA_WANT_ECC_BRAINPOOL_P_R1_384)
+#if defined(MBEDTLS_ECP_DP_BP384R1_ENABLED) || defined(PSA_WANT_ECC_BRAINPOOL_P_R1_384)
     { MBEDTLS_SSL_IANA_TLS_GROUP_BP384R1, "brainpoolP384r1", 1 },
 #else
     { MBEDTLS_SSL_IANA_TLS_GROUP_BP384R1, "brainpoolP384r1", 0 },
 #endif
-#if defined(PSA_WANT_ECC_SECP_R1_256)
+#if defined(MBEDTLS_ECP_DP_SECP256R1_ENABLED) || defined(PSA_WANT_ECC_SECP_R1_256)
     { MBEDTLS_SSL_IANA_TLS_GROUP_SECP256R1, "secp256r1", 1 },
 #else
     { MBEDTLS_SSL_IANA_TLS_GROUP_SECP256R1, "secp256r1", 0 },
 #endif
-#if defined(PSA_WANT_ECC_SECP_K1_256)
+#if defined(MBEDTLS_ECP_DP_SECP256K1_ENABLED) || defined(PSA_WANT_ECC_SECP_K1_256)
     { MBEDTLS_SSL_IANA_TLS_GROUP_SECP256K1, "secp256k1", 1 },
 #else
     { MBEDTLS_SSL_IANA_TLS_GROUP_SECP256K1, "secp256k1", 0 },
 #endif
-#if defined(PSA_WANT_ECC_BRAINPOOL_P_R1_256)
+#if defined(MBEDTLS_ECP_DP_BP256R1_ENABLED) || defined(PSA_WANT_ECC_BRAINPOOL_P_R1_256)
     { MBEDTLS_SSL_IANA_TLS_GROUP_BP256R1, "brainpoolP256r1", 1 },
 #else
     { MBEDTLS_SSL_IANA_TLS_GROUP_BP256R1, "brainpoolP256r1", 0 },
 #endif
-#if defined(PSA_WANT_ECC_MONTGOMERY_255)
+#if defined(MBEDTLS_ECP_DP_SECP224R1_ENABLED) || defined(PSA_WANT_ECC_SECP_R1_224)
+    { MBEDTLS_SSL_IANA_TLS_GROUP_SECP224R1, "secp224r1", 1 },
+#else
+    { MBEDTLS_SSL_IANA_TLS_GROUP_SECP224R1, "secp224r1", 0 },
+#endif
+#if defined(MBEDTLS_ECP_DP_SECP224K1_ENABLED) || defined(PSA_WANT_ECC_SECP_K1_224)
+    { MBEDTLS_SSL_IANA_TLS_GROUP_SECP224K1, "secp224k1", 1 },
+#else
+    { MBEDTLS_SSL_IANA_TLS_GROUP_SECP224K1, "secp224k1", 0 },
+#endif
+#if defined(MBEDTLS_ECP_DP_SECP192R1_ENABLED) || defined(PSA_WANT_ECC_SECP_R1_192)
+    { MBEDTLS_SSL_IANA_TLS_GROUP_SECP192R1, "secp192r1", 1 },
+#else
+    { MBEDTLS_SSL_IANA_TLS_GROUP_SECP192R1, "secp192r1", 0 },
+#endif
+#if defined(MBEDTLS_ECP_DP_SECP192K1_ENABLED) || defined(PSA_WANT_ECC_SECP_K1_192)
+    { MBEDTLS_SSL_IANA_TLS_GROUP_SECP192K1, "secp192k1", 1 },
+#else
+    { MBEDTLS_SSL_IANA_TLS_GROUP_SECP192K1, "secp192k1", 0 },
+#endif
+#if defined(MBEDTLS_ECP_DP_CURVE25519_ENABLED) || defined(PSA_WANT_ECC_MONTGOMERY_255)
     { MBEDTLS_SSL_IANA_TLS_GROUP_X25519, "x25519", 1 },
 #else
     { MBEDTLS_SSL_IANA_TLS_GROUP_X25519, "x25519", 0 },
 #endif
-#if defined(PSA_WANT_ECC_MONTGOMERY_448)
+#if defined(MBEDTLS_ECP_DP_CURVE448_ENABLED) || defined(PSA_WANT_ECC_MONTGOMERY_448)
     { MBEDTLS_SSL_IANA_TLS_GROUP_X448, "x448", 1 },
 #else
     { MBEDTLS_SSL_IANA_TLS_GROUP_X448, "x448", 0 },

@@ -5,8 +5,6 @@
  *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 
-#define MBEDTLS_DECLARE_PRIVATE_IDENTIFIERS
-
 #include "mbedtls/build_info.h"
 
 #include "mbedtls/platform.h"
@@ -27,8 +25,8 @@ int main(void)
 }
 #else
 
-#include "mbedtls/private/entropy.h"
-#include "mbedtls/private/ctr_drbg.h"
+#include "mbedtls/entropy.h"
+#include "mbedtls/ctr_drbg.h"
 #include "mbedtls/net_sockets.h"
 #include "mbedtls/ssl.h"
 #include "mbedtls/x509.h"
@@ -152,12 +150,14 @@ int main(int argc, char *argv[])
     memset(&cacrl, 0, sizeof(mbedtls_x509_crl));
 #endif
 
+#if defined(MBEDTLS_USE_PSA_CRYPTO)
     psa_status_t status = psa_crypto_init();
     if (status != PSA_SUCCESS) {
         mbedtls_fprintf(stderr, "Failed to initialize PSA Crypto implementation: %d\n",
                         (int) status);
         goto exit;
     }
+#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
     if (argc < 2) {
 usage:
@@ -381,6 +381,7 @@ usage:
             mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_NONE);
         }
 
+        mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
         mbedtls_ssl_conf_dbg(&conf, my_debug, stdout);
 
         if ((ret = mbedtls_ssl_setup(&ssl, &conf)) != 0) {
@@ -444,7 +445,9 @@ exit:
 #endif
     mbedtls_ctr_drbg_free(&ctr_drbg);
     mbedtls_entropy_free(&entropy);
+#if defined(MBEDTLS_USE_PSA_CRYPTO)
     mbedtls_psa_crypto_free();
+#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
     mbedtls_exit(exit_code);
 }

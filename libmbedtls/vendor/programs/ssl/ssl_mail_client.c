@@ -11,8 +11,6 @@
 
 #define _POSIX_C_SOURCE 200112L
 #define _XOPEN_SOURCE 600
-#define MBEDTLS_DECLARE_PRIVATE_IDENTIFIERS
-
 
 #include "mbedtls/build_info.h"
 
@@ -38,8 +36,8 @@ int main(void)
 #include "mbedtls/error.h"
 #include "mbedtls/net_sockets.h"
 #include "mbedtls/ssl.h"
-#include "mbedtls/private/entropy.h"
-#include "mbedtls/private/ctr_drbg.h"
+#include "mbedtls/entropy.h"
+#include "mbedtls/ctr_drbg.h"
 #include "test/certs.h"
 #include "mbedtls/x509.h"
 
@@ -361,12 +359,14 @@ int main(int argc, char *argv[])
     mbedtls_ctr_drbg_init(&ctr_drbg);
     mbedtls_entropy_init(&entropy);
 
+#if defined(MBEDTLS_USE_PSA_CRYPTO)
     psa_status_t status = psa_crypto_init();
     if (status != PSA_SUCCESS) {
         mbedtls_fprintf(stderr, "Failed to initialize PSA Crypto implementation: %d\n",
                         (int) status);
         goto exit;
     }
+#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
     if (argc < 2) {
 usage:
@@ -514,7 +514,8 @@ usage:
 
 #if defined(MBEDTLS_FS_IO)
     if (strlen(opt.key_file)) {
-        ret = mbedtls_pk_parse_keyfile(&pkey, opt.key_file, "");
+        ret = mbedtls_pk_parse_keyfile(&pkey, opt.key_file, "",
+                                       mbedtls_ctr_drbg_random, &ctr_drbg);
     } else
 #endif
 #if defined(MBEDTLS_PEM_PARSE_C)
@@ -523,7 +524,9 @@ usage:
                                    (const unsigned char *) mbedtls_test_cli_key,
                                    mbedtls_test_cli_key_len,
                                    NULL,
-                                   0);
+                                   0,
+                                   mbedtls_ctr_drbg_random,
+                                   &ctr_drbg);
     }
 #else
     {
@@ -571,6 +574,7 @@ usage:
      * but makes interop easier in this simplified example */
     mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
 
+    mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
     mbedtls_ssl_conf_dbg(&conf, my_debug, stdout);
 
     if (opt.force_ciphersuite[0] != DFL_FORCE_CIPHER) {
@@ -802,7 +806,9 @@ exit:
     mbedtls_ssl_config_free(&conf);
     mbedtls_ctr_drbg_free(&ctr_drbg);
     mbedtls_entropy_free(&entropy);
+#if defined(MBEDTLS_USE_PSA_CRYPTO)
     mbedtls_psa_crypto_free();
+#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
     mbedtls_exit(exit_code);
 }

@@ -28,7 +28,6 @@ use strict;
 use utf8;
 use open qw(:std utf8);
 
-use Cwd qw(getcwd);
 use Getopt::Long qw(:config auto_help gnu_compat);
 use Pod::Usage;
 
@@ -41,8 +40,7 @@ GetOptions(
 
 # All test suites = executable files with a .datax file.
 my @suites = ();
-my @test_dirs = qw(../tf-psa-crypto/tests .);
-for my $data_file (map {glob "$_/test_suite_*.datax"} @test_dirs) {
+for my $data_file (glob 'test_suite_*.datax') {
     (my $base = $data_file) =~ s/\.datax$//;
     push @suites, $base if -x $base;
     push @suites, "$base.exe" if -e "$base.exe";
@@ -61,8 +59,8 @@ my $skip_re =
       ')(\z|\.)' );
 
 # in case test suites are linked dynamically
-$ENV{'LD_LIBRARY_PATH'} = getcwd() . "/../library";
-$ENV{'DYLD_LIBRARY_PATH'} = $ENV{'LD_LIBRARY_PATH'}; # For macOS
+$ENV{'LD_LIBRARY_PATH'} = '../library';
+$ENV{'DYLD_LIBRARY_PATH'} = '../library';
 
 my $prefix = $^O eq "MSWin32" ? '' : './';
 
@@ -77,13 +75,8 @@ sub pad_print_center {
     print $padchar x( $padlen ), " $string ", $padchar x( $padlen ), "\n";
 }
 
-for my $suite_path (@suites)
+for my $suite (@suites)
 {
-    my ($dir, $suite) = ('.', $suite_path);
-    if ($suite =~ m!(.*)/([^/]*)!) {
-        $dir = $1;
-        $suite = $2;
-    }
     print "$suite ", "." x ( 72 - length($suite) - 2 - 4 ), " ";
     if( $suite =~ /$skip_re/o ) {
         print "SKIP\n";
@@ -91,7 +84,7 @@ for my $suite_path (@suites)
         next;
     }
 
-    my $command = "cd $dir && $prefix$suite";
+    my $command = "$prefix$suite";
     if( $verbose ) {
         $command .= ' -v';
     }

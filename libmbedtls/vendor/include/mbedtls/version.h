@@ -1,5 +1,5 @@
 /**
- * \file mbedtls/version.h
+ * \file version.h
  *
  * \brief Run-time version information
  */
@@ -32,14 +32,23 @@ extern "C" {
 unsigned int mbedtls_version_get_number(void);
 
 /**
- * Get a pointer to the version string ("x.y.z").
+ * Get the version string ("x.y.z").
+ *
+ * \param string    The string that will receive the value.
+ *                  (Should be at least 9 bytes in size)
  */
-const char *mbedtls_version_get_string(void);
+void mbedtls_version_get_string(char *string);
 
 /**
- * Get a pointer to the full version string ("Mbed TLS x.y.z").
+ * Get the full version string ("Mbed TLS x.y.z").
+ *
+ * \param string    The string that will receive the value. The Mbed TLS version
+ *                  string will use 18 bytes AT MOST including a terminating
+ *                  null byte.
+ *                  (So the buffer should be at least 18 bytes to receive this
+ *                  version string).
  */
-const char *mbedtls_version_get_string_full(void);
+void mbedtls_version_get_string_full(char *string);
 
 /**
  * \brief           Check if support for a feature was compiled into this
@@ -51,7 +60,7 @@ const char *mbedtls_version_get_string_full(void);
  *                  support", "Mbed TLS modules" and "Mbed TLS feature
  *                  support" in mbedtls_config.h
  *
- * \param feature   The string for the define to check (e.g. "MBEDTLS_SSL_SRV_C")
+ * \param feature   The string for the define to check (e.g. "MBEDTLS_AES_C")
  *
  * \return          0 if the feature is present,
  *                  -1 if the feature is not present and

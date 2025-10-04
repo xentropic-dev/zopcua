@@ -71,19 +71,17 @@ echo
 # Step 1 - Make and instrumented build for code coverage
 export CFLAGS=' --coverage -g3 -O0 '
 export LDFLAGS=' --coverage'
-make -f scripts/legacy.make clean
+make clean
 cp "$CONFIG_H" "$CONFIG_BAK"
 scripts/config.py full
-make -f scripts/legacy.make
+make
+
 
 # Step 2 - Execute the tests
 TEST_OUTPUT=out_${PPID}
 cd tests
 if [ ! -f "seedfile" ]; then
     dd if=/dev/urandom of="seedfile" bs=64 count=1
-fi
-if [ ! -f "../tf-psa-crypto/tests/seedfile" ]; then
-    cp "seedfile" "../tf-psa-crypto/tests/seedfile"
 fi
 echo
 
@@ -118,7 +116,7 @@ echo
 # Step 3 - Process the coverage report
 cd ..
 {
-    make -f scripts/legacy.make lcov
+    make lcov
     echo SUCCESS
 } | tee tests/cov-$TEST_OUTPUT
 
@@ -236,7 +234,7 @@ rm -f "tests/basic-build-test-$$.ok"
     touch "basic-build-test-$$.ok"
 } | tee coverage-summary.txt
 
-make -f scripts/legacy.make clean
+make clean
 
 if [ -f "$CONFIG_BAK" ]; then
     mv "$CONFIG_BAK" "$CONFIG_H"

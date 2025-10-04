@@ -5,7 +5,7 @@
  *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 
-#include "ssl_misc.h"
+#include "common.h"
 
 #if defined(MBEDTLS_SSL_TLS_C) && defined(MBEDTLS_SSL_PROTO_TLS1_3)
 
@@ -19,6 +19,7 @@
 #include "psa/crypto.h"
 #include "mbedtls/psa_util.h"
 
+#include "ssl_misc.h"
 #include "ssl_tls13_invasive.h"
 #include "ssl_tls13_keys.h"
 #include "ssl_debug_helpers.h"
@@ -26,7 +27,6 @@
 #include "psa/crypto.h"
 #include "psa_util_internal.h"
 
-#if defined(MBEDTLS_SSL_TLS1_3_KEY_EXCHANGE_MODE_SOME_EPHEMERAL_ENABLED)
 /* Define a local translating function to save code size by not using too many
  * arguments in each translating place. */
 static int local_err_translation(psa_status_t status)
@@ -36,7 +36,16 @@ static int local_err_translation(psa_status_t status)
                                  psa_generic_status_to_mbedtls);
 }
 #define PSA_TO_MBEDTLS_ERR(status) local_err_translation(status)
-#endif
+
+int mbedtls_ssl_tls13_crypto_init(mbedtls_ssl_context *ssl)
+{
+    psa_status_t status = psa_crypto_init();
+    if (status != PSA_SUCCESS) {
+        (void) ssl; // unused when debugging is disabled
+        MBEDTLS_SSL_DEBUG_RET(1, "psa_crypto_init", status);
+    }
+    return PSA_TO_MBEDTLS_ERR(status);
+}
 
 const uint8_t mbedtls_ssl_tls13_hello_retry_request_magic[
     MBEDTLS_SERVER_HELLO_RANDOM_LEN] =
@@ -227,6 +236,11 @@ static int ssl_tls13_parse_certificate_verify(mbedtls_ssl_context *ssl,
     unsigned char verify_hash[PSA_HASH_MAX_SIZE];
     size_t verify_hash_len;
 
+    void const *options = NULL;
+#if defined(MBEDTLS_X509_RSASSA_PSS_SUPPORT)
+    mbedtls_pk_rsassa_pss_options rsassa_pss_options;
+#endif /* MBEDTLS_X509_RSASSA_PSS_SUPPORT */
+
     /*
      * struct {
      *     SignatureScheme algorithm;
@@ -299,14 +313,22 @@ static int ssl_tls13_parse_certificate_verify(mbedtls_ssl_context *ssl,
     }
 
     MBEDTLS_SSL_DEBUG_BUF(3, "verify hash", verify_hash, verify_hash_len);
+#if defined(MBEDTLS_X509_RSASSA_PSS_SUPPORT)
+    if (sig_alg == MBEDTLS_PK_RSASSA_PSS) {
+        rsassa_pss_options.mgf1_hash_id = md_alg;
 
-    if ((ret = mbedtls_pk_verify_new(sig_alg,
+        rsassa_pss_options.expected_salt_len = PSA_HASH_LENGTH(hash_alg);
+        options = (const void *) &rsassa_pss_options;
+    }
+#endif /* MBEDTLS_X509_RSASSA_PSS_SUPPORT */
+
+    if ((ret = mbedtls_pk_verify_ext(sig_alg, options,
                                      &ssl->session_negotiate->peer_cert->pk,
                                      md_alg, verify_hash, verify_hash_len,
                                      p, signature_len)) == 0) {
         return 0;
     }
-    MBEDTLS_SSL_DEBUG_RET(1, "mbedtls_pk_verify_new", ret);
+    MBEDTLS_SSL_DEBUG_RET(1, "mbedtls_pk_verify_ext", ret);
 
 error:
     /* RFC 8446 section 4.4.3
@@ -505,7 +527,7 @@ int mbedtls_ssl_tls13_parse_certificate(mbedtls_ssl_context *ssl,
         switch (ret) {
             case 0: /*ok*/
                 break;
-            case MBEDTLS_ERR_X509_UNKNOWN_OID:
+            case MBEDTLS_ERR_X509_UNKNOWN_SIG_ALG + MBEDTLS_ERR_OID_NOT_FOUND:
                 /* Ignore certificate with an unknown algorithm: maybe a
                    prior certificate was already trusted. */
                 break;
@@ -963,9 +985,10 @@ static int ssl_tls13_write_certificate_verify_body(mbedtls_ssl_context *ssl,
 
         MBEDTLS_SSL_DEBUG_BUF(3, "verify hash", verify_hash, verify_hash_len);
 
-        if ((ret = mbedtls_pk_sign_ext((mbedtls_pk_sigalg_t) pk_type, own_key,
+        if ((ret = mbedtls_pk_sign_ext(pk_type, own_key,
                                        md_alg, verify_hash, verify_hash_len,
-                                       p + 4, (size_t) (end - (p + 4)), &signature_len)) != 0) {
+                                       p + 4, (size_t) (end - (p + 4)), &signature_len,
+                                       ssl->conf->f_rng, ssl->conf->p_rng)) != 0) {
             MBEDTLS_SSL_DEBUG_MSG(2, ("CertificateVerify signature failed with %s",
                                       mbedtls_ssl_sig_alg_to_str(*sig_alg)));
             MBEDTLS_SSL_DEBUG_RET(2, "mbedtls_pk_sign_ext", ret);
@@ -1144,8 +1167,7 @@ static int ssl_tls13_prepare_finished_message(mbedtls_ssl_context *ssl)
                                                   ssl->handshake->state_local.finished_out.digest,
                                                   sizeof(ssl->handshake->state_local.finished_out.
                                                          digest),
-                                                  &ssl->handshake->state_local.finished_out.
-                                                  digest_len,
+                                                  &ssl->handshake->state_local.finished_out.digest_len,
                                                   ssl->conf->endpoint);
 
     if (ret != 0) {

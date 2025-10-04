@@ -9,13 +9,14 @@
  * to store and retrieve the session information.
  */
 
-#include "ssl_misc.h"
+#include "common.h"
 
 #if defined(MBEDTLS_SSL_CACHE_C)
 
 #include "mbedtls/platform.h"
 
 #include "mbedtls/ssl_cache.h"
+#include "ssl_misc.h"
 #include "mbedtls/error.h"
 
 #include <string.h>

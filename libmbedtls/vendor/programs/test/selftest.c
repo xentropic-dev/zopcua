@@ -5,35 +5,35 @@
  *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 
-#define MBEDTLS_DECLARE_PRIVATE_IDENTIFIERS
-
 #include "mbedtls/build_info.h"
 
-#include "mbedtls/private/entropy.h"
-#include "mbedtls/private/hmac_drbg.h"
-#include "mbedtls/private/ctr_drbg.h"
-#include "mbedtls/private/gcm.h"
-#include "mbedtls/private/ccm.h"
-#include "mbedtls/private/cmac.h"
-#include "mbedtls/private/md5.h"
-#include "mbedtls/private/ripemd160.h"
-#include "mbedtls/private/sha1.h"
-#include "mbedtls/private/sha256.h"
-#include "mbedtls/private/sha512.h"
-#include "mbedtls/private/sha3.h"
-#include "mbedtls/private/aes.h"
-#include "mbedtls/private/camellia.h"
-#include "mbedtls/private/aria.h"
-#include "mbedtls/private/chacha20.h"
-#include "mbedtls/private/poly1305.h"
-#include "mbedtls/private/chachapoly.h"
+#include "mbedtls/entropy.h"
+#include "mbedtls/hmac_drbg.h"
+#include "mbedtls/ctr_drbg.h"
+#include "mbedtls/dhm.h"
+#include "mbedtls/gcm.h"
+#include "mbedtls/ccm.h"
+#include "mbedtls/cmac.h"
+#include "mbedtls/md5.h"
+#include "mbedtls/ripemd160.h"
+#include "mbedtls/sha1.h"
+#include "mbedtls/sha256.h"
+#include "mbedtls/sha512.h"
+#include "mbedtls/sha3.h"
+#include "mbedtls/des.h"
+#include "mbedtls/aes.h"
+#include "mbedtls/camellia.h"
+#include "mbedtls/aria.h"
+#include "mbedtls/chacha20.h"
+#include "mbedtls/poly1305.h"
+#include "mbedtls/chachapoly.h"
 #include "mbedtls/base64.h"
-#include "mbedtls/private/bignum.h"
-#include "mbedtls/private/rsa.h"
+#include "mbedtls/bignum.h"
+#include "mbedtls/rsa.h"
 #include "mbedtls/x509.h"
-#include "mbedtls/private/pkcs5.h"
-#include "mbedtls/private/ecp.h"
-#include "mbedtls/private/ecjpake.h"
+#include "mbedtls/pkcs5.h"
+#include "mbedtls/ecp.h"
+#include "mbedtls/ecjpake.h"
 #include "mbedtls/timing.h"
 #include "mbedtls/nist_kw.h"
 #include "mbedtls/debug.h"
@@ -210,18 +210,11 @@ static int run_test_snprintf(void)
  * back.
  */
 #if defined(MBEDTLS_SELF_TEST) && defined(MBEDTLS_ENTROPY_C)
-#if defined(MBEDTLS_ENTROPY_NV_SEED) && !defined(MBEDTLS_PSA_DRIVER_GET_ENTROPY)
-static void dummy_entropy(unsigned char *output, size_t output_size)
-{
-    srand(1);
-    for (size_t i = 0; i < output_size; i++) {
-        output[i] = rand();
-    }
-}
-
+#if defined(MBEDTLS_ENTROPY_NV_SEED) && !defined(MBEDTLS_NO_PLATFORM_ENTROPY)
 static void create_entropy_seed_file(void)
 {
     int result;
+    size_t output_len = 0;
     unsigned char seed_value[MBEDTLS_ENTROPY_BLOCK_SIZE];
 
     /* Attempt to read the entropy seed file. If this fails - attempt to write
@@ -232,14 +225,25 @@ static void create_entropy_seed_file(void)
         return;
     }
 
-    dummy_entropy(seed_value, MBEDTLS_ENTROPY_BLOCK_SIZE);
+    result = mbedtls_platform_entropy_poll(NULL,
+                                           seed_value,
+                                           MBEDTLS_ENTROPY_BLOCK_SIZE,
+                                           &output_len);
+    if (0 != result) {
+        return;
+    }
+
+    if (MBEDTLS_ENTROPY_BLOCK_SIZE != output_len) {
+        return;
+    }
+
     mbedtls_platform_std_nv_seed_write(seed_value, MBEDTLS_ENTROPY_BLOCK_SIZE);
 }
 #endif
 
 static int mbedtls_entropy_self_test_wrapper(int verbose)
 {
-#if defined(MBEDTLS_ENTROPY_NV_SEED) && !defined(MBEDTLS_PSA_DRIVER_GET_ENTROPY)
+#if defined(MBEDTLS_ENTROPY_NV_SEED) && !defined(MBEDTLS_NO_PLATFORM_ENTROPY)
     create_entropy_seed_file();
 #endif
     return mbedtls_entropy_self_test(verbose);
@@ -289,11 +293,11 @@ const selftest_t selftests[] =
 #if defined(MBEDTLS_SHA512_C)
     { "sha512", mbedtls_sha512_self_test },
 #endif
-#if defined(PSA_WANT_ALG_SHA3_224) || \
-    defined(PSA_WANT_ALG_SHA3_256) || \
-    defined(PSA_WANT_ALG_SHA3_384) || \
-    defined(PSA_WANT_ALG_SHA3_512)
+#if defined(MBEDTLS_SHA3_C)
     { "sha3", mbedtls_sha3_self_test },
+#endif
+#if defined(MBEDTLS_DES_C)
+    { "des", mbedtls_des_self_test },
 #endif
 #if defined(MBEDTLS_AES_C)
     { "aes", mbedtls_aes_self_test },
@@ -303,6 +307,9 @@ const selftest_t selftests[] =
 #endif
 #if defined(MBEDTLS_CCM_C) && defined(MBEDTLS_AES_C)
     { "ccm", mbedtls_ccm_self_test },
+#endif
+#if defined(MBEDTLS_NIST_KW_C) && defined(MBEDTLS_AES_C)
+    { "nist_kw", mbedtls_nist_kw_self_test },
 #endif
 #if defined(MBEDTLS_CMAC_C)
     { "cmac", mbedtls_cmac_self_test },
@@ -342,6 +349,9 @@ const selftest_t selftests[] =
 #endif
 #if defined(MBEDTLS_ECJPAKE_C)
     { "ecjpake", mbedtls_ecjpake_self_test },
+#endif
+#if defined(MBEDTLS_DHM_C)
+    { "dhm", mbedtls_dhm_self_test },
 #endif
 #if defined(MBEDTLS_ENTROPY_C)
     { "entropy", mbedtls_entropy_self_test_wrapper },
@@ -444,8 +454,7 @@ int main(int argc, char *argv[])
             }                                                           \
         } else {                                                        \
             mbedtls_printf("Padding checks only implemented for types of size 2, 4 or 8" \
-                           " - cannot check type '" #TYPE "' of size %" MBEDTLS_PRINTF_SIZET \
-                           "\n",       \
+                           " - cannot check type '" #TYPE "' of size %" MBEDTLS_PRINTF_SIZET "\n",       \
                            sizeof(TYPE));                                       \
             mbedtls_exit(MBEDTLS_EXIT_FAILURE);                       \
         }                                                               \

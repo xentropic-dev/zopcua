@@ -5,16 +5,13 @@
  *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 
-#include "tf_psa_crypto_common.h"
+#include "common.h"
 
 #include <test/certs.h>
 
 #include "mbedtls/build_info.h"
 
 #include "mbedtls/pk.h"
-#if defined(MBEDTLS_PK_HAVE_PRIVATE_HEADER)
-#include <mbedtls/private/pk_private.h>
-#endif /* MBEDTLS_PK_HAVE_PRIVATE_HEADER */
 
 #include "test/test_certs.h"
 
@@ -304,13 +301,13 @@ const size_t mbedtls_test_cli_crt_ec_len =
  * Dispatch between SHA-1 and SHA-256
  */
 
-#if defined(PSA_WANT_ALG_SHA_256)
+#if defined(MBEDTLS_MD_CAN_SHA256)
 #define TEST_CA_CRT_RSA  TEST_CA_CRT_RSA_SHA256
 #define TEST_SRV_CRT_RSA TEST_SRV_CRT_RSA_SHA256
 #else
 #define TEST_CA_CRT_RSA  TEST_CA_CRT_RSA_SHA1
 #define TEST_SRV_CRT_RSA TEST_SRV_CRT_RSA_SHA1
-#endif /* PSA_WANT_ALG_SHA_256 */
+#endif /* MBEDTLS_MD_CAN_SHA256 */
 
 const char mbedtls_test_ca_crt_rsa[]  = TEST_CA_CRT_RSA;
 const char mbedtls_test_srv_crt_rsa[] = TEST_SRV_CRT_RSA;
@@ -409,25 +406,25 @@ const size_t mbedtls_test_cli_crt_len =
 
 /* List of CAs in PEM or DER, depending on config */
 const char *mbedtls_test_cas[] = {
-#if defined(MBEDTLS_RSA_C) && defined(PSA_WANT_ALG_SHA_1)
+#if defined(MBEDTLS_RSA_C) && defined(MBEDTLS_MD_CAN_SHA1)
     mbedtls_test_ca_crt_rsa_sha1,
 #endif
-#if defined(MBEDTLS_RSA_C) && defined(PSA_WANT_ALG_SHA_256)
+#if defined(MBEDTLS_RSA_C) && defined(MBEDTLS_MD_CAN_SHA256)
     mbedtls_test_ca_crt_rsa_sha256,
 #endif
-#if defined(PSA_HAVE_ALG_SOME_ECDSA)
+#if defined(MBEDTLS_PK_CAN_ECDSA_SOME)
     mbedtls_test_ca_crt_ec,
 #endif
     NULL
 };
 const size_t mbedtls_test_cas_len[] = {
-#if defined(MBEDTLS_RSA_C) && defined(PSA_WANT_ALG_SHA_1)
+#if defined(MBEDTLS_RSA_C) && defined(MBEDTLS_MD_CAN_SHA1)
     sizeof(mbedtls_test_ca_crt_rsa_sha1),
 #endif
-#if defined(MBEDTLS_RSA_C) && defined(PSA_WANT_ALG_SHA_256)
+#if defined(MBEDTLS_RSA_C) && defined(MBEDTLS_MD_CAN_SHA256)
     sizeof(mbedtls_test_ca_crt_rsa_sha256),
 #endif
-#if defined(PSA_HAVE_ALG_SOME_ECDSA)
+#if defined(MBEDTLS_PK_CAN_ECDSA_SOME)
     sizeof(mbedtls_test_ca_crt_ec),
 #endif
     0
@@ -436,31 +433,31 @@ const size_t mbedtls_test_cas_len[] = {
 /* List of all available CA certificates in DER format */
 const unsigned char *mbedtls_test_cas_der[] = {
 #if defined(MBEDTLS_RSA_C)
-#if defined(PSA_WANT_ALG_SHA_256)
+#if defined(MBEDTLS_MD_CAN_SHA256)
     mbedtls_test_ca_crt_rsa_sha256_der,
-#endif /* PSA_WANT_ALG_SHA_256 */
-#if defined(PSA_WANT_ALG_SHA_1)
+#endif /* MBEDTLS_MD_CAN_SHA256 */
+#if defined(MBEDTLS_MD_CAN_SHA1)
     mbedtls_test_ca_crt_rsa_sha1_der,
-#endif /* PSA_WANT_ALG_SHA_1 */
+#endif /* MBEDTLS_MD_CAN_SHA1 */
 #endif /* MBEDTLS_RSA_C */
-#if defined(PSA_HAVE_ALG_SOME_ECDSA)
+#if defined(MBEDTLS_PK_CAN_ECDSA_SOME)
     mbedtls_test_ca_crt_ec_der,
-#endif /* PSA_HAVE_ALG_SOME_ECDSA */
+#endif /* MBEDTLS_PK_CAN_ECDSA_SOME */
     NULL
 };
 
 const size_t mbedtls_test_cas_der_len[] = {
 #if defined(MBEDTLS_RSA_C)
-#if defined(PSA_WANT_ALG_SHA_256)
+#if defined(MBEDTLS_MD_CAN_SHA256)
     sizeof(mbedtls_test_ca_crt_rsa_sha256_der),
-#endif /* PSA_WANT_ALG_SHA_256 */
-#if defined(PSA_WANT_ALG_SHA_1)
+#endif /* MBEDTLS_MD_CAN_SHA256 */
+#if defined(MBEDTLS_MD_CAN_SHA1)
     sizeof(mbedtls_test_ca_crt_rsa_sha1_der),
-#endif /* PSA_WANT_ALG_SHA_1 */
+#endif /* MBEDTLS_MD_CAN_SHA1 */
 #endif /* MBEDTLS_RSA_C */
-#if defined(PSA_HAVE_ALG_SOME_ECDSA)
+#if defined(MBEDTLS_PK_CAN_ECDSA_SOME)
     sizeof(mbedtls_test_ca_crt_ec_der),
-#endif /* PSA_HAVE_ALG_SOME_ECDSA */
+#endif /* MBEDTLS_PK_CAN_ECDSA_SOME */
     0
 };
 
@@ -468,16 +465,16 @@ const size_t mbedtls_test_cas_der_len[] = {
 #if defined(MBEDTLS_PEM_PARSE_C)
 const char mbedtls_test_cas_pem[] =
 #if defined(MBEDTLS_RSA_C)
-#if defined(PSA_WANT_ALG_SHA_256)
+#if defined(MBEDTLS_MD_CAN_SHA256)
     TEST_CA_CRT_RSA_SHA256_PEM
-#endif /* PSA_WANT_ALG_SHA_256 */
-#if defined(PSA_WANT_ALG_SHA_1)
+#endif /* MBEDTLS_MD_CAN_SHA256 */
+#if defined(MBEDTLS_MD_CAN_SHA1)
     TEST_CA_CRT_RSA_SHA1_PEM
-#endif /* PSA_WANT_ALG_SHA_1 */
+#endif /* MBEDTLS_MD_CAN_SHA1 */
 #endif /* MBEDTLS_RSA_C */
-#if defined(PSA_HAVE_ALG_SOME_ECDSA)
+#if defined(MBEDTLS_PK_CAN_ECDSA_SOME)
     TEST_CA_CRT_EC_PEM
-#endif /* PSA_HAVE_ALG_SOME_ECDSA */
+#endif /* MBEDTLS_PK_CAN_ECDSA_SOME */
     "";
 const size_t mbedtls_test_cas_pem_len = sizeof(mbedtls_test_cas_pem);
 #endif /* MBEDTLS_PEM_PARSE_C */

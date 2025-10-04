@@ -197,32 +197,11 @@ class AbiChecker:
         """If the crypto submodule is present, initialize it.
         if version.crypto_revision exists, update it to that revision,
         otherwise update it to the default revision"""
-        submodule_output = subprocess.check_output(
-            [self.git_command, "submodule", "foreach", "--recursive",
-             f'git worktree add --detach "{git_worktree_path}/$displaypath" HEAD'],
-            cwd=self.repo_path,
+        update_output = subprocess.check_output(
+            [self.git_command, "submodule", "update", "--init", '--recursive'],
+            cwd=git_worktree_path,
             stderr=subprocess.STDOUT
         )
-        self.log.debug(submodule_output.decode("utf-8"))
-
-        try:
-            # Try to update the submodules using local commits
-            # (Git will sometimes insist on fetching the remote without --no-fetch
-            # if the submodules are shallow clones)
-            update_output = subprocess.check_output(
-                [self.git_command, "submodule", "update", "--init", '--recursive', '--no-fetch'],
-                cwd=git_worktree_path,
-                stderr=subprocess.STDOUT
-            )
-        except subprocess.CalledProcessError as err:
-            self.log.debug(err.stdout.decode("utf-8"))
-
-            # Checkout with --no-fetch failed, falling back to fetching from origin
-            update_output = subprocess.check_output(
-                [self.git_command, "submodule", "update", "--init", '--recursive'],
-                cwd=git_worktree_path,
-                stderr=subprocess.STDOUT
-            )
         self.log.debug(update_output.decode("utf-8"))
         if not (os.path.exists(os.path.join(git_worktree_path, "crypto"))
                 and version.crypto_revision):
@@ -254,14 +233,8 @@ class AbiChecker:
         my_environment["SHARED"] = "1"
         if os.path.exists(os.path.join(git_worktree_path, "crypto")):
             my_environment["USE_CRYPTO_SUBMODULE"] = "1"
-
-        if os.path.exists(os.path.join(git_worktree_path, "scripts", "legacy.make")):
-            command = [self.make_command, "-f", "scripts/legacy.make", "lib"]
-        else:
-            command = [self.make_command, "lib"]
-
         make_output = subprocess.check_output(
-            command,
+            [self.make_command, "lib"],
             env=my_environment,
             cwd=git_worktree_path,
             stderr=subprocess.STDOUT
@@ -377,15 +350,9 @@ class AbiChecker:
         """
         # Existing test data files. This may be missing some automatically
         # generated files if they haven't been generated yet.
-        if os.path.isdir(os.path.join(git_worktree_path, 'tf-psa-crypto',
-                                      'tests', 'suites')):
-            storage_data_files = set(glob.glob(
-                'tf-psa-crypto/tests/suites/test_suite_*storage_format*.data'
-            ))
-        else:
-            storage_data_files = set(glob.glob(
-                'tests/suites/test_suite_*storage_format*.data'
-            ))
+        storage_data_files = set(glob.glob(
+            'tests/suites/test_suite_*storage_format*.data'
+        ))
         # Discover and (re)generate automatically generated data files.
         to_be_generated = set()
         for filename in self._list_generated_test_data_files(git_worktree_path):
@@ -411,15 +378,8 @@ class AbiChecker:
     def _cleanup_worktree(self, git_worktree_path):
         """Remove the specified git worktree."""
         shutil.rmtree(git_worktree_path)
-        submodule_output = subprocess.check_output(
-            [self.git_command, "submodule", "foreach", "--recursive",
-             f'git worktree remove "{git_worktree_path}/$displaypath"'],
-            cwd=self.repo_path,
-            stderr=subprocess.STDOUT
-        )
-        self.log.debug(submodule_output.decode("utf-8"))
         worktree_output = subprocess.check_output(
-            [self.git_command, "worktree", "remove", git_worktree_path],
+            [self.git_command, "worktree", "prune"],
             cwd=self.repo_path,
             stderr=subprocess.STDOUT
         )

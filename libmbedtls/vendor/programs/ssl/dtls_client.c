@@ -5,8 +5,6 @@
  *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 
-#define MBEDTLS_DECLARE_PRIVATE_IDENTIFIERS
-
 #include "mbedtls/build_info.h"
 
 #include "mbedtls/platform.h"
@@ -31,8 +29,8 @@ int main(void)
 #include "mbedtls/net_sockets.h"
 #include "mbedtls/debug.h"
 #include "mbedtls/ssl.h"
-#include "mbedtls/private/entropy.h"
-#include "mbedtls/private/ctr_drbg.h"
+#include "mbedtls/entropy.h"
+#include "mbedtls/ctr_drbg.h"
 #include "mbedtls/error.h"
 #include "mbedtls/timing.h"
 #include "test/certs.h"
@@ -100,6 +98,7 @@ int main(int argc, char *argv[])
     mbedtls_ctr_drbg_init(&ctr_drbg);
     mbedtls_entropy_init(&entropy);
 
+#if defined(MBEDTLS_USE_PSA_CRYPTO)
     psa_status_t status = psa_crypto_init();
     if (status != PSA_SUCCESS) {
         mbedtls_fprintf(stderr, "Failed to initialize PSA Crypto implementation: %d\n",
@@ -107,6 +106,7 @@ int main(int argc, char *argv[])
         ret = MBEDTLS_ERR_SSL_HW_ACCEL_FAILED;
         goto exit;
     }
+#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
     mbedtls_printf("\n  . Seeding the random number generator...");
     fflush(stdout);
@@ -169,6 +169,7 @@ int main(int argc, char *argv[])
      * Production code should set a proper ca chain and use REQUIRED. */
     mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
     mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
+    mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
     mbedtls_ssl_conf_dbg(&conf, my_debug, stdout);
     mbedtls_ssl_conf_read_timeout(&conf, READ_TIMEOUT_MS);
 
@@ -324,7 +325,9 @@ exit:
     mbedtls_ssl_config_free(&conf);
     mbedtls_ctr_drbg_free(&ctr_drbg);
     mbedtls_entropy_free(&entropy);
+#if defined(MBEDTLS_USE_PSA_CRYPTO)
     mbedtls_psa_crypto_free();
+#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
     /* Shell can not handle large exit numbers -> 1 for errors */
     if (ret < 0) {

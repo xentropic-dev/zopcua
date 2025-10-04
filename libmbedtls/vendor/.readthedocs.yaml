@@ -5,16 +5,14 @@
 # Required
 version: 2
 
-# Include all submodules in the build
+# Include the framework submodule in the build
 submodules:
-  include: all
-  recursive: true
+  include:
+  - framework
 
 # Set the version of Python and other tools you might need
 build:
   os: ubuntu-20.04
-  apt_packages:
-    - cmake
   tools:
     python: "3.9"
   jobs:

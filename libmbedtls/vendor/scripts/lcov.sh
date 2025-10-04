@@ -44,8 +44,8 @@ lcov_library_report () {
     # Ubuntu 16.04 is affected, 18.04 and above are not.
     # https://github.com/linux-test-project/lcov/commit/632c25a0d1f5e4d2f4fd5b28ce7c8b86d388c91f
     COVTMP=$PWD/Coverage/tmp
-    lcov --capture --initial ${lcov_dirs} -o "$COVTMP/files.info"
-    lcov --rc lcov_branch_coverage=1 --capture ${lcov_dirs} -o "$COVTMP/tests.info"
+    lcov --capture --initial --directory $library_dir -o "$COVTMP/files.info"
+    lcov --rc lcov_branch_coverage=1 --capture --directory $library_dir -o "$COVTMP/tests.info"
     lcov --rc lcov_branch_coverage=1 --add-tracefile "$COVTMP/files.info" --add-tracefile "$COVTMP/tests.info" -o "$COVTMP/all.info"
     lcov --rc lcov_branch_coverage=1 --remove "$COVTMP/all.info" -o "$COVTMP/final.info" '*.h'
     gendesc tests/Descriptions.txt -o "$COVTMP/descriptions"
@@ -57,13 +57,9 @@ lcov_library_report () {
 # Reset the traces to 0.
 lcov_reset_traces () {
     # Location with plain make
-    for dir in ${library_dirs}; do
-        rm -f ${dir}/*.gcda
-    done
+    rm -f $library_dir/*.gcda
     # Location with CMake
-    for dir in ${library_dirs}; do
-        rm -f ${dir}/CMakeFiles/*.dir/*.gcda
-    done
+    rm -f $library_dir/CMakeFiles/*.dir/*.gcda
 }
 
 if [ $# -gt 0 ] && [ "$1" = "--help" ]; then
@@ -72,17 +68,12 @@ if [ $# -gt 0 ] && [ "$1" = "--help" ]; then
 fi
 
 if in_mbedtls_repo; then
-    library_dirs='library tf-psa-crypto/core tf-psa-crypto/drivers/builtin'
+    library_dir='library'
     title='Mbed TLS'
 else
-    library_dirs='core drivers/builtin'
+    library_dir='core'
     title='TF-PSA-Crypto'
 fi
-
-lcov_dirs=""
-for dir in ${library_dirs}; do
-    lcov_dirs="${lcov_dirs} --directory ${dir}"
-done
 
 main=lcov_library_report
 while getopts r OPTLET; do

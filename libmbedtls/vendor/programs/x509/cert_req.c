@@ -5,8 +5,6 @@
  *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 
-#define MBEDTLS_DECLARE_PRIVATE_IDENTIFIERS
-
 #include "mbedtls/build_info.h"
 
 #include "mbedtls/platform.h"
@@ -14,14 +12,14 @@
 #include "mbedtls/md.h"
 
 #if !defined(MBEDTLS_X509_CSR_WRITE_C) || !defined(MBEDTLS_X509_CRT_PARSE_C) || \
-    !defined(MBEDTLS_PK_PARSE_C) || !defined(PSA_WANT_ALG_SHA_256) || \
+    !defined(MBEDTLS_PK_PARSE_C) || !defined(MBEDTLS_MD_CAN_SHA256) || \
     !defined(MBEDTLS_ENTROPY_C) || !defined(MBEDTLS_CTR_DRBG_C) || \
     !defined(MBEDTLS_PEM_WRITE_C) || !defined(MBEDTLS_FS_IO) || \
     !defined(MBEDTLS_MD_C)
 int main(void)
 {
     mbedtls_printf("MBEDTLS_X509_CSR_WRITE_C and/or MBEDTLS_FS_IO and/or "
-                   "MBEDTLS_PK_PARSE_C and/or PSA_WANT_ALG_SHA_256 and/or "
+                   "MBEDTLS_PK_PARSE_C and/or MBEDTLS_MD_CAN_SHA256 and/or "
                    "MBEDTLS_ENTROPY_C and/or MBEDTLS_CTR_DRBG_C "
                    "not defined.\n");
     mbedtls_exit(0);
@@ -29,8 +27,8 @@ int main(void)
 #else
 
 #include "mbedtls/x509_csr.h"
-#include "mbedtls/private/entropy.h"
-#include "mbedtls/private/ctr_drbg.h"
+#include "mbedtls/entropy.h"
+#include "mbedtls/ctr_drbg.h"
 #include "mbedtls/error.h"
 
 #include <stdio.h>
@@ -109,7 +107,9 @@ struct options {
     mbedtls_md_type_t md_alg;         /* Hash algorithm used for signature.       */
 } opt;
 
-static int write_certificate_request(mbedtls_x509write_csr *req, const char *output_file)
+static int write_certificate_request(mbedtls_x509write_csr *req, const char *output_file,
+                                     int (*f_rng)(void *, unsigned char *, size_t),
+                                     void *p_rng)
 {
     int ret;
     FILE *f;
@@ -117,7 +117,7 @@ static int write_certificate_request(mbedtls_x509write_csr *req, const char *out
     size_t len = 0;
 
     memset(output_buf, 0, 4096);
-    if ((ret = mbedtls_x509write_csr_pem(req, output_buf, 4096)) < 0) {
+    if ((ret = mbedtls_x509write_csr_pem(req, output_buf, 4096, f_rng, p_rng)) < 0) {
         return ret;
     }
 
@@ -162,12 +162,14 @@ int main(int argc, char *argv[])
     memset(buf, 0, sizeof(buf));
     mbedtls_entropy_init(&entropy);
 
+#if defined(MBEDTLS_USE_PSA_CRYPTO)
     psa_status_t status = psa_crypto_init();
     if (status != PSA_SUCCESS) {
         mbedtls_fprintf(stderr, "Failed to initialize PSA Crypto implementation: %d\n",
                         (int) status);
         goto exit;
     }
+#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
     if (argc < 2) {
 usage:
@@ -459,7 +461,8 @@ usage:
     mbedtls_printf("  . Loading the private key ...");
     fflush(stdout);
 
-    ret = mbedtls_pk_parse_keyfile(&key, opt.filename, opt.password);
+    ret = mbedtls_pk_parse_keyfile(&key, opt.filename, opt.password,
+                                   mbedtls_ctr_drbg_random, &ctr_drbg);
 
     if (ret != 0) {
         mbedtls_printf(" failed\n  !  mbedtls_pk_parse_keyfile returned %d", ret);
@@ -476,7 +479,8 @@ usage:
     mbedtls_printf("  . Writing the certificate request ...");
     fflush(stdout);
 
-    if ((ret = write_certificate_request(&req, opt.output_file)) != 0) {
+    if ((ret = write_certificate_request(&req, opt.output_file,
+                                         mbedtls_ctr_drbg_random, &ctr_drbg)) != 0) {
         mbedtls_printf(" failed\n  !  write_certificate_request %d", ret);
         goto exit;
     }
@@ -500,7 +504,9 @@ exit:
     mbedtls_pk_free(&key);
     mbedtls_ctr_drbg_free(&ctr_drbg);
     mbedtls_entropy_free(&entropy);
+#if defined(MBEDTLS_USE_PSA_CRYPTO)
     mbedtls_psa_crypto_free();
+#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
     cur = opt.san_list;
     while (cur != NULL) {

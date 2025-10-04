@@ -11,11 +11,13 @@
 #ifndef MBEDTLS_SSL_DEBUG_HELPERS_H
 #define MBEDTLS_SSL_DEBUG_HELPERS_H
 
-#include "ssl_misc.h"
+#include "common.h"
 
 #if defined(MBEDTLS_DEBUG_C)
 
 #include "mbedtls/ssl.h"
+#include "ssl_misc.h"
+
 
 const char *mbedtls_ssl_states_str(mbedtls_ssl_states in);
 

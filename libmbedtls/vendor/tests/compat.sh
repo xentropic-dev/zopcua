@@ -320,6 +320,14 @@ add_common_ciphersuites()
 
         "RSA")
             CIPHERS="$CIPHERS                           \
+                TLS_DHE_RSA_WITH_AES_128_CBC_SHA        \
+                TLS_DHE_RSA_WITH_AES_128_CBC_SHA256     \
+                TLS_DHE_RSA_WITH_AES_128_GCM_SHA256     \
+                TLS_DHE_RSA_WITH_AES_256_CBC_SHA        \
+                TLS_DHE_RSA_WITH_AES_256_CBC_SHA256     \
+                TLS_DHE_RSA_WITH_AES_256_GCM_SHA384     \
+                TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA   \
+                TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA   \
                 TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA      \
                 TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256   \
                 TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256   \
@@ -327,6 +335,17 @@ add_common_ciphersuites()
                 TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384   \
                 TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384   \
                 TLS_ECDHE_RSA_WITH_NULL_SHA             \
+                TLS_RSA_WITH_AES_128_CBC_SHA            \
+                TLS_RSA_WITH_AES_128_CBC_SHA256         \
+                TLS_RSA_WITH_AES_128_GCM_SHA256         \
+                TLS_RSA_WITH_AES_256_CBC_SHA            \
+                TLS_RSA_WITH_AES_256_CBC_SHA256         \
+                TLS_RSA_WITH_AES_256_GCM_SHA384         \
+                TLS_RSA_WITH_CAMELLIA_128_CBC_SHA       \
+                TLS_RSA_WITH_CAMELLIA_256_CBC_SHA       \
+                TLS_RSA_WITH_NULL_MD5                   \
+                TLS_RSA_WITH_NULL_SHA                   \
+                TLS_RSA_WITH_NULL_SHA256                \
                 "
             ;;
 
@@ -350,6 +369,10 @@ add_common_ciphersuites()
 # Based on client's naming convention, all ciphersuite names will be
 # translated into another naming format before sent to the client.
 #
+# NOTE: for some reason RSA-PSK doesn't work with OpenSSL,
+# so RSA-PSK ciphersuites need to go in other sections, see
+# https://github.com/Mbed-TLS/mbedtls/issues/1419
+#
 # ChachaPoly suites are here rather than in "common", as they were added in
 # GnuTLS in 3.5.0 and the CI only has 3.4.x so far.
 add_openssl_ciphersuites()
@@ -359,6 +382,13 @@ add_openssl_ciphersuites()
 
         "ECDSA")
             CIPHERS="$CIPHERS                                   \
+                TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA             \
+                TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256          \
+                TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256          \
+                TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA             \
+                TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384          \
+                TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384          \
+                TLS_ECDH_ECDSA_WITH_NULL_SHA                    \
                 TLS_ECDHE_ECDSA_WITH_ARIA_128_GCM_SHA256        \
                 TLS_ECDHE_ECDSA_WITH_ARIA_256_GCM_SHA384        \
                 TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256   \
@@ -367,14 +397,22 @@ add_openssl_ciphersuites()
 
         "RSA")
             CIPHERS="$CIPHERS                                   \
+                TLS_DHE_RSA_WITH_ARIA_128_GCM_SHA256            \
+                TLS_DHE_RSA_WITH_ARIA_256_GCM_SHA384            \
+                TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256       \
                 TLS_ECDHE_RSA_WITH_ARIA_128_GCM_SHA256          \
                 TLS_ECDHE_RSA_WITH_ARIA_256_GCM_SHA384          \
                 TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256     \
+                TLS_RSA_WITH_ARIA_128_GCM_SHA256                \
+                TLS_RSA_WITH_ARIA_256_GCM_SHA384                \
                 "
             ;;
 
         "PSK")
             CIPHERS="$CIPHERS                                   \
+                TLS_DHE_PSK_WITH_ARIA_128_GCM_SHA256            \
+                TLS_DHE_PSK_WITH_ARIA_256_GCM_SHA384            \
+                TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256       \
                 TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256     \
                 TLS_PSK_WITH_ARIA_128_GCM_SHA256                \
                 TLS_PSK_WITH_ARIA_256_GCM_SHA384                \
@@ -413,15 +451,47 @@ add_gnutls_ciphersuites()
 
         "RSA")
             CIPHERS="$CIPHERS                               \
+                TLS_DHE_RSA_WITH_AES_128_CCM                \
+                TLS_DHE_RSA_WITH_AES_128_CCM_8              \
+                TLS_DHE_RSA_WITH_AES_256_CCM                \
+                TLS_DHE_RSA_WITH_AES_256_CCM_8              \
+                TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256    \
+                TLS_DHE_RSA_WITH_CAMELLIA_128_GCM_SHA256    \
+                TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256    \
+                TLS_DHE_RSA_WITH_CAMELLIA_256_GCM_SHA384    \
                 TLS_ECDHE_RSA_WITH_CAMELLIA_128_CBC_SHA256  \
                 TLS_ECDHE_RSA_WITH_CAMELLIA_128_GCM_SHA256  \
                 TLS_ECDHE_RSA_WITH_CAMELLIA_256_CBC_SHA384  \
                 TLS_ECDHE_RSA_WITH_CAMELLIA_256_GCM_SHA384  \
+                TLS_RSA_WITH_AES_128_CCM                    \
+                TLS_RSA_WITH_AES_128_CCM_8                  \
+                TLS_RSA_WITH_AES_256_CCM                    \
+                TLS_RSA_WITH_AES_256_CCM_8                  \
+                TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256        \
+                TLS_RSA_WITH_CAMELLIA_128_GCM_SHA256        \
+                TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256        \
+                TLS_RSA_WITH_CAMELLIA_256_GCM_SHA384        \
                 "
             ;;
 
         "PSK")
             CIPHERS="$CIPHERS                               \
+                TLS_DHE_PSK_WITH_AES_128_CBC_SHA            \
+                TLS_DHE_PSK_WITH_AES_128_CBC_SHA256         \
+                TLS_DHE_PSK_WITH_AES_128_CCM                \
+                TLS_DHE_PSK_WITH_AES_128_CCM_8              \
+                TLS_DHE_PSK_WITH_AES_128_GCM_SHA256         \
+                TLS_DHE_PSK_WITH_AES_256_CBC_SHA            \
+                TLS_DHE_PSK_WITH_AES_256_CBC_SHA384         \
+                TLS_DHE_PSK_WITH_AES_256_CCM                \
+                TLS_DHE_PSK_WITH_AES_256_CCM_8              \
+                TLS_DHE_PSK_WITH_AES_256_GCM_SHA384         \
+                TLS_DHE_PSK_WITH_CAMELLIA_128_CBC_SHA256    \
+                TLS_DHE_PSK_WITH_CAMELLIA_128_GCM_SHA256    \
+                TLS_DHE_PSK_WITH_CAMELLIA_256_CBC_SHA384    \
+                TLS_DHE_PSK_WITH_CAMELLIA_256_GCM_SHA384    \
+                TLS_DHE_PSK_WITH_NULL_SHA256                \
+                TLS_DHE_PSK_WITH_NULL_SHA384                \
                 TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA          \
                 TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256       \
                 TLS_ECDHE_PSK_WITH_AES_256_CBC_SHA          \
@@ -444,6 +514,18 @@ add_gnutls_ciphersuites()
                 TLS_PSK_WITH_CAMELLIA_256_GCM_SHA384        \
                 TLS_PSK_WITH_NULL_SHA256                    \
                 TLS_PSK_WITH_NULL_SHA384                    \
+                TLS_RSA_PSK_WITH_AES_128_CBC_SHA            \
+                TLS_RSA_PSK_WITH_AES_128_CBC_SHA256         \
+                TLS_RSA_PSK_WITH_AES_128_GCM_SHA256         \
+                TLS_RSA_PSK_WITH_AES_256_CBC_SHA            \
+                TLS_RSA_PSK_WITH_AES_256_CBC_SHA384         \
+                TLS_RSA_PSK_WITH_AES_256_GCM_SHA384         \
+                TLS_RSA_PSK_WITH_CAMELLIA_128_CBC_SHA256    \
+                TLS_RSA_PSK_WITH_CAMELLIA_128_GCM_SHA256    \
+                TLS_RSA_PSK_WITH_CAMELLIA_256_CBC_SHA384    \
+                TLS_RSA_PSK_WITH_CAMELLIA_256_GCM_SHA384    \
+                TLS_RSA_PSK_WITH_NULL_SHA256                \
+                TLS_RSA_PSK_WITH_NULL_SHA384                \
                 "
             ;;
     esac
@@ -461,6 +543,14 @@ add_mbedtls_ciphersuites()
 
         "ECDSA")
             M_CIPHERS="$M_CIPHERS                               \
+                TLS_ECDH_ECDSA_WITH_ARIA_128_CBC_SHA256         \
+                TLS_ECDH_ECDSA_WITH_ARIA_128_GCM_SHA256         \
+                TLS_ECDH_ECDSA_WITH_ARIA_256_CBC_SHA384         \
+                TLS_ECDH_ECDSA_WITH_ARIA_256_GCM_SHA384         \
+                TLS_ECDH_ECDSA_WITH_CAMELLIA_128_CBC_SHA256     \
+                TLS_ECDH_ECDSA_WITH_CAMELLIA_128_GCM_SHA256     \
+                TLS_ECDH_ECDSA_WITH_CAMELLIA_256_CBC_SHA384     \
+                TLS_ECDH_ECDSA_WITH_CAMELLIA_256_GCM_SHA384     \
                 TLS_ECDHE_ECDSA_WITH_ARIA_128_CBC_SHA256        \
                 TLS_ECDHE_ECDSA_WITH_ARIA_256_CBC_SHA384        \
                 "
@@ -468,20 +558,33 @@ add_mbedtls_ciphersuites()
 
         "RSA")
             M_CIPHERS="$M_CIPHERS                               \
+                TLS_DHE_RSA_WITH_ARIA_128_CBC_SHA256            \
+                TLS_DHE_RSA_WITH_ARIA_256_CBC_SHA384            \
                 TLS_ECDHE_RSA_WITH_ARIA_128_CBC_SHA256          \
                 TLS_ECDHE_RSA_WITH_ARIA_256_CBC_SHA384          \
+                TLS_RSA_WITH_ARIA_128_CBC_SHA256                \
+                TLS_RSA_WITH_ARIA_256_CBC_SHA384                \
                 "
             ;;
 
         "PSK")
             # *PSK_NULL_SHA suites supported by GnuTLS 3.3.5 but not 3.2.15
             M_CIPHERS="$M_CIPHERS                               \
+                TLS_DHE_PSK_WITH_ARIA_128_CBC_SHA256            \
+                TLS_DHE_PSK_WITH_ARIA_256_CBC_SHA384            \
+                TLS_DHE_PSK_WITH_NULL_SHA                       \
                 TLS_ECDHE_PSK_WITH_ARIA_128_CBC_SHA256          \
                 TLS_ECDHE_PSK_WITH_ARIA_256_CBC_SHA384          \
                 TLS_ECDHE_PSK_WITH_NULL_SHA                     \
                 TLS_PSK_WITH_ARIA_128_CBC_SHA256                \
                 TLS_PSK_WITH_ARIA_256_CBC_SHA384                \
                 TLS_PSK_WITH_NULL_SHA                           \
+                TLS_RSA_PSK_WITH_ARIA_128_CBC_SHA256            \
+                TLS_RSA_PSK_WITH_ARIA_128_GCM_SHA256            \
+                TLS_RSA_PSK_WITH_ARIA_256_CBC_SHA384            \
+                TLS_RSA_PSK_WITH_ARIA_256_GCM_SHA384            \
+                TLS_RSA_PSK_WITH_CHACHA20_POLY1305_SHA256       \
+                TLS_RSA_PSK_WITH_NULL_SHA                       \
                 "
             ;;
     esac
@@ -539,7 +642,7 @@ setup_arguments()
     M_SERVER_ARGS="server_port=$PORT server_addr=0.0.0.0 force_version=$MODE"
     O_SERVER_ARGS="-accept $PORT -cipher ALL,COMPLEMENTOFALL -$O_MODE"
     G_SERVER_ARGS="-p $PORT --http $G_MODE"
-    G_SERVER_PRIO="NORMAL:${G_PRIO_CCM}+NULL:+MD5:+PSK:+ECDHE-PSK:+SHA256:+SHA384:-VERS-TLS-ALL:$G_PRIO_MODE"
+    G_SERVER_PRIO="NORMAL:${G_PRIO_CCM}+NULL:+MD5:+PSK:+DHE-PSK:+ECDHE-PSK:+SHA256:+SHA384:+RSA-PSK:-VERS-TLS-ALL:$G_PRIO_MODE"
 
     # The default prime for `openssl s_server` depends on the version:
     # * OpenSSL <= 1.0.2a: 512-bit
@@ -582,6 +685,11 @@ setup_arguments()
     case $($OPENSSL ciphers ALL) in
         *ECDH-ECDSA*|*ECDH-RSA*) O_SUPPORT_STATIC_ECDH="YES";;
         *) O_SUPPORT_STATIC_ECDH="NO";;
+    esac
+
+    case $($OPENSSL ciphers ALL) in
+        *DES-CBC-*) O_SUPPORT_SINGLE_DES="YES";;
+        *) O_SUPPORT_SINGLE_DES="NO";;
     esac
 
     # OpenSSL <1.0.2 doesn't support DTLS 1.2. Check if OpenSSL
@@ -643,9 +751,11 @@ setup_arguments()
             ;;
 
         "PSK")
-            M_SERVER_ARGS="$M_SERVER_ARGS psk=6162636465666768696a6b6c6d6e6f70 ca_file=none"
+            # give RSA-PSK-capable server a RSA cert
+            # (should be a separate type, but harder to close with openssl)
+            M_SERVER_ARGS="$M_SERVER_ARGS psk=6162636465666768696a6b6c6d6e6f70 ca_file=none crt_file=$DATA_FILES_PATH/server2-sha256.crt key_file=$DATA_FILES_PATH/server2.key"
             O_SERVER_ARGS="$O_SERVER_ARGS -psk 6162636465666768696a6b6c6d6e6f70 -nocert"
-            G_SERVER_ARGS="$G_SERVER_ARGS --pskpasswd $DATA_FILES_PATH/passwd.psk"
+            G_SERVER_ARGS="$G_SERVER_ARGS --x509certfile $DATA_FILES_PATH/server2-sha256.crt --x509keyfile $DATA_FILES_PATH/server2.key --pskpasswd $DATA_FILES_PATH/passwd.psk"
 
             M_CLIENT_ARGS="$M_CLIENT_ARGS psk=6162636465666768696a6b6c6d6e6f70 crt_file=none key_file=none"
             O_CLIENT_ARGS="$O_CLIENT_ARGS -psk 6162636465666768696a6b6c6d6e6f70"

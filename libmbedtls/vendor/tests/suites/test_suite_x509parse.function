@@ -1,5 +1,5 @@
 /* BEGIN_HEADER */
-#include "mbedtls/private/bignum.h"
+#include "mbedtls/bignum.h"
 #include "mbedtls/x509.h"
 #include "mbedtls/x509_crt.h"
 #include "mbedtls/x509_crl.h"
@@ -7,15 +7,9 @@
 #include "x509_internal.h"
 #include "mbedtls/pem.h"
 #include "mbedtls/oid.h"
-#include "x509_oid.h"
 #include "mbedtls/base64.h"
 #include "mbedtls/error.h"
 #include "mbedtls/pk.h"
-#if defined(MBEDTLS_PK_HAVE_PRIVATE_HEADER)
-#include <mbedtls/private/pk_private.h>
-#endif /* MBEDTLS_PK_HAVE_PRIVATE_HEADER */
-#include "mbedtls/asn1.h"
-#include "mbedtls/asn1write.h"
 #include "string.h"
 
 #if MBEDTLS_X509_MAX_INTERMEDIATE_CA > 19
@@ -655,7 +649,7 @@ exit:
 }
 /* END_CASE */
 
-/* BEGIN_CASE depends_on:MBEDTLS_FS_IO:MBEDTLS_X509_CRT_PARSE_C:MBEDTLS_X509_CRL_PARSE_C:MBEDTLS_ECP_RESTARTABLE:PSA_WANT_ALG_ECDSA */
+/* BEGIN_CASE depends_on:MBEDTLS_FS_IO:MBEDTLS_X509_CRT_PARSE_C:MBEDTLS_X509_CRL_PARSE_C:MBEDTLS_ECP_RESTARTABLE:MBEDTLS_ECDSA_C */
 void x509_verify_restart(char *crt_file, char *ca_file,
                          int result, int flags_result,
                          int max_ops, int min_restart, int max_restart)
@@ -683,7 +677,7 @@ void x509_verify_restart(char *crt_file, char *ca_file,
     TEST_EQUAL(mbedtls_x509_crt_parse_file(&crt, crt_file), 0);
     TEST_EQUAL(mbedtls_x509_crt_parse_file(&ca, ca_file), 0);
 
-    psa_interruptible_set_max_ops(max_ops);
+    mbedtls_ecp_set_max_ops(max_ops);
 
     cnt_restart = 0;
     do {
@@ -1013,8 +1007,8 @@ void mbedtls_x509_dn_get_next(char *name_str,
     parsed_cur = &parsed;
     len = 0;
     for (i = 0; parsed_cur != NULL; i++) {
-        TEST_EQUAL(mbedtls_x509_oid_get_attr_short_name(&parsed_cur->oid,
-                                                        &short_name), 0);
+        TEST_EQUAL(mbedtls_oid_get_attr_short_name(&parsed_cur->oid,
+                                                   &short_name), 0);
         len += mbedtls_snprintf((char *) out + len, out_size - len, "%s ", short_name);
         parsed_cur = mbedtls_x509_dn_get_next(parsed_cur);
     }
@@ -1123,29 +1117,15 @@ void x509parse_crt(data_t *buf, char *result_str, int result)
     mbedtls_x509_crt   crt;
 #if !defined(MBEDTLS_X509_REMOVE_INFO)
     unsigned char output[2000] = { 0 };
+    int res;
 #else
     ((void) result_str);
 #endif
-    /* Tests whose result is MBEDTLS_ERR_PK_INVALID_PUBKEY might return
-     * MBEDTLS_ERR_ASN1_UNEXPECTED_TAG until psa#308 is merged. This variable
-     * is therefore used for backward compatiblity and will be removed in
-     * mbedtls#10229. */
-    int result_back_comp = result;
-    int res;
-
-#if !defined(MBEDTLS_PK_USE_PSA_RSA_DATA)
-    /* Support for mbedtls#10213 before psa#308. Once psa#308 will be
-     * merged this dirty fix can be removed. */
-    if (result == MBEDTLS_ERR_PK_INVALID_PUBKEY) {
-        result_back_comp = MBEDTLS_ERR_ASN1_UNEXPECTED_TAG;
-    }
-#endif /* MBEDTLS_PK_USE_PSA_RSA_DATA */
 
     mbedtls_x509_crt_init(&crt);
     USE_PSA_INIT();
 
-    res = mbedtls_x509_crt_parse_der(&crt, buf->x, buf->len);
-    TEST_ASSERT((res == result) || (res == result_back_comp));
+    TEST_EQUAL(mbedtls_x509_crt_parse_der(&crt, buf->x, buf->len), result);
 #if !defined(MBEDTLS_X509_REMOVE_INFO)
     if ((result) == 0) {
         res = mbedtls_x509_crt_info((char *) output, 2000, "", &crt);
@@ -1160,8 +1140,7 @@ void x509parse_crt(data_t *buf, char *result_str, int result)
     mbedtls_x509_crt_free(&crt);
     mbedtls_x509_crt_init(&crt);
 
-    res = mbedtls_x509_crt_parse_der_nocopy(&crt, buf->x, buf->len);
-    TEST_ASSERT((res == result) || (res == result_back_comp));
+    TEST_EQUAL(mbedtls_x509_crt_parse_der_nocopy(&crt, buf->x, buf->len), result);
 #if !defined(MBEDTLS_X509_REMOVE_INFO)
     if ((result) == 0) {
         memset(output, 0, 2000);
@@ -1179,8 +1158,8 @@ void x509parse_crt(data_t *buf, char *result_str, int result)
     mbedtls_x509_crt_free(&crt);
     mbedtls_x509_crt_init(&crt);
 
-    res = mbedtls_x509_crt_parse_der_with_ext_cb(&crt, buf->x, buf->len, 0, NULL, NULL);
-    TEST_ASSERT((res == result) || (res == result_back_comp));
+    TEST_EQUAL(mbedtls_x509_crt_parse_der_with_ext_cb(&crt, buf->x, buf->len, 0, NULL, NULL),
+               result);
 #if !defined(MBEDTLS_X509_REMOVE_INFO)
     if ((result) == 0) {
         res = mbedtls_x509_crt_info((char *) output, 2000, "", &crt);
@@ -1196,8 +1175,8 @@ void x509parse_crt(data_t *buf, char *result_str, int result)
     mbedtls_x509_crt_free(&crt);
     mbedtls_x509_crt_init(&crt);
 
-    res = mbedtls_x509_crt_parse_der_with_ext_cb(&crt, buf->x, buf->len, 1, NULL, NULL);
-    TEST_ASSERT((res == result) || (res == result_back_comp));
+    TEST_EQUAL(mbedtls_x509_crt_parse_der_with_ext_cb(&crt, buf->x, buf->len, 1, NULL, NULL),
+               result);
 #if !defined(MBEDTLS_X509_REMOVE_INFO)
     if ((result) == 0) {
         res = mbedtls_x509_crt_info((char *) output, 2000, "", &crt);
@@ -1521,7 +1500,7 @@ exit:
 }
 /* END_CASE */
 
-/* BEGIN_CASE depends_on:MBEDTLS_X509_CRT_PARSE_C:!MBEDTLS_X509_REMOVE_INFO */
+/* BEGIN_CASE depends_on:MBEDTLS_X509_USE_C:!MBEDTLS_X509_REMOVE_INFO */
 void x509_oid_desc(data_t *buf, char *ref_desc)
 {
     mbedtls_x509_buf oid;
@@ -1534,7 +1513,7 @@ void x509_oid_desc(data_t *buf, char *ref_desc)
     oid.p   = buf->x;
     oid.len   = buf->len;
 
-    ret = mbedtls_x509_oid_get_extended_key_usage(&oid, &desc);
+    ret = mbedtls_oid_get_extended_key_usage(&oid, &desc);
 
     if (strcmp(ref_desc, "notfound") == 0) {
         TEST_ASSERT(ret != 0);
@@ -1686,9 +1665,6 @@ void x509_crt_parse_subjectkeyid(char *file, data_t *subjectKeyId, int ref_ret)
     mbedtls_x509_crt crt;
 
     mbedtls_x509_crt_init(&crt);
-    /* X509 relies on PK under the hood and the latter can use PSA to store keys
-     * and perform operations so psa_crypto_init() must be called before. */
-    USE_PSA_INIT();
 
     TEST_EQUAL(mbedtls_x509_crt_parse_file(&crt, file), ref_ret);
 
@@ -1703,7 +1679,6 @@ void x509_crt_parse_subjectkeyid(char *file, data_t *subjectKeyId, int ref_ret)
 
 exit:
     mbedtls_x509_crt_free(&crt);
-    USE_PSA_DONE();
 }
 /* END_CASE */
 
@@ -1719,9 +1694,6 @@ void x509_crt_parse_authoritykeyid(char *file,
     char name_buf[128];
 
     mbedtls_x509_crt_init(&crt);
-    /* X509 relies on PK under the hood and the latter can use PSA to store keys
-     * and perform operations so psa_crypto_init() must be called before. */
-    USE_PSA_INIT();
 
     TEST_EQUAL(mbedtls_x509_crt_parse_file(&crt, file), ref_ret);
 
@@ -1773,30 +1745,5 @@ void x509_crt_parse_authoritykeyid(char *file,
 
 exit:
     mbedtls_x509_crt_free(&crt);
-    USE_PSA_DONE();
-}
-/* END_CASE */
-
-/* BEGIN_CASE depends_on:MBEDTLS_X509_USE_C */
-void oid_get_numeric_string(data_t *oid, int error_ret, char *result_str)
-{
-    char buf[256];
-    mbedtls_asn1_buf input_oid = { 0, 0, NULL };
-    int ret;
-
-    input_oid.tag = MBEDTLS_ASN1_OID;
-    /* Test that an empty OID is not dereferenced */
-    input_oid.p = oid->len ? oid->x : (void *) 1;
-    input_oid.len = oid->len;
-
-    ret = mbedtls_oid_get_numeric_string(buf, sizeof(buf), &input_oid);
-
-    if (error_ret == 0) {
-        TEST_EQUAL(ret, strlen(result_str));
-        TEST_ASSERT(ret >= 3);
-        TEST_EQUAL(strcmp(buf, result_str), 0);
-    } else {
-        TEST_EQUAL(ret, error_ret);
-    }
 }
 /* END_CASE */

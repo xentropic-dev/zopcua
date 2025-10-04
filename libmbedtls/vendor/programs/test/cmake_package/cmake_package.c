@@ -5,8 +5,6 @@
  *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 
-#define MBEDTLS_DECLARE_PRIVATE_IDENTIFIERS
-
 #include "mbedtls/build_info.h"
 
 #include "mbedtls/platform.h"
@@ -18,7 +16,10 @@
  * linkage works, but that is all. */
 int main()
 {
-    const char *version = mbedtls_version_get_string_full();
+    /* This version string is 18 bytes long, as advised by version.h. */
+    char version[18];
+
+    mbedtls_version_get_string_full(version);
 
     mbedtls_printf("Built against %s\n", version);
 
