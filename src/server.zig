@@ -3,6 +3,45 @@ const c = @import("c.zig");
 const helpers = @import("helpers.zig");
 const types = @import("types.zig");
 const ua_error = @import("ua_error.zig");
+const VariableAttributes = @import("variable_attributes.zig").VariableAttributes;
+const Variant = @import("variant.zig").Variant;
+const LocalizedText = @import("localized_text.zig").LocalizedText;
+const NodeId = @import("types.zig").NodeId;
+const StandardNodeId = @import("types.zig").StandardNodeId;
+const ReferenceType = @import("types.zig").ReferenceType;
+const QualifiedName = @import("types.zig").QualifiedName;
+
+/// Errors that can occur when adding a variable node
+pub const AddNodeError = error{
+    /// The requested NodeId already exists in the address space
+    NodeIdExists,
+    /// The parent NodeId is invalid or doesn't exist
+    InvalidParentNodeId,
+    /// The reference type is not allowed for this operation
+    ReferenceNotAllowed,
+    /// Type mismatch in attributes (e.g., wrong ValueRank for the data)
+    TypeMismatch,
+    /// The node class is invalid
+    InvalidNodeClass,
+    /// One or more node attributes are invalid
+    InvalidNodeAttributes,
+    /// The type definition NodeId is invalid or doesn't exist
+    InvalidTypeDefinition,
+    /// The browse name is invalid
+    InvalidBrowseName,
+    /// A node with this browse name already exists under the parent
+    DuplicateBrowseName,
+    /// The NodeId could not be found (internal error)
+    NodeIdUnknown,
+    /// Insufficient memory to complete the operation
+    OutOfMemory,
+    /// Too many operations requested
+    TooManyOperations,
+    /// An internal server error occurred
+    InternalError,
+    /// Unknown error from the OPC UA server
+    Unknown,
+};
 
 pub const Server = struct {
     handle: *c.UA_Server,
@@ -177,5 +216,125 @@ pub const Server = struct {
         if (status != c.UA_STATUSCODE_GOOD) {
             return error.BadInternalError;
         }
+    }
+
+    /// Add a variable node to the OPC UA server
+    ///
+    /// Creates a new variable node in the server's address space with the specified
+    /// attributes and relationships.
+    ///
+    /// Parameters:
+    ///   - node_id: The desired NodeId for the new variable. Use NodeId.initNumeric()
+    ///              or NodeId.initString() to create. The server may assign a different
+    ///              ID if this one is already in use.
+    ///   - parent_node_id: The NodeId of the parent node (e.g., StandardNodeId.objects_folder)
+    ///   - parent_ref_node_id: The reference type connecting to parent (e.g., ReferenceType.organizes)
+    ///   - name: The qualified name (browse name) for the variable
+    ///   - type_definition: The type definition NodeId (e.g., StandardNodeId.base_data_variable_type)
+    ///   - attrs: Variable attributes including value, display name, description, etc.
+    ///   - allocator: Memory allocator for temporary C conversions
+    ///
+    /// Returns:
+    ///   - The actual NodeId assigned by the server (may differ from requested node_id)
+    ///
+    /// Errors:
+    ///   - NodeIdExists: The requested NodeId is already in use
+    ///   - InvalidParentNodeId: The parent node doesn't exist
+    ///   - TypeMismatch: The value doesn't match the declared type (check value_rank and array_dimensions!)
+    ///   - InvalidTypeDefinition: The type definition node doesn't exist
+    ///   - OutOfMemory: Allocation failed during conversion
+    ///   - (see AddNodeError for complete list)
+    ///
+    /// Examples:
+    /// Scalar variable:
+    /// ```zig
+    /// const temp_node = try server.addVariableNode(
+    ///     NodeId.initString(1, "temperature"),
+    ///     StandardNodeId.objects_folder,
+    ///     ReferenceType.organizes,
+    ///     QualifiedName.init(1, "Temperature"),
+    ///     StandardNodeId.base_data_variable_type,
+    ///     .{
+    ///         .value = Variant.scalar(f64, 23.5),
+    ///         .display_name = LocalizedText.init("en-US", "Temperature"),
+    ///         .description = LocalizedText.initText("Current temperature in Celsius"),
+    ///         .access_level = .{ .read = true, .write = true },
+    ///         // value_rank defaults to -1 (scalar), data_type is auto-inferred
+    ///     },
+    ///     allocator,
+    /// );
+    /// ```
+    ///
+    /// Array variable:
+    /// ```zig
+    /// const measurements = [_]f64{ 10.1, 20.2, 30.3, 40.4, 50.5 };
+    /// const array_dims = [_]u32{5};
+    /// const array_node = try server.addVariableNode(
+    ///     NodeId.initString(1, "measurements"),
+    ///     StandardNodeId.objects_folder,
+    ///     ReferenceType.organizes,
+    ///     QualifiedName.init(1, "Measurements"),
+    ///     StandardNodeId.base_data_variable_type,
+    ///     .{
+    ///         .value = Variant.array(f64, &measurements),
+    ///         .display_name = LocalizedText.init("en-US", "Measurements"),
+    ///         .access_level = .{ .read = true },
+    ///         .value_rank = 1, // One-dimensional array
+    ///         .array_dimensions = &array_dims, // Must match value_rank
+    ///     },
+    ///     allocator,
+    /// );
+    /// ```
+    pub fn addVariableNode(
+        self: *Server,
+        node_id: NodeId,
+        parent_node_id: NodeId,
+        parent_ref_node_id: NodeId,
+        name: QualifiedName,
+        type_definition: NodeId,
+        attrs: VariableAttributes,
+        allocator: std.mem.Allocator,
+    ) AddNodeError!NodeId {
+        // Convert to C types
+        const c_attrs = attrs.toC(allocator) catch return AddNodeError.OutOfMemory;
+        defer {
+            Variant.freeCVariant(c_attrs.value, allocator);
+            if (c_attrs.arrayDimensionsSize > 0) {
+                allocator.free(c_attrs.arrayDimensions[0..c_attrs.arrayDimensionsSize]);
+            }
+        }
+
+        // SAFETY: out_node_id is written to by UA_Server_addVariableNode before being read
+        var out_node_id: c.UA_NodeId = undefined;
+        const status = c.UA_Server_addVariableNode(
+            self.handle,
+            node_id.toC(),
+            parent_node_id.toC(),
+            parent_ref_node_id.toC(),
+            name.toC(),
+            type_definition.toC(),
+            c_attrs,
+            null, // nodeContext
+            &out_node_id,
+        );
+
+        // Map status codes to specific errors
+        return switch (status) {
+            c.UA_STATUSCODE_GOOD => NodeId.fromC(out_node_id),
+            c.UA_STATUSCODE_BADNODEIDEXISTS => AddNodeError.NodeIdExists,
+            c.UA_STATUSCODE_BADPARENTNODEIDINVALID => AddNodeError.InvalidParentNodeId,
+            c.UA_STATUSCODE_BADREFERENCENOTALLOWED => AddNodeError.ReferenceNotAllowed,
+            c.UA_STATUSCODE_BADTYPEMISMATCH => AddNodeError.TypeMismatch,
+            c.UA_STATUSCODE_BADNODECLASSINVALID => AddNodeError.InvalidNodeClass,
+            c.UA_STATUSCODE_BADNODEATTRIBUTESINVALID => AddNodeError.InvalidNodeAttributes,
+            c.UA_STATUSCODE_BADTYPEDEFINITIONINVALID => AddNodeError.InvalidTypeDefinition,
+            c.UA_STATUSCODE_BADBROWSENAMEINVALID => AddNodeError.InvalidBrowseName,
+            c.UA_STATUSCODE_BADBROWSENAMEDUPLICATED => AddNodeError.DuplicateBrowseName,
+            c.UA_STATUSCODE_BADNODEIDUNKNOWN => AddNodeError.NodeIdUnknown,
+            c.UA_STATUSCODE_BADOUTOFMEMORY => AddNodeError.OutOfMemory,
+            c.UA_STATUSCODE_BADTOOMANYOPERATIONS => AddNodeError.TooManyOperations,
+            c.UA_STATUSCODE_BADINTERNALERROR => AddNodeError.InternalError,
+            else => AddNodeError.Unknown,
+        };
     }
 };
