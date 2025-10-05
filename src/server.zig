@@ -227,10 +227,10 @@ pub const Server = struct {
     ///   - node_id: The desired NodeId for the new variable. Use NodeId.initNumeric()
     ///              or NodeId.initString() to create. The server may assign a different
     ///              ID if this one is already in use.
-    ///   - parent_node_id: The NodeId of the parent node (e.g., Objects folder)
-    ///   - parent_ref_node_id: The reference type connecting to parent (e.g., Organizes)
+    ///   - parent_node_id: The NodeId of the parent node (e.g., StandardNodeId.objects_folder)
+    ///   - parent_ref_node_id: The reference type connecting to parent (e.g., ReferenceType.organizes)
     ///   - name: The qualified name (browse name) for the variable
-    ///   - type_definition: The type definition NodeId (e.g., BaseDataVariableType)
+    ///   - type_definition: The type definition NodeId (e.g., StandardNodeId.base_data_variable_type)
     ///   - attrs: Variable attributes including value, display name, description, etc.
     ///   - allocator: Memory allocator for temporary C conversions
     ///
@@ -240,24 +240,47 @@ pub const Server = struct {
     /// Errors:
     ///   - NodeIdExists: The requested NodeId is already in use
     ///   - InvalidParentNodeId: The parent node doesn't exist
-    ///   - TypeMismatch: The value doesn't match the declared type (check value_rank!)
+    ///   - TypeMismatch: The value doesn't match the declared type (check value_rank and array_dimensions!)
     ///   - InvalidTypeDefinition: The type definition node doesn't exist
     ///   - OutOfMemory: Allocation failed during conversion
     ///   - (see AddNodeError for complete list)
     ///
-    /// Example:
+    /// Examples:
+    /// Scalar variable:
     /// ```zig
-    /// const node_id = try server.addVariableNode(
-    ///     NodeId.initString(1, "my.variable"),
-    ///     NodeId.initNumeric(0, UA_NS0ID_OBJECTSFOLDER),
-    ///     NodeId.initNumeric(0, UA_NS0ID_ORGANIZES),
-    ///     QualifiedName.init(1, "My Variable"),
-    ///     NodeId.initNumeric(0, UA_NS0ID_BASEDATAVARIABLETYPE),
+    /// const temp_node = try server.addVariableNode(
+    ///     NodeId.initString(1, "temperature"),
+    ///     StandardNodeId.objects_folder,
+    ///     ReferenceType.organizes,
+    ///     QualifiedName.init(1, "Temperature"),
+    ///     StandardNodeId.base_data_variable_type,
     ///     .{
     ///         .value = Variant.scalar(f64, 23.5),
     ///         .display_name = LocalizedText.init("en-US", "Temperature"),
+    ///         .description = LocalizedText.initText("Current temperature in Celsius"),
     ///         .access_level = .{ .read = true, .write = true },
-    ///         .value_rank = -1, // Important: -1 for scalar values!
+    ///         // value_rank defaults to -1 (scalar), data_type is auto-inferred
+    ///     },
+    ///     allocator,
+    /// );
+    /// ```
+    ///
+    /// Array variable:
+    /// ```zig
+    /// const measurements = [_]f64{ 10.1, 20.2, 30.3, 40.4, 50.5 };
+    /// const array_dims = [_]u32{5};
+    /// const array_node = try server.addVariableNode(
+    ///     NodeId.initString(1, "measurements"),
+    ///     StandardNodeId.objects_folder,
+    ///     ReferenceType.organizes,
+    ///     QualifiedName.init(1, "Measurements"),
+    ///     StandardNodeId.base_data_variable_type,
+    ///     .{
+    ///         .value = Variant.array(f64, &measurements),
+    ///         .display_name = LocalizedText.init("en-US", "Measurements"),
+    ///         .access_level = .{ .read = true },
+    ///         .value_rank = 1, // One-dimensional array
+    ///         .array_dimensions = &array_dims, // Must match value_rank
     ///     },
     ///     allocator,
     /// );
