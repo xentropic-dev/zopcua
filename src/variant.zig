@@ -1,7 +1,13 @@
 const std = @import("std");
 const c = @import("c.zig");
-const LocalizedText = @import("localized_text.zig").LocalizedText;
-const String = @import("localized_text.zig").String;
+const types = @import("types.zig");
+const localized_text = @import("localized_text.zig");
+
+// Use NodeId from types.zig
+const NodeId = types.NodeId;
+const Guid = types.Guid;
+const LocalizedText = localized_text.LocalizedText;
+const String = localized_text.String;
 
 /// OPC UA Variant - can hold different types of data
 pub const Variant = union(enum) {
@@ -549,28 +555,147 @@ pub const Variant = union(enum) {
         const type_index = if (variant.type != null) getTypeIndex(variant.type) else return;
 
         if (variant.arrayLength > 0) {
-            // Array cleanup
+            // Array cleanup - use the proper type for deallocation
             switch (type_index) {
+                c.UA_TYPES_BOOLEAN => {
+                    const ptr: [*]c.UA_Boolean = @ptrCast(@alignCast(variant.data));
+                    allocator.free(ptr[0..variant.arrayLength]);
+                },
+                c.UA_TYPES_SBYTE => {
+                    const ptr: [*]c.UA_SByte = @ptrCast(@alignCast(variant.data));
+                    allocator.free(ptr[0..variant.arrayLength]);
+                },
+                c.UA_TYPES_BYTE => {
+                    const ptr: [*]c.UA_Byte = @ptrCast(@alignCast(variant.data));
+                    allocator.free(ptr[0..variant.arrayLength]);
+                },
+                c.UA_TYPES_INT16 => {
+                    const ptr: [*]c.UA_Int16 = @ptrCast(@alignCast(variant.data));
+                    allocator.free(ptr[0..variant.arrayLength]);
+                },
+                c.UA_TYPES_UINT16 => {
+                    const ptr: [*]c.UA_UInt16 = @ptrCast(@alignCast(variant.data));
+                    allocator.free(ptr[0..variant.arrayLength]);
+                },
+                c.UA_TYPES_INT32 => {
+                    const ptr: [*]c.UA_Int32 = @ptrCast(@alignCast(variant.data));
+                    allocator.free(ptr[0..variant.arrayLength]);
+                },
+                c.UA_TYPES_UINT32 => {
+                    const ptr: [*]c.UA_UInt32 = @ptrCast(@alignCast(variant.data));
+                    allocator.free(ptr[0..variant.arrayLength]);
+                },
+                c.UA_TYPES_INT64 => {
+                    const ptr: [*]c.UA_Int64 = @ptrCast(@alignCast(variant.data));
+                    allocator.free(ptr[0..variant.arrayLength]);
+                },
+                c.UA_TYPES_UINT64 => {
+                    const ptr: [*]c.UA_UInt64 = @ptrCast(@alignCast(variant.data));
+                    allocator.free(ptr[0..variant.arrayLength]);
+                },
+                c.UA_TYPES_FLOAT => {
+                    const ptr: [*]c.UA_Float = @ptrCast(@alignCast(variant.data));
+                    allocator.free(ptr[0..variant.arrayLength]);
+                },
+                c.UA_TYPES_DOUBLE => {
+                    const ptr: [*]c.UA_Double = @ptrCast(@alignCast(variant.data));
+                    allocator.free(ptr[0..variant.arrayLength]);
+                },
                 c.UA_TYPES_STRING => {
                     const ptr: [*]c.UA_String = @ptrCast(@alignCast(variant.data));
+                    allocator.free(ptr[0..variant.arrayLength]);
+                },
+                c.UA_TYPES_DATETIME => {
+                    const ptr: [*]c.UA_DateTime = @ptrCast(@alignCast(variant.data));
                     allocator.free(ptr[0..variant.arrayLength]);
                 },
                 c.UA_TYPES_NODEID => {
                     const ptr: [*]c.UA_NodeId = @ptrCast(@alignCast(variant.data));
                     allocator.free(ptr[0..variant.arrayLength]);
                 },
-                else => {
-                    // For simple types, we can calculate the size
-                    const elem_size = variant.type.*.memSize;
-                    const ptr: [*]u8 = @ptrCast(variant.data);
-                    allocator.free(ptr[0 .. variant.arrayLength * elem_size]);
+                c.UA_TYPES_STATUSCODE => {
+                    const ptr: [*]c.UA_StatusCode = @ptrCast(@alignCast(variant.data));
+                    allocator.free(ptr[0..variant.arrayLength]);
                 },
+                else => {}, // Unknown type, skip cleanup
             }
         } else {
-            // Scalar cleanup - just free the single allocated element
-            const elem_size = variant.type.*.memSize;
-            const ptr: [*]u8 = @ptrCast(variant.data);
-            allocator.free(ptr[0..elem_size]);
+            // Scalar cleanup - use destroy() instead of free()
+            switch (type_index) {
+                c.UA_TYPES_BOOLEAN => {
+                    const ptr: *c.UA_Boolean = @ptrCast(@alignCast(variant.data));
+                    allocator.destroy(ptr);
+                },
+                c.UA_TYPES_SBYTE => {
+                    const ptr: *c.UA_SByte = @ptrCast(@alignCast(variant.data));
+                    allocator.destroy(ptr);
+                },
+                c.UA_TYPES_BYTE => {
+                    const ptr: *c.UA_Byte = @ptrCast(@alignCast(variant.data));
+                    allocator.destroy(ptr);
+                },
+                c.UA_TYPES_INT16 => {
+                    const ptr: *c.UA_Int16 = @ptrCast(@alignCast(variant.data));
+                    allocator.destroy(ptr);
+                },
+                c.UA_TYPES_UINT16 => {
+                    const ptr: *c.UA_UInt16 = @ptrCast(@alignCast(variant.data));
+                    allocator.destroy(ptr);
+                },
+                c.UA_TYPES_INT32 => {
+                    const ptr: *c.UA_Int32 = @ptrCast(@alignCast(variant.data));
+                    allocator.destroy(ptr);
+                },
+                c.UA_TYPES_UINT32 => {
+                    const ptr: *c.UA_UInt32 = @ptrCast(@alignCast(variant.data));
+                    allocator.destroy(ptr);
+                },
+                c.UA_TYPES_INT64 => {
+                    const ptr: *c.UA_Int64 = @ptrCast(@alignCast(variant.data));
+                    allocator.destroy(ptr);
+                },
+                c.UA_TYPES_UINT64 => {
+                    const ptr: *c.UA_UInt64 = @ptrCast(@alignCast(variant.data));
+                    allocator.destroy(ptr);
+                },
+                c.UA_TYPES_FLOAT => {
+                    const ptr: *c.UA_Float = @ptrCast(@alignCast(variant.data));
+                    allocator.destroy(ptr);
+                },
+                c.UA_TYPES_DOUBLE => {
+                    const ptr: *c.UA_Double = @ptrCast(@alignCast(variant.data));
+                    allocator.destroy(ptr);
+                },
+                c.UA_TYPES_STRING => {
+                    const ptr: *c.UA_String = @ptrCast(@alignCast(variant.data));
+                    allocator.destroy(ptr);
+                },
+                c.UA_TYPES_DATETIME => {
+                    const ptr: *c.UA_DateTime = @ptrCast(@alignCast(variant.data));
+                    allocator.destroy(ptr);
+                },
+                c.UA_TYPES_GUID => {
+                    const ptr: *c.UA_Guid = @ptrCast(@alignCast(variant.data));
+                    allocator.destroy(ptr);
+                },
+                c.UA_TYPES_BYTESTRING => {
+                    const ptr: *c.UA_ByteString = @ptrCast(@alignCast(variant.data));
+                    allocator.destroy(ptr);
+                },
+                c.UA_TYPES_NODEID => {
+                    const ptr: *c.UA_NodeId = @ptrCast(@alignCast(variant.data));
+                    allocator.destroy(ptr);
+                },
+                c.UA_TYPES_STATUSCODE => {
+                    const ptr: *c.UA_StatusCode = @ptrCast(@alignCast(variant.data));
+                    allocator.destroy(ptr);
+                },
+                c.UA_TYPES_LOCALIZEDTEXT => {
+                    const ptr: *c.UA_LocalizedText = @ptrCast(@alignCast(variant.data));
+                    allocator.destroy(ptr);
+                },
+                else => {}, // Unknown type, skip cleanup
+            }
         }
 
         // Free array dimensions if present
@@ -578,107 +703,130 @@ pub const Variant = union(enum) {
             allocator.free(variant.arrayDimensions[0..variant.arrayDimensionsSize]);
         }
     }
-};
-
-/// GUID wrapper
-pub const Guid = struct {
-    data1: u32,
-    data2: u16,
-    data3: u16,
-    data4: [8]u8,
-
-    pub fn fromC(value: c.UA_Guid) Guid {
-        return .{
-            .data1 = value.data1,
-            .data2 = value.data2,
-            .data3 = value.data3,
-            .data4 = value.data4,
+    pub fn dataTypeNodeId(self: Variant) NodeId {
+        return switch (self) {
+            .boolean, .boolean_array => NodeId.initNumeric(0, c.UA_TYPES[c.UA_TYPES_BOOLEAN].typeId.identifier.numeric),
+            .int32, .int32_array => NodeId.initNumeric(0, c.UA_TYPES[c.UA_TYPES_INT32].typeId.identifier.numeric),
+            .uint32, .uint32_array => NodeId.initNumeric(0, c.UA_TYPES[c.UA_TYPES_UINT32].typeId.identifier.numeric),
+            .double, .double_array => NodeId.initNumeric(0, c.UA_TYPES[c.UA_TYPES_DOUBLE].typeId.identifier.numeric),
+            .float, .float_array => NodeId.initNumeric(0, c.UA_TYPES[c.UA_TYPES_FLOAT].typeId.identifier.numeric),
+            .string, .string_array => NodeId.initNumeric(0, c.UA_TYPES[c.UA_TYPES_STRING].typeId.identifier.numeric),
+            .int64, .int64_array => NodeId.initNumeric(0, c.UA_TYPES[c.UA_TYPES_INT64].typeId.identifier.numeric),
+            .uint64, .uint64_array => NodeId.initNumeric(0, c.UA_TYPES[c.UA_TYPES_UINT64].typeId.identifier.numeric),
+            .byte, .byte_array => NodeId.initNumeric(0, c.UA_TYPES[c.UA_TYPES_BYTE].typeId.identifier.numeric),
+            .sbyte, .sbyte_array => NodeId.initNumeric(0, c.UA_TYPES[c.UA_TYPES_SBYTE].typeId.identifier.numeric),
+            .int16, .int16_array => NodeId.initNumeric(0, c.UA_TYPES[c.UA_TYPES_INT16].typeId.identifier.numeric),
+            .uint16, .uint16_array => NodeId.initNumeric(0, c.UA_TYPES[c.UA_TYPES_UINT16].typeId.identifier.numeric),
+            .date_time, .date_time_array => NodeId.initNumeric(
+                0,
+                c.UA_TYPES[c.UA_TYPES_DATETIME].typeId.identifier.numeric,
+            ),
+            .guid => NodeId.initNumeric(0, c.UA_TYPES[c.UA_TYPES_GUID].typeId.identifier.numeric),
+            .byte_string => NodeId.initNumeric(0, c.UA_TYPES[c.UA_TYPES_BYTESTRING].typeId.identifier.numeric),
+            .node_id, .node_id_array => NodeId.initNumeric(0, c.UA_TYPES[c.UA_TYPES_NODEID].typeId.identifier.numeric),
+            .status_code, .status_code_array => NodeId.initNumeric(
+                0,
+                c.UA_TYPES[c.UA_TYPES_STATUSCODE].typeId.identifier.numeric,
+            ),
+            .localized_text => NodeId.initNumeric(0, c.UA_TYPES[c.UA_TYPES_LOCALIZEDTEXT].typeId.identifier.numeric),
+            .empty, .raw => NodeId.null_id,
         };
     }
-
-    pub fn toC(self: Guid) c.UA_Guid {
-        return .{
-            .data1 = self.data1,
-            .data2 = self.data2,
-            .data3 = self.data3,
-            .data4 = self.data4,
-        };
-    }
 };
 
-/// NodeId wrapper (simplified - you'll need to expand this based on your needs)
-pub const NodeId = union(enum) {
-    numeric: struct {
-        namespace_index: u16,
-        identifier: u32,
-    },
-    string: struct {
-        namespace_index: u16,
-        identifier: []const u8,
-    },
-    guid: struct {
-        namespace_index: u16,
-        identifier: Guid,
-    },
-    byte_string: struct {
-        namespace_index: u16,
-        identifier: []const u8,
-    },
+test "Variant scalar i32" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
 
-    pub fn fromC(value: c.UA_NodeId) NodeId {
-        return switch (value.identifierType) {
-            c.UA_NODEIDTYPE_NUMERIC => .{
-                .numeric = .{
-                    .namespace_index = value.namespaceIndex,
-                    .identifier = value.identifier.numeric,
-                },
-            },
-            c.UA_NODEIDTYPE_STRING => .{
-                .string = .{
-                    .namespace_index = value.namespaceIndex,
-                    .identifier = String.fromC(value.identifier.string),
-                },
-            },
-            c.UA_NODEIDTYPE_GUID => .{
-                .guid = .{
-                    .namespace_index = value.namespaceIndex,
-                    .identifier = Guid.fromC(value.identifier.guid),
-                },
-            },
-            c.UA_NODEIDTYPE_BYTESTRING => .{
-                .byte_string = .{
-                    .namespace_index = value.namespaceIndex,
-                    .identifier = String.fromC(value.identifier.byteString),
-                },
-            },
-            else => .{ .numeric = .{ .namespace_index = 0, .identifier = 0 } },
-        };
-    }
+    const variant = Variant.scalar(i32, 42);
+    try testing.expectEqual(@as(i32, 42), variant.int32);
 
-    pub fn toC(self: NodeId) c.UA_NodeId {
-        var result: c.UA_NodeId = undefined;
-        switch (self) {
-            .numeric => |n| {
-                result.namespaceIndex = n.namespace_index;
-                result.identifierType = c.UA_NODEIDTYPE_NUMERIC;
-                result.identifier.numeric = n.identifier;
-            },
-            .string => |s| {
-                result.namespaceIndex = s.namespace_index;
-                result.identifierType = c.UA_NODEIDTYPE_STRING;
-                result.identifier.string = String.toC(s.identifier);
-            },
-            .guid => |g| {
-                result.namespaceIndex = g.namespace_index;
-                result.identifierType = c.UA_NODEIDTYPE_GUID;
-                result.identifier.guid = g.identifier.toC();
-            },
-            .byte_string => |b| {
-                result.namespaceIndex = b.namespace_index;
-                result.identifierType = c.UA_NODEIDTYPE_BYTESTRING;
-                result.identifier.byteString = String.toC(b.identifier);
-            },
-        }
-        return result;
-    }
-};
+    const c_variant = try variant.toC(allocator);
+    defer Variant.freeCVariant(c_variant, allocator);
+
+    const roundtrip = Variant.fromC(c_variant);
+    try testing.expectEqual(@as(i32, 42), roundtrip.int32);
+}
+
+test "Variant scalar f64" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const variant = Variant.scalar(f64, 3.14159);
+    try testing.expectEqual(@as(f64, 3.14159), variant.double);
+
+    const c_variant = try variant.toC(allocator);
+    defer Variant.freeCVariant(c_variant, allocator);
+
+    const roundtrip = Variant.fromC(c_variant);
+    try testing.expectEqual(@as(f64, 3.14159), roundtrip.double);
+}
+
+test "Variant scalar bool" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const variant = Variant.scalar(bool, true);
+    try testing.expectEqual(true, variant.boolean);
+
+    const c_variant = try variant.toC(allocator);
+    defer Variant.freeCVariant(c_variant, allocator);
+
+    const roundtrip = Variant.fromC(c_variant);
+    try testing.expectEqual(true, roundtrip.boolean);
+}
+
+test "Variant scalar string" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const variant = Variant.scalar([]const u8, "Hello, OPC UA!");
+    try testing.expectEqualStrings("Hello, OPC UA!", variant.string);
+
+    const c_variant = try variant.toC(allocator);
+    defer Variant.freeCVariant(c_variant, allocator);
+
+    const roundtrip = Variant.fromC(c_variant);
+    try testing.expectEqualStrings("Hello, OPC UA!", roundtrip.string);
+}
+
+test "Variant array i32" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const values = [_]i32{ 1, 2, 3, 4, 5 };
+    const variant = Variant.array(i32, &values);
+    try testing.expectEqualSlices(i32, &values, variant.int32_array);
+
+    const c_variant = try variant.toC(allocator);
+    defer Variant.freeCVariant(c_variant, allocator);
+
+    const roundtrip = Variant.fromC(c_variant);
+    try testing.expectEqualSlices(i32, &values, roundtrip.int32_array);
+}
+
+test "Variant array f64" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const values = [_]f64{ 1.1, 2.2, 3.3 };
+    const variant = Variant.array(f64, &values);
+    try testing.expectEqualSlices(f64, &values, variant.double_array);
+
+    const c_variant = try variant.toC(allocator);
+    defer Variant.freeCVariant(c_variant, allocator);
+
+    const roundtrip = Variant.fromC(c_variant);
+    try testing.expectEqualSlices(f64, &values, roundtrip.double_array);
+}
+
+test "Variant empty" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const variant = Variant{ .empty = {} };
+    const c_variant = try variant.toC(allocator);
+    defer Variant.freeCVariant(c_variant, allocator);
+
+    try testing.expect(c_variant.type == null or c_variant.data == null);
+}

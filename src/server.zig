@@ -7,7 +7,41 @@ const VariableAttributes = @import("variable_attributes.zig").VariableAttributes
 const Variant = @import("variant.zig").Variant;
 const LocalizedText = @import("localized_text.zig").LocalizedText;
 const NodeId = @import("types.zig").NodeId;
+const StandardNodeId = @import("types.zig").StandardNodeId;
+const ReferenceType = @import("types.zig").ReferenceType;
 const QualifiedName = @import("types.zig").QualifiedName;
+
+/// Errors that can occur when adding a variable node
+pub const AddNodeError = error{
+    /// The requested NodeId already exists in the address space
+    NodeIdExists,
+    /// The parent NodeId is invalid or doesn't exist
+    InvalidParentNodeId,
+    /// The reference type is not allowed for this operation
+    ReferenceNotAllowed,
+    /// Type mismatch in attributes (e.g., wrong ValueRank for the data)
+    TypeMismatch,
+    /// The node class is invalid
+    InvalidNodeClass,
+    /// One or more node attributes are invalid
+    InvalidNodeAttributes,
+    /// The type definition NodeId is invalid or doesn't exist
+    InvalidTypeDefinition,
+    /// The browse name is invalid
+    InvalidBrowseName,
+    /// A node with this browse name already exists under the parent
+    DuplicateBrowseName,
+    /// The NodeId could not be found (internal error)
+    NodeIdUnknown,
+    /// Insufficient memory to complete the operation
+    OutOfMemory,
+    /// Too many operations requested
+    TooManyOperations,
+    /// An internal server error occurred
+    InternalError,
+    /// Unknown error from the OPC UA server
+    Unknown,
+};
 
 pub const Server = struct {
     handle: *c.UA_Server,
@@ -184,38 +218,62 @@ pub const Server = struct {
         }
     }
 
-    //     UA_VariableAttributes attr = UA_VariableAttributes_default;
-    // UA_Int32 myInteger = 42;
-    // UA_Variant_setScalar(&attr.value, &myInteger, &UA_TYPES[UA_TYPES_INT32]);
-    // attr.description = UA_LOCALIZEDTEXT("en-US", "the answer");
-    // attr.displayName = UA_LOCALIZEDTEXT("en-US", "the answer");
-    // attr.dataType = UA_TYPES[UA_TYPES_INT32].typeId;
-    // attr.accessLevel = UA_ACCESSLEVELMASK_READ | UA_ACCESSLEVELMASK_WRITE;
-    //
-    // /* Add the variable node to the information model */
-    // UA_NodeId parentNodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER);
-    // UA_NodeId parentReferenceNodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES);
-    // UA_Server_addVariableNode(server, myIntegerNodeId, parentNodeId,
-    //                           parentReferenceNodeId, myIntegerName,
-    //                           UA_NODEID_NUMERIC(0, UA_NS0ID_BASEDATAVARIABLETYPE),
-    //                           attr, NULL, NULL);
-    pub fn addVariable(self: *Server, allocator: std.mem.Allocator) !NodeId {
-        const attrs = VariableAttributes{
-            .value = Variant.scalar(i32, 42),
-            .description = LocalizedText.init("en-US", "the answer"),
-            .display_name = LocalizedText.init("en-US", "the answer"),
-            .data_type = NodeId.initNumeric(0, c.UA_TYPES[c.UA_TYPES_INT32].typeId.identifier.numeric),
-            .access_level = .{ .read = true, .write = true },
-        };
-
-        const integer_node_id = NodeId.initString(1, "the.answer");
-        const integer_name = QualifiedName.init(1, "the answer");
-        const parent_node_id = NodeId.initNumeric(0, c.UA_NS0ID_OBJECTSFOLDER);
-        const parent_ref_node_id = NodeId.initNumeric(0, c.UA_NS0ID_ORGANIZES);
-        const type_definition = NodeId.initNumeric(0, c.UA_NS0ID_BASEDATAVARIABLETYPE);
-
+    /// Add a variable node to the OPC UA server
+    ///
+    /// Creates a new variable node in the server's address space with the specified
+    /// attributes and relationships.
+    ///
+    /// Parameters:
+    ///   - node_id: The desired NodeId for the new variable. Use NodeId.initNumeric()
+    ///              or NodeId.initString() to create. The server may assign a different
+    ///              ID if this one is already in use.
+    ///   - parent_node_id: The NodeId of the parent node (e.g., Objects folder)
+    ///   - parent_ref_node_id: The reference type connecting to parent (e.g., Organizes)
+    ///   - name: The qualified name (browse name) for the variable
+    ///   - type_definition: The type definition NodeId (e.g., BaseDataVariableType)
+    ///   - attrs: Variable attributes including value, display name, description, etc.
+    ///   - allocator: Memory allocator for temporary C conversions
+    ///
+    /// Returns:
+    ///   - The actual NodeId assigned by the server (may differ from requested node_id)
+    ///
+    /// Errors:
+    ///   - NodeIdExists: The requested NodeId is already in use
+    ///   - InvalidParentNodeId: The parent node doesn't exist
+    ///   - TypeMismatch: The value doesn't match the declared type (check value_rank!)
+    ///   - InvalidTypeDefinition: The type definition node doesn't exist
+    ///   - OutOfMemory: Allocation failed during conversion
+    ///   - (see AddNodeError for complete list)
+    ///
+    /// Example:
+    /// ```zig
+    /// const node_id = try server.addVariableNode(
+    ///     NodeId.initString(1, "my.variable"),
+    ///     NodeId.initNumeric(0, UA_NS0ID_OBJECTSFOLDER),
+    ///     NodeId.initNumeric(0, UA_NS0ID_ORGANIZES),
+    ///     QualifiedName.init(1, "My Variable"),
+    ///     NodeId.initNumeric(0, UA_NS0ID_BASEDATAVARIABLETYPE),
+    ///     .{
+    ///         .value = Variant.scalar(f64, 23.5),
+    ///         .display_name = LocalizedText.init("en-US", "Temperature"),
+    ///         .access_level = .{ .read = true, .write = true },
+    ///         .value_rank = -1, // Important: -1 for scalar values!
+    ///     },
+    ///     allocator,
+    /// );
+    /// ```
+    pub fn addVariableNode(
+        self: *Server,
+        node_id: NodeId,
+        parent_node_id: NodeId,
+        parent_ref_node_id: NodeId,
+        name: QualifiedName,
+        type_definition: NodeId,
+        attrs: VariableAttributes,
+        allocator: std.mem.Allocator,
+    ) AddNodeError!NodeId {
         // Convert to C types
-        const c_attrs = try attrs.toC(allocator);
+        const c_attrs = attrs.toC(allocator) catch return AddNodeError.OutOfMemory;
         defer {
             Variant.freeCVariant(c_attrs.value, allocator);
             if (c_attrs.arrayDimensionsSize > 0) {
@@ -223,23 +281,37 @@ pub const Server = struct {
             }
         }
 
+        // SAFETY: out_node_id is written to by UA_Server_addVariableNode before being read
         var out_node_id: c.UA_NodeId = undefined;
         const status = c.UA_Server_addVariableNode(
             self.handle,
-            integer_node_id.toC(),
+            node_id.toC(),
             parent_node_id.toC(),
             parent_ref_node_id.toC(),
-            integer_name.toC(),
+            name.toC(),
             type_definition.toC(),
             c_attrs,
             null, // nodeContext
             &out_node_id,
         );
 
-        if (status != c.UA_STATUSCODE_GOOD) {
-            return error.AddVariableNodeFailed;
-        }
-
-        return NodeId.fromC(out_node_id);
+        // Map status codes to specific errors
+        return switch (status) {
+            c.UA_STATUSCODE_GOOD => NodeId.fromC(out_node_id),
+            c.UA_STATUSCODE_BADNODEIDEXISTS => AddNodeError.NodeIdExists,
+            c.UA_STATUSCODE_BADPARENTNODEIDINVALID => AddNodeError.InvalidParentNodeId,
+            c.UA_STATUSCODE_BADREFERENCENOTALLOWED => AddNodeError.ReferenceNotAllowed,
+            c.UA_STATUSCODE_BADTYPEMISMATCH => AddNodeError.TypeMismatch,
+            c.UA_STATUSCODE_BADNODECLASSINVALID => AddNodeError.InvalidNodeClass,
+            c.UA_STATUSCODE_BADNODEATTRIBUTESINVALID => AddNodeError.InvalidNodeAttributes,
+            c.UA_STATUSCODE_BADTYPEDEFINITIONINVALID => AddNodeError.InvalidTypeDefinition,
+            c.UA_STATUSCODE_BADBROWSENAMEINVALID => AddNodeError.InvalidBrowseName,
+            c.UA_STATUSCODE_BADBROWSENAMEDUPLICATED => AddNodeError.DuplicateBrowseName,
+            c.UA_STATUSCODE_BADNODEIDUNKNOWN => AddNodeError.NodeIdUnknown,
+            c.UA_STATUSCODE_BADOUTOFMEMORY => AddNodeError.OutOfMemory,
+            c.UA_STATUSCODE_BADTOOMANYOPERATIONS => AddNodeError.TooManyOperations,
+            c.UA_STATUSCODE_BADINTERNALERROR => AddNodeError.InternalError,
+            else => AddNodeError.Unknown,
+        };
     }
 };

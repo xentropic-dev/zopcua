@@ -1,8 +1,9 @@
-pub const c = @import("c.zig");
-pub const String = @import("localized_text.zig").String;
+const std = @import("std");
+const c = @import("c.zig");
+const String = @import("localized_text.zig").String;
 
-pub const StatusCode = c.UA_StatusCode;
-pub const STATUSCODE_GOOD = c.UA_STATUSCODE_GOOD;
+const StatusCode = c.UA_StatusCode;
+const STATUSCODE_GOOD = c.UA_STATUSCODE_GOOD;
 
 pub const NodeId = union(enum) {
     numeric: struct {
@@ -132,3 +133,98 @@ pub const Guid = struct {
         };
     }
 };
+
+pub const ReferenceType = struct {
+    pub const organizes = NodeId.initNumeric(0, c.UA_NS0ID_ORGANIZES);
+    pub const has_component = NodeId.initNumeric(0, c.UA_NS0ID_HASCOMPONENT);
+    pub const has_property = NodeId.initNumeric(0, c.UA_NS0ID_HASPROPERTY);
+    pub const has_type_definition = NodeId.initNumeric(0, c.UA_NS0ID_HASTYPEDEFINITION);
+};
+
+pub const StandardNodeId = struct {
+    // Folders
+    pub const objects_folder = NodeId.initNumeric(0, c.UA_NS0ID_OBJECTSFOLDER);
+    pub const types_folder = NodeId.initNumeric(0, c.UA_NS0ID_TYPESFOLDER);
+    pub const views_folder = NodeId.initNumeric(0, c.UA_NS0ID_VIEWSFOLDER);
+
+    // Object Types
+    pub const base_object_type = NodeId.initNumeric(0, c.UA_NS0ID_BASEOBJECTTYPE);
+    pub const folder_type = NodeId.initNumeric(0, c.UA_NS0ID_FOLDERTYPE);
+
+    // Variable Types
+    pub const base_data_variable_type = NodeId.initNumeric(0, c.UA_NS0ID_BASEDATAVARIABLETYPE);
+    pub const property_type = NodeId.initNumeric(0, c.UA_NS0ID_PROPERTYTYPE);
+};
+
+test "NodeId numeric creation and conversion" {
+    const testing = std.testing;
+
+    const node_id = NodeId.initNumeric(1, 42);
+    try testing.expectEqual(@as(u16, 1), node_id.numeric.namespace);
+    try testing.expectEqual(@as(u32, 42), node_id.numeric.identifier);
+
+    const c_node_id = node_id.toC();
+    const roundtrip = NodeId.fromC(c_node_id);
+    try testing.expectEqual(node_id.numeric.namespace, roundtrip.numeric.namespace);
+    try testing.expectEqual(node_id.numeric.identifier, roundtrip.numeric.identifier);
+}
+
+test "NodeId string creation and conversion" {
+    const testing = std.testing;
+
+    const node_id = NodeId.initString(2, "test.node");
+    try testing.expectEqual(@as(u16, 2), node_id.string.namespace);
+    try testing.expectEqualStrings("test.node", node_id.string.identifier);
+
+    const c_node_id = node_id.toC();
+    const roundtrip = NodeId.fromC(c_node_id);
+    try testing.expectEqual(node_id.string.namespace, roundtrip.string.namespace);
+    try testing.expectEqualStrings(node_id.string.identifier, roundtrip.string.identifier);
+}
+
+test "NodeId null_id" {
+    const testing = std.testing;
+
+    const null_id = NodeId.null_id;
+    try testing.expectEqual(@as(u16, 0), null_id.numeric.namespace);
+    try testing.expectEqual(@as(u32, 0), null_id.numeric.identifier);
+}
+
+test "StandardNodeId constants" {
+    const testing = std.testing;
+
+    try testing.expectEqual(@as(u16, 0), StandardNodeId.objects_folder.numeric.namespace);
+    try testing.expectEqual(@as(u16, 0), StandardNodeId.base_data_variable_type.numeric.namespace);
+}
+
+test "QualifiedName creation and conversion" {
+    const testing = std.testing;
+
+    const qname = QualifiedName.init(1, "MyVariable");
+    try testing.expectEqual(@as(u16, 1), qname.namespace_index);
+    try testing.expectEqualStrings("MyVariable", qname.name);
+
+    const c_qname = qname.toC();
+    const roundtrip = QualifiedName.fromC(c_qname);
+    try testing.expectEqual(qname.namespace_index, roundtrip.namespace_index);
+    try testing.expectEqualStrings(qname.name, roundtrip.name);
+}
+
+test "Guid creation and conversion" {
+    const testing = std.testing;
+
+    const guid = Guid{
+        .data1 = 0x12345678,
+        .data2 = 0x1234,
+        .data3 = 0x5678,
+        .data4 = [_]u8{ 1, 2, 3, 4, 5, 6, 7, 8 },
+    };
+
+    const c_guid = guid.toC();
+    const roundtrip = Guid.fromC(c_guid);
+
+    try testing.expectEqual(guid.data1, roundtrip.data1);
+    try testing.expectEqual(guid.data2, roundtrip.data2);
+    try testing.expectEqual(guid.data3, roundtrip.data3);
+    try testing.expectEqualSlices(u8, &guid.data4, &roundtrip.data4);
+}
