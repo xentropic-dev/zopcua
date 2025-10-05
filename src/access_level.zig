@@ -1,3 +1,4 @@
+const c = @import("c.zig");
 /// Access Level Masks
 /// The access level to a node is given by the following boolean fields.
 /// Each field represents a specific access permission that can be granted.
@@ -35,12 +36,12 @@ pub const AccessLevel = packed struct(u8) {
     pub const read_write = AccessLevel{ .read = true, .write = true };
 
     /// Convert from C API representation
-    pub inline fn fromC(value: u8) AccessLevel {
+    pub inline fn fromC(value: c.UA_Byte) AccessLevel {
         return @bitCast(value);
     }
 
     /// Convert to C API representation
-    pub inline fn toC(self: AccessLevel) u8 {
+    pub inline fn toC(self: AccessLevel) c.UA_Byte {
         return @bitCast(self);
     }
 };

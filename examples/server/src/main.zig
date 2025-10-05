@@ -17,6 +17,9 @@ pub fn main() !void {
 
     var server = try ua.Server.init();
     defer server.deinit();
+
+    _ = try server.addVariable(std.heap.page_allocator);
+
     try server.start();
     defer server.stop() catch |err| {
         std.log.err("Failed to stop server: {}", .{err});
