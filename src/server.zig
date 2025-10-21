@@ -76,6 +76,9 @@ pub const Server = struct {
         if (result.status != c.UA_STATUSCODE_GOOD) {
             return error.BadInternalError;
         }
+
+        const config = c.UA_Server_getConfig(result.server.?);
+        _ = c.UA_ServerConfig_setDefault(config);
         return .{ .handle = result.server.? };
     }
 

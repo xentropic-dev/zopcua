@@ -391,17 +391,23 @@ pub const Variant = union(enum) {
         return result;
     }
 
-    /// Convert from C API representation
-    pub fn fromC(value: c.UA_Variant) Variant {
+    /// Convert from C API representation, deep-copying all data
+    ///
+    /// This function allocates memory for all variant data using the provided allocator.
+    /// The caller owns the returned Variant and must call deinit() to free the memory.
+    ///
+    /// The original C variant is not modified and remains the caller's responsibility
+    /// to clean up (e.g., with UA_Variant_clear if it was allocated by the C library).
+    pub fn fromC(value: c.UA_Variant, allocator: std.mem.Allocator) !Variant {
         if (value.type == null or value.data == null) return .empty;
 
         const type_index = getTypeIndex(value.type);
         const is_array = value.arrayLength > 0;
 
         if (is_array) {
-            return fromCArray(value, type_index) catch .{ .raw = value };
+            return fromCArray(value, type_index, allocator) catch .{ .raw = value };
         } else {
-            return fromCScalar(value, type_index) catch .{ .raw = value };
+            return fromCScalar(value, type_index, allocator) catch .{ .raw = value };
         }
     }
 
@@ -410,7 +416,7 @@ pub const Variant = union(enum) {
         return offset / @sizeOf(c.UA_DataType);
     }
 
-    fn fromCScalar(value: c.UA_Variant, type_index: usize) !Variant {
+    fn fromCScalar(value: c.UA_Variant, type_index: usize, allocator: std.mem.Allocator) !Variant {
         return switch (type_index) {
             c.UA_TYPES_BOOLEAN => blk: {
                 const ptr: *const c.UA_Boolean = @ptrCast(@alignCast(value.data));
@@ -458,7 +464,10 @@ pub const Variant = union(enum) {
             },
             c.UA_TYPES_STRING => blk: {
                 const ptr: *const c.UA_String = @ptrCast(@alignCast(value.data));
-                break :blk .{ .string = String.fromC(ptr.*) };
+                const src = String.fromC(ptr.*);
+                // Deep copy the string
+                const owned = try allocator.dupe(u8, src);
+                break :blk .{ .string = owned };
             },
             c.UA_TYPES_DATETIME => blk: {
                 const ptr: *const c.UA_DateTime = @ptrCast(@alignCast(value.data));
@@ -470,7 +479,10 @@ pub const Variant = union(enum) {
             },
             c.UA_TYPES_BYTESTRING => blk: {
                 const ptr: *const c.UA_ByteString = @ptrCast(@alignCast(value.data));
-                break :blk .{ .byte_string = String.fromC(ptr.*) };
+                const src = String.fromC(ptr.*);
+                // Deep copy the byte string
+                const owned = try allocator.dupe(u8, src);
+                break :blk .{ .byte_string = owned };
             },
             c.UA_TYPES_NODEID => blk: {
                 const ptr: *const c.UA_NodeId = @ptrCast(@alignCast(value.data));
@@ -488,64 +500,128 @@ pub const Variant = union(enum) {
         };
     }
 
-    fn fromCArray(value: c.UA_Variant, type_index: usize) !Variant {
+    fn fromCArray(value: c.UA_Variant, type_index: usize, allocator: std.mem.Allocator) !Variant {
         return switch (type_index) {
             c.UA_TYPES_BOOLEAN => blk: {
                 const ptr: [*]const c.UA_Boolean = @ptrCast(@alignCast(value.data));
-                break :blk .{ .boolean_array = ptr[0..value.arrayLength] };
+                const src = ptr[0..value.arrayLength];
+                // Deep copy the array
+                const owned = try allocator.dupe(bool, src);
+                break :blk .{ .boolean_array = owned };
             },
             c.UA_TYPES_SBYTE => blk: {
                 const ptr: [*]const c.UA_SByte = @ptrCast(@alignCast(value.data));
-                break :blk .{ .sbyte_array = ptr[0..value.arrayLength] };
+                const src = ptr[0..value.arrayLength];
+                const owned = try allocator.dupe(i8, src);
+                break :blk .{ .sbyte_array = owned };
             },
             c.UA_TYPES_BYTE => blk: {
                 const ptr: [*]const c.UA_Byte = @ptrCast(@alignCast(value.data));
-                break :blk .{ .byte_array = ptr[0..value.arrayLength] };
+                const src = ptr[0..value.arrayLength];
+                const owned = try allocator.dupe(u8, src);
+                break :blk .{ .byte_array = owned };
             },
             c.UA_TYPES_INT16 => blk: {
                 const ptr: [*]const c.UA_Int16 = @ptrCast(@alignCast(value.data));
-                break :blk .{ .int16_array = ptr[0..value.arrayLength] };
+                const src = ptr[0..value.arrayLength];
+                const owned = try allocator.dupe(i16, src);
+                break :blk .{ .int16_array = owned };
             },
             c.UA_TYPES_UINT16 => blk: {
                 const ptr: [*]const c.UA_UInt16 = @ptrCast(@alignCast(value.data));
-                break :blk .{ .uint16_array = ptr[0..value.arrayLength] };
+                const src = ptr[0..value.arrayLength];
+                const owned = try allocator.dupe(u16, src);
+                break :blk .{ .uint16_array = owned };
             },
             c.UA_TYPES_INT32 => blk: {
                 const ptr: [*]const c.UA_Int32 = @ptrCast(@alignCast(value.data));
-                break :blk .{ .int32_array = ptr[0..value.arrayLength] };
+                const src = ptr[0..value.arrayLength];
+                const owned = try allocator.dupe(i32, src);
+                break :blk .{ .int32_array = owned };
             },
             c.UA_TYPES_UINT32 => blk: {
                 const ptr: [*]const c.UA_UInt32 = @ptrCast(@alignCast(value.data));
-                break :blk .{ .uint32_array = ptr[0..value.arrayLength] };
+                const src = ptr[0..value.arrayLength];
+                const owned = try allocator.dupe(u32, src);
+                break :blk .{ .uint32_array = owned };
             },
             c.UA_TYPES_INT64 => blk: {
                 const ptr: [*]const c.UA_Int64 = @ptrCast(@alignCast(value.data));
-                break :blk .{ .int64_array = ptr[0..value.arrayLength] };
+                const src = ptr[0..value.arrayLength];
+                const owned = try allocator.dupe(i64, src);
+                break :blk .{ .int64_array = owned };
             },
             c.UA_TYPES_UINT64 => blk: {
                 const ptr: [*]const c.UA_UInt64 = @ptrCast(@alignCast(value.data));
-                break :blk .{ .uint64_array = ptr[0..value.arrayLength] };
+                const src = ptr[0..value.arrayLength];
+                const owned = try allocator.dupe(u64, src);
+                break :blk .{ .uint64_array = owned };
             },
             c.UA_TYPES_FLOAT => blk: {
                 const ptr: [*]const c.UA_Float = @ptrCast(@alignCast(value.data));
-                break :blk .{ .float_array = ptr[0..value.arrayLength] };
+                const src = ptr[0..value.arrayLength];
+                const owned = try allocator.dupe(f32, src);
+                break :blk .{ .float_array = owned };
             },
             c.UA_TYPES_DOUBLE => blk: {
                 const ptr: [*]const c.UA_Double = @ptrCast(@alignCast(value.data));
-                break :blk .{ .double_array = ptr[0..value.arrayLength] };
+                const src = ptr[0..value.arrayLength];
+                const owned = try allocator.dupe(f64, src);
+                break :blk .{ .double_array = owned };
             },
             c.UA_TYPES_DATETIME => blk: {
                 const ptr: [*]const c.UA_DateTime = @ptrCast(@alignCast(value.data));
-                break :blk .{ .date_time_array = ptr[0..value.arrayLength] };
+                const src = ptr[0..value.arrayLength];
+                const owned = try allocator.dupe(i64, src);
+                break :blk .{ .date_time_array = owned };
             },
             c.UA_TYPES_STATUSCODE => blk: {
                 const ptr: [*]const c.UA_StatusCode = @ptrCast(@alignCast(value.data));
-                break :blk .{ .status_code_array = ptr[0..value.arrayLength] };
+                const src = ptr[0..value.arrayLength];
+                const owned = try allocator.dupe(u32, src);
+                break :blk .{ .status_code_array = owned };
             },
             // Note: String arrays and NodeId arrays need special handling
             // because we can't just slice them - we need to convert each element
             else => error.UnsupportedArrayType,
         };
+    }
+
+    /// Free memory allocated by fromC()
+    ///
+    /// Call this when done with a Variant created by fromC() to free the deep-copied data.
+    /// Note: Do not call this for Variants created by scalar() or array() helpers unless
+    /// the data was separately heap-allocated.
+    pub fn deinit(self: Variant, allocator: std.mem.Allocator) void {
+        switch (self) {
+            .empty, .raw => {},
+
+            // Scalars that own heap memory
+            .string => |s| allocator.free(s),
+            .byte_string => |s| allocator.free(s),
+
+            // Arrays that own heap memory
+            .boolean_array => |a| allocator.free(a),
+            .sbyte_array => |a| allocator.free(a),
+            .byte_array => |a| allocator.free(a),
+            .int16_array => |a| allocator.free(a),
+            .uint16_array => |a| allocator.free(a),
+            .int32_array => |a| allocator.free(a),
+            .uint32_array => |a| allocator.free(a),
+            .int64_array => |a| allocator.free(a),
+            .uint64_array => |a| allocator.free(a),
+            .float_array => |a| allocator.free(a),
+            .double_array => |a| allocator.free(a),
+            .date_time_array => |a| allocator.free(a),
+            .status_code_array => |a| allocator.free(a),
+            .string_array => |a| allocator.free(a),
+            .node_id_array => |a| allocator.free(a),
+
+            // Scalars that don't own heap memory (stack values)
+            .boolean, .sbyte, .byte, .int16, .uint16, .int32, .uint32,
+            .int64, .uint64, .float, .double, .date_time, .guid,
+            .node_id, .status_code, .localized_text => {},
+        }
     }
 
     /// Free memory allocated by toC()
@@ -744,7 +820,8 @@ test "Variant scalar i32" {
     const c_variant = try variant.toC(allocator);
     defer Variant.freeCVariant(c_variant, allocator);
 
-    const roundtrip = Variant.fromC(c_variant);
+    const roundtrip = try Variant.fromC(c_variant, allocator);
+    defer roundtrip.deinit(allocator);
     try testing.expectEqual(@as(i32, 42), roundtrip.int32);
 }
 
@@ -758,7 +835,8 @@ test "Variant scalar f64" {
     const c_variant = try variant.toC(allocator);
     defer Variant.freeCVariant(c_variant, allocator);
 
-    const roundtrip = Variant.fromC(c_variant);
+    const roundtrip = try Variant.fromC(c_variant, allocator);
+    defer roundtrip.deinit(allocator);
     try testing.expectEqual(@as(f64, 3.14159), roundtrip.double);
 }
 
@@ -772,7 +850,8 @@ test "Variant scalar bool" {
     const c_variant = try variant.toC(allocator);
     defer Variant.freeCVariant(c_variant, allocator);
 
-    const roundtrip = Variant.fromC(c_variant);
+    const roundtrip = try Variant.fromC(c_variant, allocator);
+    defer roundtrip.deinit(allocator);
     try testing.expectEqual(true, roundtrip.boolean);
 }
 
@@ -786,7 +865,8 @@ test "Variant scalar string" {
     const c_variant = try variant.toC(allocator);
     defer Variant.freeCVariant(c_variant, allocator);
 
-    const roundtrip = Variant.fromC(c_variant);
+    const roundtrip = try Variant.fromC(c_variant, allocator);
+    defer roundtrip.deinit(allocator);
     try testing.expectEqualStrings("Hello, OPC UA!", roundtrip.string);
 }
 
@@ -801,7 +881,8 @@ test "Variant array i32" {
     const c_variant = try variant.toC(allocator);
     defer Variant.freeCVariant(c_variant, allocator);
 
-    const roundtrip = Variant.fromC(c_variant);
+    const roundtrip = try Variant.fromC(c_variant, allocator);
+    defer roundtrip.deinit(allocator);
     try testing.expectEqualSlices(i32, &values, roundtrip.int32_array);
 }
 
@@ -816,7 +897,8 @@ test "Variant array f64" {
     const c_variant = try variant.toC(allocator);
     defer Variant.freeCVariant(c_variant, allocator);
 
-    const roundtrip = Variant.fromC(c_variant);
+    const roundtrip = try Variant.fromC(c_variant, allocator);
+    defer roundtrip.deinit(allocator);
     try testing.expectEqualSlices(f64, &values, roundtrip.double_array);
 }
 

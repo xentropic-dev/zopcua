@@ -10,4 +10,5 @@ const ServerResult = extern struct {
     server: ?*c.UA_Server,
 };
 
+// I'm actually not sure this was necessary now.
 pub extern fn UA_Server_newDefaultWithStatus() ServerResult;
