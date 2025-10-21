@@ -131,6 +131,63 @@ pub const Client = struct {
         return .{ .handle = result.client.? };
     }
 
+    /// Free the client resources.
+    ///
+    /// This should be called when the client is no longer needed to prevent memory leaks.
+    /// The client must be disconnected before calling this function, or it will be
+    /// disconnected automatically.
+    pub fn deinit(self: Client) void {
+        c.UA_Client_delete(self.handle);
+    }
+
+    /// Connect to the specified OPC UA server endpoint.
+    ///
+    /// This function establishes a SecureChannel and creates a Session with the server.
+    /// The endpoint URL must be in the format: `opc.tcp://hostname:port[/path]`
+    ///
+    /// Example usage:
+    /// ```zig
+    /// var client = try Client.init();
+    /// defer client.deinit();
+    /// try client.connect("opc.tcp://localhost:4840");
+    /// defer client.disconnect();
+    /// // ... do work ...
+    /// ```
+    ///
+    /// **Errors:**
+    /// Returns errors from `ua_error.OpcUaError` including common ones like:
+    /// - `BadTcpEndpointUrlInvalid` - The endpoint URL format is invalid
+    /// - `BadConnectionRejected` - The server rejected the connection
+    /// - `BadTimeout` - Connection attempt timed out
+    /// - `BadCommunicationError` - Network communication error
+    /// - `BadSecurityChecksFailed` - Security checks failed
+    /// - `BadCertificateInvalid` - Certificate validation failed
+    ///
+    /// TODO: Unroll checkStatus and return explicit connect-specific errors instead
+    /// of the full OpcUaError set. This would provide better type safety and clearer
+    /// error handling for connection operations.
+    pub fn connect(self: Client, endpoint_url: []const u8) !void {
+        const c_url = @as([*c]const u8, @ptrCast(endpoint_url.ptr));
+        const status = c.UA_Client_connect(self.handle, c_url);
+        try ua_error.checkStatus(status);
+    }
+
+    /// Disconnect from the OPC UA server.
+    ///
+    /// This function closes the Session and SecureChannel with the server.
+    /// It's safe to call this even if not connected.
+    ///
+    /// **Errors:**
+    /// Returns errors from `ua_error.OpcUaError` if the disconnect operation fails.
+    ///
+    /// TODO: Unroll checkStatus and return explicit disconnect-specific errors instead
+    /// of the full OpcUaError set. This would provide better type safety and clearer
+    /// error handling for disconnect operations.
+    pub fn disconnect(self: Client) !void {
+        const status = c.UA_Client_disconnect(self.handle);
+        try ua_error.checkStatus(status);
+    }
+
     /// Writes a value attribute to the specified node.
     ///
     /// This function writes a new value to a variable node on the OPC UA server.
