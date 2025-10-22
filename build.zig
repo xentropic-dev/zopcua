@@ -196,23 +196,59 @@ pub fn build(b: *std.Build) void {
     }.create;
 
     // Legacy integration test (backward compatibility)
-    const integration_test = createIntegrationTest(b, "integration_test", "tests/integration_test.zig", target, optimize, module, test_helpers_module, mbedtls_link);
+    const integration_test = createIntegrationTest(
+        b,
+        "integration_test",
+        "tests/integration_test.zig",
+        target,
+        optimize,
+        module,
+        test_helpers_module,
+        mbedtls_link,
+    );
     const run_integration_test = b.addRunArtifact(integration_test);
     const integration_step = b.step("test-integration", "Run legacy integration tests");
     integration_step.dependOn(&run_integration_test.step);
 
     // New comprehensive integration tests
-    const variant_scalar_test = createIntegrationTest(b, "variant_scalar_test", "tests/integration/variant_scalar_test.zig", target, optimize, module, test_helpers_module, mbedtls_link);
+    const variant_scalar_test = createIntegrationTest(
+        b,
+        "variant_scalar_test",
+        "tests/integration/variant_scalar_test.zig",
+        target,
+        optimize,
+        module,
+        test_helpers_module,
+        mbedtls_link,
+    );
     const run_variant_scalar = b.addRunArtifact(variant_scalar_test);
     const variant_scalar_step = b.step("test-variant-scalar", "Run Variant scalar integration tests");
     variant_scalar_step.dependOn(&run_variant_scalar.step);
 
-    const variant_array_test = createIntegrationTest(b, "variant_array_test", "tests/integration/variant_array_test.zig", target, optimize, module, test_helpers_module, mbedtls_link);
+    const variant_array_test = createIntegrationTest(
+        b,
+        "variant_array_test",
+        "tests/integration/variant_array_test.zig",
+        target,
+        optimize,
+        module,
+        test_helpers_module,
+        mbedtls_link,
+    );
     const run_variant_array = b.addRunArtifact(variant_array_test);
     const variant_array_step = b.step("test-variant-array", "Run Variant array integration tests");
     variant_array_step.dependOn(&run_variant_array.step);
 
-    const concurrent_test = createIntegrationTest(b, "concurrent_test", "tests/integration/concurrent_test.zig", target, optimize, module, test_helpers_module, mbedtls_link);
+    const concurrent_test = createIntegrationTest(
+        b,
+        "concurrent_test",
+        "tests/integration/concurrent_test.zig",
+        target,
+        optimize,
+        module,
+        test_helpers_module,
+        mbedtls_link,
+    );
     const run_concurrent = b.addRunArtifact(concurrent_test);
     const concurrent_step = b.step("test-concurrent", "Run concurrent access integration tests");
     concurrent_step.dependOn(&run_concurrent.step);

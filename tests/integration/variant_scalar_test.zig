@@ -323,7 +323,7 @@ fn testGuid(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator
     const initial = try client.readValueAttribute(node_id, allocator);
     defer initial.deinit(allocator);
     try stdout.print("  Initial value: {x}-{x}-{x}\n", .{ initial.guid.data1, initial.guid.data2, initial.guid.data3 });
-    try assertions.expectVariantEqual(ua.Variant{ .guid = fixtures.TestScalarData.guid_value() }, initial);
+    try assertions.expectVariantEqual(ua.Variant{ .guid = fixtures.TestScalarData.guidValue() }, initial);
 
     const new_guid = ua.Guid{
         .data1 = 0xAABBCCDD,
@@ -375,7 +375,7 @@ fn testNodeId(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocat
         "  Initial value: ns={} i={}\n",
         .{ initial.node_id.numeric.namespace, initial.node_id.numeric.identifier },
     );
-    try assertions.expectVariantEqual(ua.Variant.scalar(ua.NodeId, fixtures.TestScalarData.node_id_value()), initial);
+    try assertions.expectVariantEqual(ua.Variant.scalar(ua.NodeId, fixtures.TestScalarData.nodeIdValue()), initial);
 
     const new_node = ua.NodeId.initNumeric(2, 5000);
     const new_value = ua.Variant.scalar(ua.NodeId, new_node);
@@ -420,7 +420,7 @@ fn testLocalizedText(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.
     defer initial.deinit(allocator);
     try stdout.print("  Initial value: {s}:{s}\n", .{ initial.localized_text.locale, initial.localized_text.text });
     try assertions.expectVariantEqual(
-        ua.Variant.scalar(ua.LocalizedText, fixtures.TestScalarData.localized_text_value()),
+        ua.Variant.scalar(ua.LocalizedText, fixtures.TestScalarData.localizedTextValue()),
         initial,
     );
 

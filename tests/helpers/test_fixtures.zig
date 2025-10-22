@@ -61,7 +61,7 @@ pub const TestScalarData = struct {
     pub const byte_string_value: []const u8 = "Binary Data \x00\xFF\x42";
     pub const status_code_value: u32 = 0x00000000; // UA_STATUSCODE_GOOD
 
-    pub fn guid_value() ua.Guid {
+    pub fn guidValue() ua.Guid {
         return ua.Guid{
             .data1 = 0x12345678,
             .data2 = 0xABCD,
@@ -70,11 +70,11 @@ pub const TestScalarData = struct {
         };
     }
 
-    pub fn node_id_value() ua.NodeId {
+    pub fn nodeIdValue() ua.NodeId {
         return ua.NodeId.initNumeric(1, 1000);
     }
 
-    pub fn localized_text_value() ua.LocalizedText {
+    pub fn localizedTextValue() ua.LocalizedText {
         return ua.LocalizedText.init("en-US", "Localized Test Text");
     }
 };
@@ -101,7 +101,7 @@ pub const TestArrayData = struct {
     pub const empty_bool_array = [_]bool{};
 
     // Large arrays for performance testing
-    pub fn large_int32_array(allocator: std.mem.Allocator, size: usize) ![]i32 {
+    pub fn largeInt32Array(allocator: std.mem.Allocator, size: usize) ![]i32 {
         const array = try allocator.alloc(i32, size);
         for (array, 0..) |*item, i| {
             item.* = @intCast(i);
@@ -109,7 +109,7 @@ pub const TestArrayData = struct {
         return array;
     }
 
-    pub fn large_double_array(allocator: std.mem.Allocator, size: usize) ![]f64 {
+    pub fn largeDoubleArray(allocator: std.mem.Allocator, size: usize) ![]f64 {
         const array = try allocator.alloc(f64, size);
         for (array, 0..) |*item, i| {
             item.* = @as(f64, @floatFromInt(i)) * 0.1;
@@ -314,7 +314,7 @@ pub fn setupStandardNodes(server: *ua.Server, allocator: std.mem.Allocator) !Tes
         ua.QualifiedName.init(1, "TestGuid"),
         base_type,
         .{
-            .value = ua.Variant{ .guid = TestScalarData.guid_value() },
+            .value = ua.Variant{ .guid = TestScalarData.guidValue() },
             .display_name = ua.LocalizedText.init("en-US", "Test Guid"),
             .access_level = .{ .read = true, .write = true },
         },
@@ -342,7 +342,7 @@ pub fn setupStandardNodes(server: *ua.Server, allocator: std.mem.Allocator) !Tes
         ua.QualifiedName.init(1, "TestNodeId"),
         base_type,
         .{
-            .value = ua.Variant.scalar(ua.NodeId, TestScalarData.node_id_value()),
+            .value = ua.Variant.scalar(ua.NodeId, TestScalarData.nodeIdValue()),
             .display_name = ua.LocalizedText.init("en-US", "Test NodeId"),
             .access_level = .{ .read = true, .write = true },
         },
@@ -370,7 +370,7 @@ pub fn setupStandardNodes(server: *ua.Server, allocator: std.mem.Allocator) !Tes
         ua.QualifiedName.init(1, "TestLocalizedText"),
         base_type,
         .{
-            .value = ua.Variant.scalar(ua.LocalizedText, TestScalarData.localized_text_value()),
+            .value = ua.Variant.scalar(ua.LocalizedText, TestScalarData.localizedTextValue()),
             .display_name = ua.LocalizedText.init("en-US", "Test LocalizedText"),
             .access_level = .{ .read = true, .write = true },
         },
