@@ -47,6 +47,9 @@ jobs:
         uses: goto-bus-stop/setup-zig@v2
         with:
           version: 0.14.1
-      
+
       - name: Run unit tests
         run: zig build test --summary all
+
+      - name: Run integration tests
+        run: zig build test-integration --summary all

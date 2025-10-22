@@ -69,5 +69,26 @@ size_t get_ua_types_count(void) {
     return UA_TYPES_COUNT;
 }
 
+// Variant initialization helpers
+//
+// IMPORTANT: These wrappers ensure variants are initialized using open62541's own
+// UA_Variant_setScalarCopy() and UA_Variant_setArrayCopy() functions, which guarantees:
+// 1. Proper initialization of all struct fields (including arrayDimensions)
+// 2. Compatibility with open62541's internal variant copying and manipulation logic
+// 3. Correct memory management using open62541's allocator
+//
+// Using these functions instead of manually constructing UA_Variant structs prevents
+// issues with uninitialized fields and ensures proper interop with open62541.
+
+// Initialize a scalar variant by copying the data
+// Returns UA_STATUSCODE_GOOD on success
+UA_StatusCode helper_variant_setScalarCopy(UA_Variant *variant, const void *data,
+                                           const UA_DataType *type);
+
+// Initialize an array variant by copying the data
+// Returns UA_STATUSCODE_GOOD on success
+UA_StatusCode helper_variant_setArrayCopy(UA_Variant *variant, const void *data,
+                                          size_t arrayLength, const UA_DataType *type);
+
 
 #endif

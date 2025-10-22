@@ -46,3 +46,27 @@ UA_ClientResult UA_Client_newDefaultWithStatus(void) {
   }
   return result;
 }
+
+// Variant initialization helpers
+//
+// These thin wrappers ensure variants are initialized using open62541's own
+// functions (UA_Variant_setScalarCopy and UA_Variant_setArrayCopy).
+//
+// Why this is needed:
+// - open62541 expects variants to be initialized in a specific way
+// - Manually constructing UA_Variant structs can lead to uninitialized fields
+// - Using open62541's initialization functions ensures all fields (including
+//   arrayDimensions, arrayDimensionsSize, etc.) are properly set
+// - Memory is managed by open62541's allocator, ensuring consistency
+//
+// These wrappers are called from Zig code via extern declarations in src/helpers.zig
+
+UA_StatusCode helper_variant_setScalarCopy(UA_Variant *variant, const void *data,
+                                           const UA_DataType *type) {
+  return UA_Variant_setScalarCopy(variant, data, type);
+}
+
+UA_StatusCode helper_variant_setArrayCopy(UA_Variant *variant, const void *data,
+                                          size_t arrayLength, const UA_DataType *type) {
+  return UA_Variant_setArrayCopy(variant, data, arrayLength, type);
+}

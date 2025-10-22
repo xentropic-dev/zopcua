@@ -238,14 +238,20 @@ pub const Client = struct {
     /// - `UnexpectedError` - An unexpected error occurred (returned by the C code for
     ///   internal errors like wrong resultsSize)
     pub fn writeValueAttribute(self: Client, node_id: NodeId, variant: Variant) WriteAttributeError!void {
-        // Use variant conversion for all types to ensure proper arrayDimensions handling
+        // Convert the Variant to open62541's C representation and write it
         const status = blk: {
                 var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
                 defer arena.deinit();
 
-                const c_variant = variant.toC(arena.allocator()) catch {
+                // Create C variant using open62541's initialization functions
+                var c_variant = variant.toC(arena.allocator()) catch {
                     return WriteAttributeError.OutOfMemory;
                 };
+                // IMPORTANT: Must call UA_Variant_clear to free memory allocated by
+                // open62541's UA_Variant_setScalarCopy/UA_Variant_setArrayCopy.
+                // UA_Client_writeValueAttribute makes its own copy, so we're responsible
+                // for cleaning up our temporary variant.
+                defer c.UA_Variant_clear(&c_variant);
 
                 break :blk c.UA_Client_writeValueAttribute(self.handle, node_id.toC(), &c_variant);
         };

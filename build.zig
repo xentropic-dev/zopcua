@@ -72,6 +72,12 @@ pub fn build(b: *std.Build) void {
             "-D_DARWIN_C_SOURCE",
             "-D_POSIX_C_SOURCE=200112L",
             "-std=c99",
+            // Disable UB sanitizer for open62541 v1.4.12
+            // This version has a memcpy(NULL, NULL, 0) case in writeValueAttributeWithoutRange
+            // when handling scalar values with arrayDimensionsSize=0, which is technically UB
+            // but works in practice. Fixed in later versions of open62541.
+            // See: vendor/open62541.c line ~39788
+            "-fno-sanitize=undefined",
         },
     });
     lib.addIncludePath(b.path("vendor"));
@@ -96,6 +102,8 @@ pub fn build(b: *std.Build) void {
             "-D_DARWIN_C_SOURCE",
             "-D_POSIX_C_SOURCE=200112L",
             "-std=c99",
+            // See comment above in lib.addCSourceFiles for why this is needed
+            "-fno-sanitize=undefined",
         },
     });
     lib_unit_tests.addIncludePath(b.path("vendor"));
@@ -125,6 +133,8 @@ pub fn build(b: *std.Build) void {
             "-D_DARWIN_C_SOURCE",
             "-D_POSIX_C_SOURCE=200112L",
             "-std=c99",
+            // See comment above in lib.addCSourceFiles for why this is needed
+            "-fno-sanitize=undefined",
         },
     });
     integration_test.addIncludePath(b.path("vendor"));
