@@ -1,8 +1,8 @@
 .{
-    .name = .server,
+    .name = .client_server,
     .version = "0.0.0",
-    .fingerprint = 0x5a6dd5f682718bff,
-    .minimum_zig_version = "0.14.1",
+    .fingerprint = 0xfcb9e4565ba14bc,
+    .minimum_zig_version = "0.14.0",
 
     .dependencies = .{
         .zopcua = .{ .path = "../../" },

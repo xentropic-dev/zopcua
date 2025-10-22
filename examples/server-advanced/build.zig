@@ -13,7 +13,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const exe = b.addExecutable(.{
-        .name = "server",
+        .name = "server-advanced",
         .root_module = exe_mod,
     });
 
