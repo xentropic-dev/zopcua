@@ -88,9 +88,11 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(lib);
 
     const lib_unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/root.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/root.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     lib_unit_tests.addCSourceFiles(.{
@@ -118,9 +120,11 @@ pub fn build(b: *std.Build) void {
 
     // Variant memory lifecycle tests
     const variant_memory_tests = b.addTest(.{
-        .root_source_file = b.path("tests/variant_memory_test.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/variant_memory_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     variant_memory_tests.root_module.addImport("ua", module);
     variant_memory_tests.addCSourceFiles(.{
@@ -169,9 +173,11 @@ pub fn build(b: *std.Build) void {
         ) *std.Build.Step.Compile {
             const exe = builder.addExecutable(.{
                 .name = name,
-                .root_source_file = builder.path(source),
-                .target = tgt,
-                .optimize = opt,
+                .root_module = builder.createModule(.{
+                    .root_source_file = builder.path(source),
+                    .target = tgt,
+                    .optimize = opt,
+                }),
             });
             exe.root_module.addImport("ua", mod);
             exe.root_module.addImport("test_helpers", helpers);
@@ -265,11 +271,14 @@ pub fn build(b: *std.Build) void {
     integration_quick_step.dependOn(&run_variant_scalar.step);
     integration_quick_step.dependOn(&run_variant_array.step);
 
-    const docs_lib = b.addStaticLibrary(.{
+    const docs_lib = b.addLibrary(.{
         .name = "ua",
-        .root_source_file = b.path("src/root.zig"),
-        .target = target,
-        .optimize = optimize,
+        .linkage = .static,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/root.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     const docs_step = b.step("docs", "Generate documentation");
     const install_docs = b.addInstallDirectory(.{

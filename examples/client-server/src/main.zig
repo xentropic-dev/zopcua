@@ -11,13 +11,13 @@ pub fn main() !void {
     defer server_thread.join();
 
     // Give the server time to start
-    std.time.sleep(500 * std.time.ns_per_ms);
+    std.Thread.sleep(500 * std.time.ns_per_ms);
 
     // Run the client operations
     try clientOperations(allocator);
 
     std.log.info("\nPress Ctrl-C to stop the server", .{});
-    std.time.sleep(std.math.maxInt(u64)); // Wait for Ctrl-C
+    std.Thread.sleep(std.math.maxInt(u64)); // Wait for Ctrl-C
 }
 
 fn serverThread(allocator: std.mem.Allocator) !void {

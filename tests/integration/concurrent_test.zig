@@ -5,10 +5,8 @@ const TestServer = test_helpers.TestServer;
 const fixtures = test_helpers.fixtures;
 
 pub fn main() !void {
-    const stdout = std.io.getStdOut().writer();
     const allocator = std.heap.page_allocator;
 
-    try stdout.print("=== Concurrent Access Integration Tests ===\n", .{});
 
     // Create and setup server
     var test_server = try TestServer.init(allocator, 4840);
@@ -24,18 +22,17 @@ pub fn main() !void {
     const endpoint_url = try test_server.getEndpointUrl(&url_buf);
 
     // Test 1: Multiple concurrent readers
-    try testConcurrentReaders(endpoint_url, nodes.int32, allocator, stdout);
+    try testConcurrentReaders(endpoint_url, nodes.int32, allocator);
 
     // Test 2: Multiple concurrent writers (race condition)
-    try testConcurrentWriters(endpoint_url, nodes.int32, allocator, stdout);
+    try testConcurrentWriters(endpoint_url, nodes.int32, allocator);
 
     // Test 3: Mixed concurrent read/write
-    try testMixedConcurrentAccess(endpoint_url, nodes, allocator, stdout);
+    try testMixedConcurrentAccess(endpoint_url, nodes, allocator);
 
     // Test 4: Multiple clients on different nodes
-    try testConcurrentClientsMultipleNodes(endpoint_url, nodes, allocator, stdout);
+    try testConcurrentClientsMultipleNodes(endpoint_url, nodes, allocator);
 
-    try stdout.print("\n=== ✓ All Concurrent Tests Passed ===\n", .{});
 }
 
 const ReaderResult = struct {
@@ -48,9 +45,7 @@ fn testConcurrentReaders(
     endpoint_url: []const u8,
     node_id: ua.NodeId,
     allocator: std.mem.Allocator,
-    stdout: anytype,
 ) !void {
-    try stdout.print("\n[Test] Concurrent readers (10 clients)...\n", .{});
 
     const num_clients = 10;
     const num_reads_per_client = 20;
@@ -81,17 +76,14 @@ fn testConcurrentReaders(
             if (result.success) {
                 successful_reads += 1;
             } else {
-                try stdout.print("  Reader failed: {s}\n", .{result.error_msg orelse "unknown error"});
             }
         }
     }
 
-    try stdout.print("  {}/{} readers succeeded\n", .{ successful_reads, num_clients });
     if (successful_reads != num_clients) {
         return error.SomeReadersFailed;
     }
 
-    try stdout.print("  ✓ Concurrent readers test passed\n", .{});
 }
 
 const ReaderContext = struct {
@@ -106,7 +98,7 @@ const ReaderContext = struct {
 fn readerThread(ctx: ReaderContext) void {
     // Stagger connection attempts to avoid overwhelming the server/network stack
     if (ctx.stagger_ms > 0) {
-        std.time.sleep(ctx.stagger_ms * std.time.ns_per_ms);
+        std.Thread.sleep(ctx.stagger_ms * std.time.ns_per_ms);
     }
 
     var client = ua.Client.init() catch {
@@ -134,7 +126,7 @@ fn readerThread(ctx: ReaderContext) void {
         defer variant.deinit(ctx.allocator);
 
         last_value = variant.int32;
-        std.time.sleep(1 * std.time.ns_per_ms); // Small delay between reads
+        std.Thread.sleep(1 * std.time.ns_per_ms); // Small delay between reads
     }
 
     ctx.result.* = ReaderResult{ .success = true, .value = last_value };
@@ -144,9 +136,7 @@ fn testConcurrentWriters(
     endpoint_url: []const u8,
     node_id: ua.NodeId,
     allocator: std.mem.Allocator,
-    stdout: anytype,
 ) !void {
-    try stdout.print("\n[Test] Concurrent writers (5 clients with race condition)...\n", .{});
 
     const num_writers = 5;
     var threads: [num_writers]std.Thread = undefined;
@@ -176,7 +166,6 @@ fn testConcurrentWriters(
         }
     }
 
-    try stdout.print("  {}/{} writers succeeded\n", .{ successful_writes, num_writers });
     if (successful_writes != num_writers) {
         return error.SomeWritersFailed;
     }
@@ -191,9 +180,7 @@ fn testConcurrentWriters(
 
     const final_value = try verify_client.readValueAttribute(node_id, allocator);
     defer final_value.deinit(allocator);
-    try stdout.print("  Final value after concurrent writes: {}\n", .{final_value.int32});
 
-    try stdout.print("  ✓ Concurrent writers test passed\n", .{});
 }
 
 const WriterContext = struct {
@@ -207,7 +194,7 @@ const WriterContext = struct {
 fn writerThread(ctx: WriterContext) void {
     // Stagger connection attempts to avoid overwhelming the server/network stack
     if (ctx.stagger_ms > 0) {
-        std.time.sleep(ctx.stagger_ms * std.time.ns_per_ms);
+        std.Thread.sleep(ctx.stagger_ms * std.time.ns_per_ms);
     }
 
     var client = ua.Client.init() catch {
@@ -234,7 +221,7 @@ fn writerThread(ctx: WriterContext) void {
             ctx.result.* = false;
             return;
         };
-        std.time.sleep(2 * std.time.ns_per_ms); // Small delay between writes
+        std.Thread.sleep(2 * std.time.ns_per_ms); // Small delay between writes
     }
 
     ctx.result.* = true;
@@ -244,9 +231,7 @@ fn testMixedConcurrentAccess(
     endpoint_url: []const u8,
     nodes: fixtures.TestNodeIds,
     allocator: std.mem.Allocator,
-    stdout: anytype,
 ) !void {
-    try stdout.print("\n[Test] Mixed concurrent read/write (10 readers + 5 writers)...\n", .{});
 
     const num_readers = 10;
     const num_writers = 5;
@@ -301,23 +286,18 @@ fn testMixedConcurrentAccess(
         }
     }
 
-    try stdout.print("  Readers: {}/{} succeeded\n", .{ successful_readers, num_readers });
-    try stdout.print("  Writers: {}/{} succeeded\n", .{ successful_writers, num_writers });
 
     if (successful_readers != num_readers or successful_writers != num_writers) {
         return error.MixedAccessFailed;
     }
 
-    try stdout.print("  ✓ Mixed concurrent access test passed\n", .{});
 }
 
 fn testConcurrentClientsMultipleNodes(
     endpoint_url: []const u8,
     nodes: fixtures.TestNodeIds,
     allocator: std.mem.Allocator,
-    stdout: anytype,
 ) !void {
-    try stdout.print("\n[Test] Concurrent clients on different nodes...\n", .{});
 
     const node_list = [_]ua.NodeId{
         nodes.boolean,
@@ -359,12 +339,10 @@ fn testConcurrentClientsMultipleNodes(
         }
     }
 
-    try stdout.print("  {}/{} clients succeeded\n", .{ successful, node_list.len });
     if (successful != node_list.len) {
         return error.MultiNodeAccessFailed;
     }
 
-    try stdout.print("  ✓ Multiple nodes concurrent test passed\n", .{});
 }
 
 const MultiNodeContext = struct {
@@ -379,7 +357,7 @@ const MultiNodeContext = struct {
 fn multiNodeThread(ctx: MultiNodeContext) void {
     // Stagger connection attempts to avoid overwhelming the server/network stack
     if (ctx.stagger_ms > 0) {
-        std.time.sleep(ctx.stagger_ms * std.time.ns_per_ms);
+        std.Thread.sleep(ctx.stagger_ms * std.time.ns_per_ms);
     }
 
     var client = ua.Client.init() catch {
@@ -406,7 +384,7 @@ fn multiNodeThread(ctx: MultiNodeContext) void {
         };
         defer variant.deinit(ctx.allocator);
 
-        std.time.sleep(5 * std.time.ns_per_ms);
+        std.Thread.sleep(5 * std.time.ns_per_ms);
     }
 
     ctx.result.* = true;

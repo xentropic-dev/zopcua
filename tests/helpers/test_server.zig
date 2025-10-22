@@ -31,7 +31,7 @@ pub const TestServer = struct {
         self.thread = try std.Thread.spawn(.{}, serverThread, .{self});
 
         // Give server time to start listening
-        std.time.sleep(100 * std.time.ns_per_ms);
+        std.Thread.sleep(100 * std.time.ns_per_ms);
     }
 
     /// Start the server in blocking mode (for simple tests)

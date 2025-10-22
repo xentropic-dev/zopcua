@@ -3,7 +3,7 @@ const ua = @import("ua");
 
 var running = std.atomic.Value(bool).init(true);
 
-fn handleSignal(sig: c_int) callconv(.C) void {
+fn handleSignal(sig: c_int) callconv(.c) void {
     _ = sig;
     running.store(false, .seq_cst);
 }
@@ -155,7 +155,7 @@ pub fn main() !void {
 
     const act = std.posix.Sigaction{
         .handler = .{ .handler = handleSignal },
-        .mask = std.posix.empty_sigset,
+        .mask = std.posix.sigemptyset(),
         .flags = 0,
     };
     std.posix.sigaction(std.posix.SIG.INT, &act, null);

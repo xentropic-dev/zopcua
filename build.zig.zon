@@ -5,7 +5,7 @@
 
     .fingerprint = 0x494a66007a010efa,
 
-    .minimum_zig_version = "0.14.1",
+    .minimum_zig_version = "0.15.2",
 
     .dependencies = .{
         .libmbedtls = .{ .path = "./libmbedtls" },
