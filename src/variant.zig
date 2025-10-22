@@ -105,6 +105,7 @@ pub const Variant = union(enum) {
     pub fn toC(self: Variant, allocator: std.mem.Allocator) !c.UA_Variant {
         _ = allocator;
 
+        // SAFETY: result is initialized by UA_Variant_init or helper functions before any use
         var result: c.UA_Variant = undefined;
 
         switch (self) {
@@ -187,7 +188,8 @@ pub const Variant = union(enum) {
 
             .byte_string => |val| {
                 const c_bytestring = String.toC(val);
-                const status = helpers.helper_variant_setScalarCopy(&result, &c_bytestring, &c.UA_TYPES[c.UA_TYPES_BYTESTRING]);
+                const bytestring_type = &c.UA_TYPES[c.UA_TYPES_BYTESTRING];
+                const status = helpers.helper_variant_setScalarCopy(&result, &c_bytestring, bytestring_type);
                 if (status != c.UA_STATUSCODE_GOOD) return error.VariantInitFailed;
             },
 
@@ -204,63 +206,75 @@ pub const Variant = union(enum) {
 
             .localized_text => |val| {
                 const c_localizedtext = val.toC();
-                const status = helpers.helper_variant_setScalarCopy(&result, &c_localizedtext, &c.UA_TYPES[c.UA_TYPES_LOCALIZEDTEXT]);
+                const localizedtext_type = &c.UA_TYPES[c.UA_TYPES_LOCALIZEDTEXT];
+                const status = helpers.helper_variant_setScalarCopy(&result, &c_localizedtext, localizedtext_type);
                 if (status != c.UA_STATUSCODE_GOOD) return error.VariantInitFailed;
             },
 
             // Arrays - use open62541's UA_Variant_setArrayCopy
             .boolean_array => |values| {
-                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, &c.UA_TYPES[c.UA_TYPES_BOOLEAN]);
+                const bool_type = &c.UA_TYPES[c.UA_TYPES_BOOLEAN];
+                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, bool_type);
                 if (status != c.UA_STATUSCODE_GOOD) return error.VariantInitFailed;
             },
 
             .sbyte_array => |values| {
-                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, &c.UA_TYPES[c.UA_TYPES_SBYTE]);
+                const sbyte_type = &c.UA_TYPES[c.UA_TYPES_SBYTE];
+                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, sbyte_type);
                 if (status != c.UA_STATUSCODE_GOOD) return error.VariantInitFailed;
             },
 
             .byte_array => |values| {
-                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, &c.UA_TYPES[c.UA_TYPES_BYTE]);
+                const byte_type = &c.UA_TYPES[c.UA_TYPES_BYTE];
+                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, byte_type);
                 if (status != c.UA_STATUSCODE_GOOD) return error.VariantInitFailed;
             },
 
             .int16_array => |values| {
-                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, &c.UA_TYPES[c.UA_TYPES_INT16]);
+                const int16_type = &c.UA_TYPES[c.UA_TYPES_INT16];
+                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, int16_type);
                 if (status != c.UA_STATUSCODE_GOOD) return error.VariantInitFailed;
             },
 
             .uint16_array => |values| {
-                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, &c.UA_TYPES[c.UA_TYPES_UINT16]);
+                const uint16_type = &c.UA_TYPES[c.UA_TYPES_UINT16];
+                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, uint16_type);
                 if (status != c.UA_STATUSCODE_GOOD) return error.VariantInitFailed;
             },
 
             .int32_array => |values| {
-                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, &c.UA_TYPES[c.UA_TYPES_INT32]);
+                const int32_type = &c.UA_TYPES[c.UA_TYPES_INT32];
+                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, int32_type);
                 if (status != c.UA_STATUSCODE_GOOD) return error.VariantInitFailed;
             },
 
             .uint32_array => |values| {
-                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, &c.UA_TYPES[c.UA_TYPES_UINT32]);
+                const uint32_type = &c.UA_TYPES[c.UA_TYPES_UINT32];
+                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, uint32_type);
                 if (status != c.UA_STATUSCODE_GOOD) return error.VariantInitFailed;
             },
 
             .int64_array => |values| {
-                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, &c.UA_TYPES[c.UA_TYPES_INT64]);
+                const int64_type = &c.UA_TYPES[c.UA_TYPES_INT64];
+                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, int64_type);
                 if (status != c.UA_STATUSCODE_GOOD) return error.VariantInitFailed;
             },
 
             .uint64_array => |values| {
-                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, &c.UA_TYPES[c.UA_TYPES_UINT64]);
+                const uint64_type = &c.UA_TYPES[c.UA_TYPES_UINT64];
+                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, uint64_type);
                 if (status != c.UA_STATUSCODE_GOOD) return error.VariantInitFailed;
             },
 
             .float_array => |values| {
-                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, &c.UA_TYPES[c.UA_TYPES_FLOAT]);
+                const float_type = &c.UA_TYPES[c.UA_TYPES_FLOAT];
+                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, float_type);
                 if (status != c.UA_STATUSCODE_GOOD) return error.VariantInitFailed;
             },
 
             .double_array => |values| {
-                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, &c.UA_TYPES[c.UA_TYPES_DOUBLE]);
+                const double_type = &c.UA_TYPES[c.UA_TYPES_DOUBLE];
+                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, double_type);
                 if (status != c.UA_STATUSCODE_GOOD) return error.VariantInitFailed;
             },
 
@@ -276,7 +290,8 @@ pub const Variant = union(enum) {
             },
 
             .date_time_array => |values| {
-                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, &c.UA_TYPES[c.UA_TYPES_DATETIME]);
+                const datetime_type = &c.UA_TYPES[c.UA_TYPES_DATETIME];
+                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, datetime_type);
                 if (status != c.UA_STATUSCODE_GOOD) return error.VariantInitFailed;
             },
 
@@ -289,7 +304,8 @@ pub const Variant = union(enum) {
             },
 
             .status_code_array => |values| {
-                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, &c.UA_TYPES[c.UA_TYPES_STATUSCODE]);
+                const statuscode_type = &c.UA_TYPES[c.UA_TYPES_STATUSCODE];
+                const status = helpers.helper_variant_setArrayCopy(&result, values.ptr, values.len, statuscode_type);
                 if (status != c.UA_STATUSCODE_GOOD) return error.VariantInitFailed;
             },
 

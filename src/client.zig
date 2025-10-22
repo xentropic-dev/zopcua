@@ -167,7 +167,7 @@ pub const Client = struct {
     /// of the full OpcUaError set. This would provide better type safety and clearer
     /// error handling for connection operations.
     pub fn connect(self: Client, endpoint_url: []const u8) !void {
-        const c_url = @as([*c]const u8, @ptrCast(endpoint_url.ptr));
+        const c_url: [*c]const u8 = @ptrCast(endpoint_url.ptr);
         const status = c.UA_Client_connect(self.handle, c_url);
         try ua_error.checkStatus(status);
     }
@@ -350,6 +350,7 @@ pub const Client = struct {
     /// - `UnexpectedError` - An unexpected error occurred (returned by the C code for
     ///   internal errors like wrong resultsSize or missing value when one was expected)
     pub fn readValueAttribute(self: Client, node_id: NodeId, allocator: std.mem.Allocator) ReadAttributeError!Variant {
+        // SAFETY: c_variant is initialized immediately by UA_Variant_init before any use
         var c_variant: c.UA_Variant = undefined;
         c.UA_Variant_init(&c_variant);
 
