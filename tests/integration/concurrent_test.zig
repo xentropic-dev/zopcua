@@ -1,0 +1,361 @@
+const std = @import("std");
+const ua = @import("ua");
+const TestServer = @import("../helpers/test_server.zig").TestServer;
+const fixtures = @import("../helpers/test_fixtures.zig");
+
+pub fn main() !void {
+    const stdout = std.io.getStdOut().writer();
+    const allocator = std.heap.page_allocator;
+
+    try stdout.print("=== Concurrent Access Integration Tests ===\n", .{});
+
+    // Create and setup server
+    var test_server = try TestServer.init(allocator, 4840);
+    defer test_server.deinit();
+
+    const nodes = try fixtures.setupStandardNodes(&test_server.server, allocator);
+    try test_server.startAsync();
+    defer test_server.stop() catch {};
+
+    var url_buf: [128]u8 = undefined;
+    const endpoint_url = try test_server.getEndpointUrl(&url_buf);
+
+    // Test 1: Multiple concurrent readers
+    try testConcurrentReaders(endpoint_url, nodes.int32, allocator, stdout);
+
+    // Test 2: Multiple concurrent writers (race condition)
+    try testConcurrentWriters(endpoint_url, nodes.int32, allocator, stdout);
+
+    // Test 3: Mixed concurrent read/write
+    try testMixedConcurrentAccess(endpoint_url, nodes, allocator, stdout);
+
+    // Test 4: Multiple clients on different nodes
+    try testConcurrentClientsMultipleNodes(endpoint_url, nodes, allocator, stdout);
+
+    try stdout.print("\n=== ✓ All Concurrent Tests Passed ===\n", .{});
+}
+
+const ReaderResult = struct {
+    success: bool,
+    value: i32,
+    error_msg: ?[]const u8 = null,
+};
+
+fn testConcurrentReaders(endpoint_url: []const u8, node_id: ua.NodeId, allocator: std.mem.Allocator, stdout: anytype) !void {
+    try stdout.print("\n[Test] Concurrent readers (10 clients)...\n", .{});
+
+    const num_clients = 10;
+    const num_reads_per_client = 20;
+    var threads: [num_clients]std.Thread = undefined;
+    var results = [_]?ReaderResult{null} ** num_clients;
+
+    // Spawn reader threads
+    for (&threads, 0..) |*thread, i| {
+        const ctx = ReaderContext{
+            .endpoint_url = endpoint_url,
+            .node_id = node_id,
+            .allocator = allocator,
+            .result = &results[i],
+            .num_reads = num_reads_per_client,
+        };
+        thread.* = try std.Thread.spawn(.{}, readerThread, .{ctx});
+    }
+
+    // Wait for all threads
+    for (threads) |thread| {
+        thread.join();
+    }
+
+    // Check results
+    var successful_reads: usize = 0;
+    for (results) |maybe_result| {
+        if (maybe_result) |result| {
+            if (result.success) {
+                successful_reads += 1;
+            } else {
+                try stdout.print("  Reader failed: {s}\n", .{result.error_msg orelse "unknown error"});
+            }
+        }
+    }
+
+    try stdout.print("  {}/{} readers succeeded\n", .{ successful_reads, num_clients });
+    if (successful_reads != num_clients) {
+        return error.SomeReadersFailed;
+    }
+
+    try stdout.print("  ✓ Concurrent readers test passed\n", .{});
+}
+
+const ReaderContext = struct {
+    endpoint_url: []const u8,
+    node_id: ua.NodeId,
+    allocator: std.mem.Allocator,
+    result: *?ReaderResult,
+    num_reads: usize,
+};
+
+fn readerThread(ctx: ReaderContext) void {
+    var client = ua.Client.init() catch {
+        ctx.result.* = ReaderResult{ .success = false, .value = 0, .error_msg = "Client init failed" };
+        return;
+    };
+    defer client.deinit();
+
+    client.connect(ctx.endpoint_url) catch {
+        ctx.result.* = ReaderResult{ .success = false, .value = 0, .error_msg = "Connection failed" };
+        return;
+    };
+    defer client.disconnect() catch {};
+
+    var last_value: i32 = 0;
+    var read_count: usize = 0;
+
+    while (read_count < ctx.num_reads) : (read_count += 1) {
+        const variant = client.readValueAttribute(ctx.node_id, ctx.allocator) catch {
+            ctx.result.* = ReaderResult{ .success = false, .value = 0, .error_msg = "Read failed" };
+            return;
+        };
+        defer variant.deinit(ctx.allocator);
+
+        last_value = variant.int32;
+        std.time.sleep(1 * std.time.ns_per_ms); // Small delay between reads
+    }
+
+    ctx.result.* = ReaderResult{ .success = true, .value = last_value };
+}
+
+fn testConcurrentWriters(endpoint_url: []const u8, node_id: ua.NodeId, allocator: std.mem.Allocator, stdout: anytype) !void {
+    try stdout.print("\n[Test] Concurrent writers (5 clients with race condition)...\n", .{});
+
+    const num_writers = 5;
+    var threads: [num_writers]std.Thread = undefined;
+    var results = [_]?bool{null} ** num_writers;
+
+    // Spawn writer threads
+    for (&threads, 0..) |*thread, i| {
+        const ctx = WriterContext{
+            .endpoint_url = endpoint_url,
+            .node_id = node_id,
+            .writer_id = i,
+            .result = &results[i],
+        };
+        thread.* = try std.Thread.spawn(.{}, writerThread, .{ctx});
+    }
+
+    // Wait for all threads
+    for (threads) |thread| {
+        thread.join();
+    }
+
+    // Check results
+    var successful_writes: usize = 0;
+    for (results) |maybe_result| {
+        if (maybe_result) |result| {
+            if (result) successful_writes += 1;
+        }
+    }
+
+    try stdout.print("  {}/{} writers succeeded\n", .{ successful_writes, num_writers });
+    if (successful_writes != num_writers) {
+        return error.SomeWritersFailed;
+    }
+
+    // Read final value to verify writes were committed
+    var verify_client = try ua.Client.init();
+    defer verify_client.deinit();
+    try verify_client.connect(endpoint_url);
+    defer verify_client.disconnect() catch {};
+
+    const final_value = try verify_client.readValueAttribute(node_id, allocator);
+    defer final_value.deinit(allocator);
+    try stdout.print("  Final value after concurrent writes: {}\n", .{final_value.int32});
+
+    try stdout.print("  ✓ Concurrent writers test passed\n", .{});
+}
+
+const WriterContext = struct {
+    endpoint_url: []const u8,
+    node_id: ua.NodeId,
+    writer_id: usize,
+    result: *?bool,
+};
+
+fn writerThread(ctx: WriterContext) void {
+    var client = ua.Client.init() catch {
+        ctx.result.* = false;
+        return;
+    };
+    defer client.deinit();
+
+    client.connect(ctx.endpoint_url) catch {
+        ctx.result.* = false;
+        return;
+    };
+    defer client.disconnect() catch {};
+
+    // Each writer writes multiple values
+    const base_value: i32 = @intCast(ctx.writer_id * 1000);
+    var i: usize = 0;
+    while (i < 10) : (i += 1) {
+        const value = base_value + @as(i32, @intCast(i));
+        const variant = ua.Variant.scalar(i32, value);
+        client.writeValueAttribute(ctx.node_id, variant) catch {
+            ctx.result.* = false;
+            return;
+        };
+        std.time.sleep(2 * std.time.ns_per_ms); // Small delay between writes
+    }
+
+    ctx.result.* = true;
+}
+
+fn testMixedConcurrentAccess(endpoint_url: []const u8, nodes: fixtures.TestNodeIds, allocator: std.mem.Allocator, stdout: anytype) !void {
+    try stdout.print("\n[Test] Mixed concurrent read/write (10 readers + 5 writers)...\n", .{});
+
+    const num_readers = 10;
+    const num_writers = 5;
+    const total_clients = num_readers + num_writers;
+
+    var threads: [total_clients]std.Thread = undefined;
+    var reader_results = [_]?ReaderResult{null} ** num_readers;
+    var writer_results = [_]?bool{null} ** num_writers;
+
+    // Spawn readers
+    for (0..num_readers) |i| {
+        const ctx = ReaderContext{
+            .endpoint_url = endpoint_url,
+            .node_id = nodes.double,
+            .allocator = allocator,
+            .result = &reader_results[i],
+            .num_reads = 30,
+        };
+        threads[i] = try std.Thread.spawn(.{}, readerThread, .{ctx});
+    }
+
+    // Spawn writers
+    for (0..num_writers) |i| {
+        const ctx = WriterContext{
+            .endpoint_url = endpoint_url,
+            .node_id = nodes.double,
+            .writer_id = i,
+            .result = &writer_results[i],
+        };
+        threads[num_readers + i] = try std.Thread.spawn(.{}, writerThread, .{ctx});
+    }
+
+    // Wait for all threads
+    for (threads) |thread| {
+        thread.join();
+    }
+
+    // Count successes
+    var successful_readers: usize = 0;
+    for (reader_results) |result| {
+        if (result) |r| {
+            if (r.success) successful_readers += 1;
+        }
+    }
+
+    var successful_writers: usize = 0;
+    for (writer_results) |result| {
+        if (result) |r| {
+            if (r) successful_writers += 1;
+        }
+    }
+
+    try stdout.print("  Readers: {}/{} succeeded\n", .{ successful_readers, num_readers });
+    try stdout.print("  Writers: {}/{} succeeded\n", .{ successful_writers, num_writers });
+
+    if (successful_readers != num_readers or successful_writers != num_writers) {
+        return error.MixedAccessFailed;
+    }
+
+    try stdout.print("  ✓ Mixed concurrent access test passed\n", .{});
+}
+
+fn testConcurrentClientsMultipleNodes(endpoint_url: []const u8, nodes: fixtures.TestNodeIds, allocator: std.mem.Allocator, stdout: anytype) !void {
+    try stdout.print("\n[Test] Concurrent clients on different nodes...\n", .{});
+
+    const node_list = [_]ua.NodeId{
+        nodes.boolean,
+        nodes.int16,
+        nodes.int32,
+        nodes.int64,
+        nodes.float,
+        nodes.double,
+        nodes.string,
+        nodes.uint32,
+    };
+
+    var threads: [node_list.len]std.Thread = undefined;
+    var results = [_]?bool{null} ** node_list.len;
+
+    // Spawn a client for each node
+    for (&threads, 0..) |*thread, i| {
+        const ctx = MultiNodeContext{
+            .endpoint_url = endpoint_url,
+            .node_id = node_list[i],
+            .allocator = allocator,
+            .result = &results[i],
+            .client_id = i,
+        };
+        thread.* = try std.Thread.spawn(.{}, multiNodeThread, .{ctx});
+    }
+
+    // Wait for all threads
+    for (threads) |thread| {
+        thread.join();
+    }
+
+    // Check results
+    var successful: usize = 0;
+    for (results) |result| {
+        if (result) |r| {
+            if (r) successful += 1;
+        }
+    }
+
+    try stdout.print("  {}/{} clients succeeded\n", .{ successful, node_list.len });
+    if (successful != node_list.len) {
+        return error.MultiNodeAccessFailed;
+    }
+
+    try stdout.print("  ✓ Multiple nodes concurrent test passed\n", .{});
+}
+
+const MultiNodeContext = struct {
+    endpoint_url: []const u8,
+    node_id: ua.NodeId,
+    allocator: std.mem.Allocator,
+    result: *?bool,
+    client_id: usize,
+};
+
+fn multiNodeThread(ctx: MultiNodeContext) void {
+    var client = ua.Client.init() catch {
+        ctx.result.* = false;
+        return;
+    };
+    defer client.deinit();
+
+    client.connect(ctx.endpoint_url) catch {
+        ctx.result.* = false;
+        return;
+    };
+    defer client.disconnect() catch {};
+
+    // Perform multiple read/write cycles
+    var i: usize = 0;
+    while (i < 15) : (i += 1) {
+        // Read
+        const variant = client.readValueAttribute(ctx.node_id, ctx.allocator) catch {
+            ctx.result.* = false;
+            return;
+        };
+        defer variant.deinit(ctx.allocator);
+
+        std.time.sleep(5 * std.time.ns_per_ms);
+    }
+
+    ctx.result.* = true;
+}

@@ -51,5 +51,14 @@ jobs:
       - name: Run unit tests
         run: zig build test --summary all
 
-      - name: Run integration tests
+      - name: Run integration tests (legacy)
         run: zig build test-integration --summary all
+
+      - name: Run Variant scalar tests
+        run: zig build test-variant-scalar --summary all
+
+      - name: Run Variant array tests
+        run: zig build test-variant-array --summary all
+
+      - name: Run concurrent tests
+        run: zig build test-concurrent --summary all

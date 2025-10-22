@@ -116,35 +116,77 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_lib_unit_tests.step);
 
-    // Integration tests (run as executable, not unit test)
-    const integration_test = b.addExecutable(.{
-        .name = "integration_test",
-        .root_source_file = b.path("tests/integration_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    integration_test.root_module.addImport("ua", module);
-    integration_test.addCSourceFiles(.{
-        .files = &.{
-            "vendor/open62541.c",
-            "vendor/helpers.c",
-        },
-        .flags = &.{
-            "-D_DARWIN_C_SOURCE",
-            "-D_POSIX_C_SOURCE=200112L",
-            "-std=c99",
-            // See comment above in lib.addCSourceFiles for why this is needed
-            "-fno-sanitize=undefined",
-        },
-    });
-    integration_test.addIncludePath(b.path("vendor"));
-    integration_test.linkLibC();
-    linkMbedtls(b, integration_test, target, optimize, mbedtls_link);
-    linkSystemLibraries(integration_test, target);
+    // Helper function to create integration test executables
+    const createIntegrationTest = struct {
+        fn create(
+            builder: *std.Build,
+            name: []const u8,
+            source: []const u8,
+            tgt: std.Build.ResolvedTarget,
+            opt: std.builtin.OptimizeMode,
+            mod: *std.Build.Module,
+            mbedtls_mode: MbedtlsLinkMode,
+        ) *std.Build.Step.Compile {
+            const exe = builder.addExecutable(.{
+                .name = name,
+                .root_source_file = builder.path(source),
+                .target = tgt,
+                .optimize = opt,
+            });
+            exe.root_module.addImport("ua", mod);
+            exe.addCSourceFiles(.{
+                .files = &.{
+                    "vendor/open62541.c",
+                    "vendor/helpers.c",
+                },
+                .flags = &.{
+                    "-D_DARWIN_C_SOURCE",
+                    "-D_POSIX_C_SOURCE=200112L",
+                    "-std=c99",
+                    "-fno-sanitize=undefined",
+                },
+            });
+            exe.addIncludePath(builder.path("vendor"));
+            exe.linkLibC();
+            linkMbedtls(builder, exe, tgt, opt, mbedtls_mode);
+            linkSystemLibraries(exe, tgt);
+            return exe;
+        }
+    }.create;
 
+    // Legacy integration test (backward compatibility)
+    const integration_test = createIntegrationTest(b, "integration_test", "tests/integration_test.zig", target, optimize, module, mbedtls_link);
     const run_integration_test = b.addRunArtifact(integration_test);
-    const integration_step = b.step("test-integration", "Run integration tests");
+    const integration_step = b.step("test-integration", "Run legacy integration tests");
     integration_step.dependOn(&run_integration_test.step);
+
+    // New comprehensive integration tests
+    const variant_scalar_test = createIntegrationTest(b, "variant_scalar_test", "tests/integration/variant_scalar_test.zig", target, optimize, module, mbedtls_link);
+    const run_variant_scalar = b.addRunArtifact(variant_scalar_test);
+    const variant_scalar_step = b.step("test-variant-scalar", "Run Variant scalar integration tests");
+    variant_scalar_step.dependOn(&run_variant_scalar.step);
+
+    const variant_array_test = createIntegrationTest(b, "variant_array_test", "tests/integration/variant_array_test.zig", target, optimize, module, mbedtls_link);
+    const run_variant_array = b.addRunArtifact(variant_array_test);
+    const variant_array_step = b.step("test-variant-array", "Run Variant array integration tests");
+    variant_array_step.dependOn(&run_variant_array.step);
+
+    const concurrent_test = createIntegrationTest(b, "concurrent_test", "tests/integration/concurrent_test.zig", target, optimize, module, mbedtls_link);
+    const run_concurrent = b.addRunArtifact(concurrent_test);
+    const concurrent_step = b.step("test-concurrent", "Run concurrent access integration tests");
+    concurrent_step.dependOn(&run_concurrent.step);
+
+    // Comprehensive integration test suite
+    const integration_all_step = b.step("test-integration-all", "Run all integration tests");
+    integration_all_step.dependOn(&run_integration_test.step);
+    integration_all_step.dependOn(&run_variant_scalar.step);
+    integration_all_step.dependOn(&run_variant_array.step);
+    integration_all_step.dependOn(&run_concurrent.step);
+
+    // Quick integration tests (non-concurrent for faster CI)
+    const integration_quick_step = b.step("test-integration-quick", "Run quick integration tests (no concurrent)");
+    integration_quick_step.dependOn(&run_variant_scalar.step);
+    integration_quick_step.dependOn(&run_variant_array.step);
 
     const docs_lib = b.addStaticLibrary(.{
         .name = "ua",
