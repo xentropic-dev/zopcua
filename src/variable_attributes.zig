@@ -1,6 +1,6 @@
 const std = @import("std");
 const c = @import("c.zig");
-const AccessLevel = @import("access_level.zig").AccessLevel;
+pub const AccessLevel = @import("access_level.zig").AccessLevel;
 const LocalizedText = @import("localized_text.zig").LocalizedText;
 const Variant = @import("variant.zig").Variant;
 const NodeId = @import("types.zig").NodeId;

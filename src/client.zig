@@ -238,16 +238,17 @@ pub const Client = struct {
     /// - `UnexpectedError` - An unexpected error occurred (returned by the C code for
     ///   internal errors like wrong resultsSize)
     pub fn writeValueAttribute(self: Client, node_id: NodeId, variant: Variant) WriteAttributeError!void {
-        // Use page allocator for temporary conversions
-        // All allocations are freed before this function returns
-        var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-        defer arena.deinit();
+        // Use variant conversion for all types to ensure proper arrayDimensions handling
+        const status = blk: {
+                var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+                defer arena.deinit();
 
-        const c_variant = variant.toC(arena.allocator()) catch {
-            return WriteAttributeError.OutOfMemory;
+                const c_variant = variant.toC(arena.allocator()) catch {
+                    return WriteAttributeError.OutOfMemory;
+                };
+
+                break :blk c.UA_Client_writeValueAttribute(self.handle, node_id.toC(), &c_variant);
         };
-
-        const status = c.UA_Client_writeValueAttribute(self.handle, node_id.toC(), &c_variant);
 
         // Map status codes to specific errors based on the C implementation
         // The C code can return:
@@ -359,7 +360,7 @@ pub const Client = struct {
             c.UA_STATUSCODE_GOOD => blk: {
                 // The C code transfers ownership of the variant's heap data to us.
                 // Convert it to a Zig variant (deep-copying all data), then clean up the C variant.
-                const result = Variant.fromC(c_variant, allocator) catch |err| {
+                const result = Variant.fromC(c_variant, allocator) catch {
                     // If conversion fails, clean up the C variant before propagating the error
                     c.UA_Variant_clear(&c_variant);
                     return ReadAttributeError.OutOfMemory;

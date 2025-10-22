@@ -9,8 +9,10 @@ const variant_module = @import("variant.zig");
 const variable_attributes_module = @import("variable_attributes.zig");
 const localized_text_module = @import("localized_text.zig");
 const server_module = @import("server.zig");
+const client_module = @import("client.zig");
 
 pub const Server = server_module.Server;
+pub const Client = client_module.Client;
 
 pub const NodeId = types_module.NodeId;
 pub const QualifiedName = types_module.QualifiedName;
@@ -32,6 +34,7 @@ pub const AddNodeError = server_module.AddNodeError;
 pub const types = types_module;
 pub const variant = variant_module;
 pub const server = server_module;
+pub const client = client_module;
 
 test {
     _ = @import("ua_error.zig");

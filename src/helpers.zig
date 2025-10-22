@@ -10,5 +10,11 @@ const ServerResult = extern struct {
     server: ?*c.UA_Server,
 };
 
+const ClientResult = extern struct {
+    status: c.UA_StatusCode,
+    client: ?*c.UA_Client,
+};
+
 // I'm actually not sure this was necessary now.
 pub extern fn UA_Server_newDefaultWithStatus() ServerResult;
+pub extern fn UA_Client_newDefaultWithStatus() ClientResult;

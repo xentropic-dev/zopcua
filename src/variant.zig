@@ -98,6 +98,9 @@ pub const Variant = union(enum) {
     pub fn toC(self: Variant, allocator: std.mem.Allocator) !c.UA_Variant {
         var result = std.mem.zeroes(c.UA_Variant);
 
+        // arrayDimensions and arrayDimensionsSize remain 0 and NULL from zeroes for scalars
+        // This is correct per OPC UA spec - arrays will override these in the switch statement
+
         switch (self) {
             .empty => {},
 
@@ -146,7 +149,7 @@ pub const Variant = union(enum) {
                 const data = try allocator.create(c.UA_Int32);
                 data.* = val;
                 result.data = data;
-                result.storageType = c.UA_VARIANT_DATA_NODELETE;
+                // storageType remains 0 (UA_VARIANT_DATA) from zeroes
             },
 
             .uint32 => |val| {
@@ -775,7 +778,7 @@ pub const Variant = union(enum) {
         }
 
         // Free array dimensions if present
-        if (variant.arrayDimensionsSize > 0 and variant.arrayDimensions != null) {
+        if (variant.arrayDimensions != null and variant.arrayDimensionsSize > 0) {
             allocator.free(variant.arrayDimensions[0..variant.arrayDimensionsSize]);
         }
     }

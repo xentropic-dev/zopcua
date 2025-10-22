@@ -3,11 +3,26 @@
 
 #include "open62541.h"
 
+// Result structs for server/client creation
+typedef struct {
+  UA_StatusCode status;
+  UA_Server *server;
+} UA_ServerResult;
+
+typedef struct {
+  UA_StatusCode status;
+  UA_Client *client;
+} UA_ClientResult;
+
+// Server/Client creation helpers
+UA_ServerResult UA_Server_newDefaultWithStatus(void);
+UA_ClientResult UA_Client_newDefaultWithStatus(void);
+
 // Server helpers
-UA_StatusCode helper_addStringVariable(UA_Server *server, UA_UInt16 namespaceIndex, 
-    UA_UInt32 numericId, UA_NodeId parentNodeId, const char *browseName, 
+UA_StatusCode helper_addStringVariable(UA_Server *server, UA_UInt16 namespaceIndex,
+    UA_UInt32 numericId, UA_NodeId parentNodeId, const char *browseName,
     const char *displayName, const char *initialValue);
-    
+
 UA_StatusCode helper_serverConfigSetDefault(UA_Server *server);
 UA_StatusCode helper_clientConfigSetDefault(UA_Client *client);
 

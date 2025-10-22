@@ -10,11 +10,6 @@ UA_StatusCode helper_clientConfigSetDefault(UA_Client *client) {
   return UA_ClientConfig_setDefault(config);
 }
 
-typedef struct {
-  UA_StatusCode status;
-  UA_Server *server;
-} UA_ServerResult;
-
 UA_ServerResult UA_Server_newDefaultWithStatus(void) {
   UA_ServerResult result;
   result.server = NULL;
@@ -34,11 +29,6 @@ UA_ServerResult UA_Server_newDefaultWithStatus(void) {
 
   return result;
 }
-
-typedef struct {
-  UA_StatusCode status;
-  UA_Client *client;
-} UA_ClientResult;
 
 UA_ClientResult UA_Client_newDefaultWithStatus(void) {
   UA_ClientResult result;

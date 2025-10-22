@@ -77,8 +77,7 @@ pub const Server = struct {
             return error.BadInternalError;
         }
 
-        const config = c.UA_Server_getConfig(result.server.?);
-        _ = c.UA_ServerConfig_setDefault(config);
+        // Config is already set by UA_Server_newDefaultWithStatus
         return .{ .handle = result.server.? };
     }
 
