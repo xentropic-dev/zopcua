@@ -5,7 +5,7 @@
     <a href="https://opensource.org/licenses/MIT"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-e0af68.svg?style=for-the-badge&logo=opensourceinitiative&logoColor=white" /></a>
     <a href="https://github.com/xentropic-dev/zopcua/actions"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/xentropic-dev/zopcua/ci.yml?style=for-the-badge&label=CI&logo=github&color=9ece6a" /></a>
     <a href="https://github.com/xentropic-dev/zopcua/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/xentropic-dev/zopcua?style=for-the-badge&color=7aa2f7&logo=github" /></a>
-    <img alt="Zig 0.14" src="https://img.shields.io/badge/Zig-0.14-f7a41d.svg?style=for-the-badge&logo=zig&logoColor=white" />
+    <img alt="Zig 0.14" src="https://img.shields.io/badge/Zig-0.15.2-f7a41d.svg?style=for-the-badge&logo=zig&logoColor=white" />
   </p>
 </div>
 
@@ -13,7 +13,8 @@
 
 **This library is under active development and NOT ready for production use.**
 
-- Requires Zig 0.14
+- Requires Zig 0.15.2
+- See branch/tag history for previous Zig versions
 - APIs are unstable and subject to change
 - Limited feature coverage of the underlying open62541 library
 
