@@ -100,9 +100,15 @@ const ReaderContext = struct {
     allocator: std.mem.Allocator,
     result: *?ReaderResult,
     num_reads: usize,
+    stagger_ms: u64 = 0,
 };
 
 fn readerThread(ctx: ReaderContext) void {
+    // Stagger connection attempts to avoid overwhelming the server/network stack
+    if (ctx.stagger_ms > 0) {
+        std.time.sleep(ctx.stagger_ms * std.time.ns_per_ms);
+    }
+
     var client = ua.Client.init() catch {
         ctx.result.* = ReaderResult{ .success = false, .value = 0, .error_msg = "Client init failed" };
         return;
@@ -195,9 +201,15 @@ const WriterContext = struct {
     node_id: ua.NodeId,
     writer_id: usize,
     result: *?bool,
+    stagger_ms: u64 = 0,
 };
 
 fn writerThread(ctx: WriterContext) void {
+    // Stagger connection attempts to avoid overwhelming the server/network stack
+    if (ctx.stagger_ms > 0) {
+        std.time.sleep(ctx.stagger_ms * std.time.ns_per_ms);
+    }
+
     var client = ua.Client.init() catch {
         ctx.result.* = false;
         return;
@@ -244,7 +256,7 @@ fn testMixedConcurrentAccess(
     var reader_results = [_]?ReaderResult{null} ** num_readers;
     var writer_results = [_]?bool{null} ** num_writers;
 
-    // Spawn readers
+    // Spawn readers (with staggered connection attempts)
     for (0..num_readers) |i| {
         const ctx = ReaderContext{
             .endpoint_url = endpoint_url,
@@ -252,17 +264,19 @@ fn testMixedConcurrentAccess(
             .allocator = allocator,
             .result = &reader_results[i],
             .num_reads = 30,
+            .stagger_ms = i * 10, // Stagger by 10ms per client
         };
         threads[i] = try std.Thread.spawn(.{}, readerThread, .{ctx});
     }
 
-    // Spawn writers
+    // Spawn writers (with staggered connection attempts)
     for (0..num_writers) |i| {
         const ctx = WriterContext{
             .endpoint_url = endpoint_url,
             .node_id = nodes.int32,
             .writer_id = i,
             .result = &writer_results[i],
+            .stagger_ms = (num_readers + i) * 10, // Continue staggering after readers
         };
         threads[num_readers + i] = try std.Thread.spawn(.{}, writerThread, .{ctx});
     }
@@ -319,7 +333,7 @@ fn testConcurrentClientsMultipleNodes(
     var threads: [node_list.len]std.Thread = undefined;
     var results = [_]?bool{null} ** node_list.len;
 
-    // Spawn a client for each node
+    // Spawn a client for each node (with staggered connection attempts)
     for (&threads, 0..) |*thread, i| {
         const ctx = MultiNodeContext{
             .endpoint_url = endpoint_url,
@@ -327,6 +341,7 @@ fn testConcurrentClientsMultipleNodes(
             .allocator = allocator,
             .result = &results[i],
             .client_id = i,
+            .stagger_ms = i * 10, // Stagger by 10ms per client
         };
         thread.* = try std.Thread.spawn(.{}, multiNodeThread, .{ctx});
     }
@@ -358,9 +373,15 @@ const MultiNodeContext = struct {
     allocator: std.mem.Allocator,
     result: *?bool,
     client_id: usize,
+    stagger_ms: u64 = 0,
 };
 
 fn multiNodeThread(ctx: MultiNodeContext) void {
+    // Stagger connection attempts to avoid overwhelming the server/network stack
+    if (ctx.stagger_ms > 0) {
+        std.time.sleep(ctx.stagger_ms * std.time.ns_per_ms);
+    }
+
     var client = ua.Client.init() catch {
         ctx.result.* = false;
         return;
