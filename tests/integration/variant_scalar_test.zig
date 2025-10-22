@@ -1,8 +1,9 @@
 const std = @import("std");
 const ua = @import("ua");
-const TestServer = @import("../helpers/test_server.zig").TestServer;
-const fixtures = @import("../helpers/test_fixtures.zig");
-const assertions = @import("../helpers/assertions.zig");
+const test_helpers = @import("test_helpers");
+const TestServer = test_helpers.TestServer;
+const fixtures = test_helpers.fixtures;
+const assertions = test_helpers.assertions;
 
 pub fn main() !void {
     const stdout = std.io.getStdOut().writer();
@@ -16,7 +17,9 @@ pub fn main() !void {
 
     const nodes = try fixtures.setupStandardNodes(&test_server.server, allocator);
     try test_server.startAsync();
-    defer test_server.stop() catch {};
+    defer test_server.stop() catch |err| {
+        std.debug.print("Failed to stop test server: {}\n", .{err});
+    };
 
     // Connect client
     var url_buf: [128]u8 = undefined;
@@ -24,7 +27,9 @@ pub fn main() !void {
     var client = try ua.Client.init();
     defer client.deinit();
     try client.connect(endpoint_url);
-    defer client.disconnect() catch {};
+    defer client.disconnect() catch |err| {
+        std.debug.print("Failed to disconnect client: {}\n", .{err});
+    };
 
     // Test all scalar types
     try testBoolean(&client, nodes.boolean, allocator, stdout);
@@ -332,7 +337,10 @@ fn testGuid(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator
 
     const read_back = try client.readValueAttribute(node_id, allocator);
     defer read_back.deinit(allocator);
-    try stdout.print("  Read back: {x}-{x}-{x}\n", .{ read_back.guid.data1, read_back.guid.data2, read_back.guid.data3 });
+    try stdout.print(
+        "  Read back: {x}-{x}-{x}\n",
+        .{ read_back.guid.data1, read_back.guid.data2, read_back.guid.data3 },
+    );
     try assertions.expectVariantEqual(new_value, read_back);
 
     try stdout.print("  ✓ Guid test passed\n", .{});
@@ -363,7 +371,10 @@ fn testNodeId(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocat
 
     const initial = try client.readValueAttribute(node_id, allocator);
     defer initial.deinit(allocator);
-    try stdout.print("  Initial value: ns={} i={}\n", .{ initial.node_id.numeric.namespace, initial.node_id.numeric.identifier });
+    try stdout.print(
+        "  Initial value: ns={} i={}\n",
+        .{ initial.node_id.numeric.namespace, initial.node_id.numeric.identifier },
+    );
     try assertions.expectVariantEqual(ua.Variant.scalar(ua.NodeId, fixtures.TestScalarData.node_id_value()), initial);
 
     const new_node = ua.NodeId.initNumeric(2, 5000);
@@ -373,7 +384,10 @@ fn testNodeId(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocat
 
     const read_back = try client.readValueAttribute(node_id, allocator);
     defer read_back.deinit(allocator);
-    try stdout.print("  Read back: ns={} i={}\n", .{ read_back.node_id.numeric.namespace, read_back.node_id.numeric.identifier });
+    try stdout.print(
+        "  Read back: ns={} i={}\n",
+        .{ read_back.node_id.numeric.namespace, read_back.node_id.numeric.identifier },
+    );
     try assertions.expectVariantEqual(new_value, read_back);
 
     try stdout.print("  ✓ NodeId test passed\n", .{});
@@ -405,7 +419,10 @@ fn testLocalizedText(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.
     const initial = try client.readValueAttribute(node_id, allocator);
     defer initial.deinit(allocator);
     try stdout.print("  Initial value: {s}:{s}\n", .{ initial.localized_text.locale, initial.localized_text.text });
-    try assertions.expectVariantEqual(ua.Variant.scalar(ua.LocalizedText, fixtures.TestScalarData.localized_text_value()), initial);
+    try assertions.expectVariantEqual(
+        ua.Variant.scalar(ua.LocalizedText, fixtures.TestScalarData.localized_text_value()),
+        initial,
+    );
 
     const new_text = ua.LocalizedText.init("de-DE", "Geänderter Text");
     const new_value = ua.Variant.scalar(ua.LocalizedText, new_text);

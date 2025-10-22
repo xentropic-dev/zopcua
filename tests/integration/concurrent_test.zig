@@ -1,7 +1,8 @@
 const std = @import("std");
 const ua = @import("ua");
-const TestServer = @import("../helpers/test_server.zig").TestServer;
-const fixtures = @import("../helpers/test_fixtures.zig");
+const test_helpers = @import("test_helpers");
+const TestServer = test_helpers.TestServer;
+const fixtures = test_helpers.fixtures;
 
 pub fn main() !void {
     const stdout = std.io.getStdOut().writer();
@@ -15,7 +16,9 @@ pub fn main() !void {
 
     const nodes = try fixtures.setupStandardNodes(&test_server.server, allocator);
     try test_server.startAsync();
-    defer test_server.stop() catch {};
+    defer test_server.stop() catch |err| {
+        std.debug.print("Failed to stop test server: {}\n", .{err});
+    };
 
     var url_buf: [128]u8 = undefined;
     const endpoint_url = try test_server.getEndpointUrl(&url_buf);
@@ -41,7 +44,12 @@ const ReaderResult = struct {
     error_msg: ?[]const u8 = null,
 };
 
-fn testConcurrentReaders(endpoint_url: []const u8, node_id: ua.NodeId, allocator: std.mem.Allocator, stdout: anytype) !void {
+fn testConcurrentReaders(
+    endpoint_url: []const u8,
+    node_id: ua.NodeId,
+    allocator: std.mem.Allocator,
+    stdout: anytype,
+) !void {
     try stdout.print("\n[Test] Concurrent readers (10 clients)...\n", .{});
 
     const num_clients = 10;
@@ -105,7 +113,9 @@ fn readerThread(ctx: ReaderContext) void {
         ctx.result.* = ReaderResult{ .success = false, .value = 0, .error_msg = "Connection failed" };
         return;
     };
-    defer client.disconnect() catch {};
+    defer client.disconnect() catch |err| {
+        std.debug.print("Failed to disconnect client: {}\n", .{err});
+    };
 
     var last_value: i32 = 0;
     var read_count: usize = 0;
@@ -124,7 +134,12 @@ fn readerThread(ctx: ReaderContext) void {
     ctx.result.* = ReaderResult{ .success = true, .value = last_value };
 }
 
-fn testConcurrentWriters(endpoint_url: []const u8, node_id: ua.NodeId, allocator: std.mem.Allocator, stdout: anytype) !void {
+fn testConcurrentWriters(
+    endpoint_url: []const u8,
+    node_id: ua.NodeId,
+    allocator: std.mem.Allocator,
+    stdout: anytype,
+) !void {
     try stdout.print("\n[Test] Concurrent writers (5 clients with race condition)...\n", .{});
 
     const num_writers = 5;
@@ -164,7 +179,9 @@ fn testConcurrentWriters(endpoint_url: []const u8, node_id: ua.NodeId, allocator
     var verify_client = try ua.Client.init();
     defer verify_client.deinit();
     try verify_client.connect(endpoint_url);
-    defer verify_client.disconnect() catch {};
+    defer verify_client.disconnect() catch |err| {
+        std.debug.print("Failed to disconnect verify client: {}\n", .{err});
+    };
 
     const final_value = try verify_client.readValueAttribute(node_id, allocator);
     defer final_value.deinit(allocator);
@@ -191,7 +208,9 @@ fn writerThread(ctx: WriterContext) void {
         ctx.result.* = false;
         return;
     };
-    defer client.disconnect() catch {};
+    defer client.disconnect() catch |err| {
+        std.debug.print("Failed to disconnect writer client: {}\n", .{err});
+    };
 
     // Each writer writes multiple values
     const base_value: i32 = @intCast(ctx.writer_id * 1000);
@@ -209,7 +228,12 @@ fn writerThread(ctx: WriterContext) void {
     ctx.result.* = true;
 }
 
-fn testMixedConcurrentAccess(endpoint_url: []const u8, nodes: fixtures.TestNodeIds, allocator: std.mem.Allocator, stdout: anytype) !void {
+fn testMixedConcurrentAccess(
+    endpoint_url: []const u8,
+    nodes: fixtures.TestNodeIds,
+    allocator: std.mem.Allocator,
+    stdout: anytype,
+) !void {
     try stdout.print("\n[Test] Mixed concurrent read/write (10 readers + 5 writers)...\n", .{});
 
     const num_readers = 10;
@@ -224,7 +248,7 @@ fn testMixedConcurrentAccess(endpoint_url: []const u8, nodes: fixtures.TestNodeI
     for (0..num_readers) |i| {
         const ctx = ReaderContext{
             .endpoint_url = endpoint_url,
-            .node_id = nodes.double,
+            .node_id = nodes.int32,
             .allocator = allocator,
             .result = &reader_results[i],
             .num_reads = 30,
@@ -236,7 +260,7 @@ fn testMixedConcurrentAccess(endpoint_url: []const u8, nodes: fixtures.TestNodeI
     for (0..num_writers) |i| {
         const ctx = WriterContext{
             .endpoint_url = endpoint_url,
-            .node_id = nodes.double,
+            .node_id = nodes.int32,
             .writer_id = i,
             .result = &writer_results[i],
         };
@@ -273,7 +297,12 @@ fn testMixedConcurrentAccess(endpoint_url: []const u8, nodes: fixtures.TestNodeI
     try stdout.print("  ✓ Mixed concurrent access test passed\n", .{});
 }
 
-fn testConcurrentClientsMultipleNodes(endpoint_url: []const u8, nodes: fixtures.TestNodeIds, allocator: std.mem.Allocator, stdout: anytype) !void {
+fn testConcurrentClientsMultipleNodes(
+    endpoint_url: []const u8,
+    nodes: fixtures.TestNodeIds,
+    allocator: std.mem.Allocator,
+    stdout: anytype,
+) !void {
     try stdout.print("\n[Test] Concurrent clients on different nodes...\n", .{});
 
     const node_list = [_]ua.NodeId{
@@ -342,7 +371,9 @@ fn multiNodeThread(ctx: MultiNodeContext) void {
         ctx.result.* = false;
         return;
     };
-    defer client.disconnect() catch {};
+    defer client.disconnect() catch |err| {
+        std.debug.print("Failed to disconnect multinode client: {}\n", .{err});
+    };
 
     // Perform multiple read/write cycles
     var i: usize = 0;

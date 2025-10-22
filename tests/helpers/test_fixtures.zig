@@ -102,7 +102,7 @@ pub const TestArrayData = struct {
 
     // Large arrays for performance testing
     pub fn large_int32_array(allocator: std.mem.Allocator, size: usize) ![]i32 {
-        var array = try allocator.alloc(i32, size);
+        const array = try allocator.alloc(i32, size);
         for (array, 0..) |*item, i| {
             item.* = @intCast(i);
         }
@@ -110,7 +110,7 @@ pub const TestArrayData = struct {
     }
 
     pub fn large_double_array(allocator: std.mem.Allocator, size: usize) ![]f64 {
-        var array = try allocator.alloc(f64, size);
+        const array = try allocator.alloc(f64, size);
         for (array, 0..) |*item, i| {
             item.* = @as(f64, @floatFromInt(i)) * 0.1;
         }

@@ -1,6 +1,10 @@
 const std = @import("std");
 const ua = @import("ua");
 
+// Re-export helpers for convenience
+pub const fixtures = @import("test_fixtures.zig");
+pub const assertions = @import("assertions.zig");
+
 /// A reusable test server with lifecycle management
 pub const TestServer = struct {
     server: ua.Server,
@@ -11,7 +15,7 @@ pub const TestServer = struct {
 
     /// Initialize a test server on the specified port (default: 4840)
     pub fn init(allocator: std.mem.Allocator, port: u16) !TestServer {
-        var server = try ua.Server.init();
+        const server = try ua.Server.init();
         return TestServer{
             .server = server,
             .running = std.atomic.Value(bool).init(false),
@@ -56,9 +60,9 @@ pub const TestServer = struct {
         self.server.deinit();
     }
 
-    /// Get the endpoint URL for this server
-    pub fn getEndpointUrl(self: *TestServer, buf: []u8) ![]const u8 {
-        return std.fmt.bufPrint(buf, "opc.tcp://localhost:{d}", .{self.port});
+    /// Get the endpoint URL for this server (null-terminated for C interop)
+    pub fn getEndpointUrl(self: *TestServer, buf: []u8) ![:0]const u8 {
+        return std.fmt.bufPrintZ(buf, "opc.tcp://localhost:{d}", .{self.port});
     }
 
     fn serverThread(self: *TestServer) void {

@@ -116,6 +116,45 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_lib_unit_tests.step);
 
+    // Variant memory lifecycle tests
+    const variant_memory_tests = b.addTest(.{
+        .root_source_file = b.path("tests/variant_memory_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    variant_memory_tests.root_module.addImport("ua", module);
+    variant_memory_tests.addCSourceFiles(.{
+        .files = &.{
+            "vendor/open62541.c",
+            "vendor/helpers.c",
+        },
+        .flags = &.{
+            "-D_DARWIN_C_SOURCE",
+            "-D_POSIX_C_SOURCE=200112L",
+            "-std=c99",
+            "-fno-sanitize=undefined",
+        },
+    });
+    variant_memory_tests.addIncludePath(b.path("vendor"));
+    variant_memory_tests.linkLibC();
+    linkMbedtls(b, variant_memory_tests, target, optimize, mbedtls_link);
+    linkSystemLibraries(variant_memory_tests, target);
+
+    const run_variant_memory_tests = b.addRunArtifact(variant_memory_tests);
+    test_step.dependOn(&run_variant_memory_tests.step);
+
+    // Separate step for just memory tests
+    const memory_test_step = b.step("test-memory", "Run Variant memory lifecycle tests");
+    memory_test_step.dependOn(&run_variant_memory_tests.step);
+
+    // Test helpers module for integration tests
+    const test_helpers_module = b.addModule("test_helpers", .{
+        .root_source_file = b.path("tests/helpers/test_server.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    test_helpers_module.addImport("ua", module);
+
     // Helper function to create integration test executables
     const createIntegrationTest = struct {
         fn create(
@@ -125,6 +164,7 @@ pub fn build(b: *std.Build) void {
             tgt: std.Build.ResolvedTarget,
             opt: std.builtin.OptimizeMode,
             mod: *std.Build.Module,
+            helpers: *std.Build.Module,
             mbedtls_mode: MbedtlsLinkMode,
         ) *std.Build.Step.Compile {
             const exe = builder.addExecutable(.{
@@ -134,6 +174,7 @@ pub fn build(b: *std.Build) void {
                 .optimize = opt,
             });
             exe.root_module.addImport("ua", mod);
+            exe.root_module.addImport("test_helpers", helpers);
             exe.addCSourceFiles(.{
                 .files = &.{
                     "vendor/open62541.c",
@@ -155,23 +196,23 @@ pub fn build(b: *std.Build) void {
     }.create;
 
     // Legacy integration test (backward compatibility)
-    const integration_test = createIntegrationTest(b, "integration_test", "tests/integration_test.zig", target, optimize, module, mbedtls_link);
+    const integration_test = createIntegrationTest(b, "integration_test", "tests/integration_test.zig", target, optimize, module, test_helpers_module, mbedtls_link);
     const run_integration_test = b.addRunArtifact(integration_test);
     const integration_step = b.step("test-integration", "Run legacy integration tests");
     integration_step.dependOn(&run_integration_test.step);
 
     // New comprehensive integration tests
-    const variant_scalar_test = createIntegrationTest(b, "variant_scalar_test", "tests/integration/variant_scalar_test.zig", target, optimize, module, mbedtls_link);
+    const variant_scalar_test = createIntegrationTest(b, "variant_scalar_test", "tests/integration/variant_scalar_test.zig", target, optimize, module, test_helpers_module, mbedtls_link);
     const run_variant_scalar = b.addRunArtifact(variant_scalar_test);
     const variant_scalar_step = b.step("test-variant-scalar", "Run Variant scalar integration tests");
     variant_scalar_step.dependOn(&run_variant_scalar.step);
 
-    const variant_array_test = createIntegrationTest(b, "variant_array_test", "tests/integration/variant_array_test.zig", target, optimize, module, mbedtls_link);
+    const variant_array_test = createIntegrationTest(b, "variant_array_test", "tests/integration/variant_array_test.zig", target, optimize, module, test_helpers_module, mbedtls_link);
     const run_variant_array = b.addRunArtifact(variant_array_test);
     const variant_array_step = b.step("test-variant-array", "Run Variant array integration tests");
     variant_array_step.dependOn(&run_variant_array.step);
 
-    const concurrent_test = createIntegrationTest(b, "concurrent_test", "tests/integration/concurrent_test.zig", target, optimize, module, mbedtls_link);
+    const concurrent_test = createIntegrationTest(b, "concurrent_test", "tests/integration/concurrent_test.zig", target, optimize, module, test_helpers_module, mbedtls_link);
     const run_concurrent = b.addRunArtifact(concurrent_test);
     const concurrent_step = b.step("test-concurrent", "Run concurrent access integration tests");
     concurrent_step.dependOn(&run_concurrent.step);

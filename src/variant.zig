@@ -418,7 +418,14 @@ pub const Variant = union(enum) {
             },
             c.UA_TYPES_LOCALIZEDTEXT => blk: {
                 const ptr: *const c.UA_LocalizedText = @ptrCast(@alignCast(value.data));
-                break :blk .{ .localized_text = LocalizedText.fromC(ptr.*) };
+                const src = LocalizedText.fromC(ptr.*);
+                // Deep copy the locale and text strings
+                const owned_locale = try allocator.dupe(u8, src.locale);
+                const owned_text = try allocator.dupe(u8, src.text);
+                break :blk .{ .localized_text = .{
+                    .locale = owned_locale,
+                    .text = owned_text,
+                } };
             },
             else => error.UnsupportedType,
         };
@@ -523,6 +530,10 @@ pub const Variant = union(enum) {
             // Scalars that own heap memory
             .string => |s| allocator.free(s),
             .byte_string => |s| allocator.free(s),
+            .localized_text => |lt| {
+                allocator.free(lt.locale);
+                allocator.free(lt.text);
+            },
 
             // Arrays that own heap memory
             .boolean_array => |a| allocator.free(a),
@@ -544,7 +555,7 @@ pub const Variant = union(enum) {
             // Scalars that don't own heap memory (stack values)
             .boolean, .sbyte, .byte, .int16, .uint16, .int32, .uint32,
             .int64, .uint64, .float, .double, .date_time, .guid,
-            .node_id, .status_code, .localized_text => {},
+            .node_id, .status_code => {},
         }
     }
 
