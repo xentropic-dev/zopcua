@@ -167,8 +167,15 @@ pub const Client = struct {
     /// of the full OpcUaError set. This would provide better type safety and clearer
     /// error handling for connection operations.
     pub fn connect(self: Client, endpoint_url: []const u8) !void {
-        const c_url: [*c]const u8 = @ptrCast(endpoint_url.ptr);
-        const status = c.UA_Client_connect(self.handle, c_url);
+        // Use arena allocator to safely create null-terminated string for C API
+        var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+        defer arena.deinit();
+
+        // Allocate buffer and create null-terminated string
+        const buf = try arena.allocator().alloc(u8, endpoint_url.len + 1);
+        const c_url = try std.fmt.bufPrintZ(buf, "{s}", .{endpoint_url});
+
+        const status = c.UA_Client_connect(self.handle, c_url.ptr);
         try ua_error.checkStatus(status);
     }
 
@@ -253,7 +260,12 @@ pub const Client = struct {
                 // for cleaning up our temporary variant.
                 defer c.UA_Variant_clear(&c_variant);
 
-                break :blk c.UA_Client_writeValueAttribute(self.handle, node_id.toC(), &c_variant);
+                const c_node_id = node_id.toC(arena.allocator()) catch {
+                    return WriteAttributeError.OutOfMemory;
+                };
+                defer node_id.freeToC(c_node_id, arena.allocator());
+
+                break :blk c.UA_Client_writeValueAttribute(self.handle, c_node_id, &c_variant);
         };
 
         // Map status codes to specific errors based on the C implementation
@@ -354,7 +366,10 @@ pub const Client = struct {
         var c_variant: c.UA_Variant = undefined;
         c.UA_Variant_init(&c_variant);
 
-        const c_node_id = node_id.toC();
+        const c_node_id = node_id.toC(std.heap.c_allocator) catch {
+            return ReadAttributeError.OutOfMemory;
+        };
+        defer node_id.freeToC(c_node_id, std.heap.c_allocator);
 
         const status = c.UA_Client_readValueAttribute(self.handle, c_node_id, &c_variant);
 

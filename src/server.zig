@@ -41,6 +41,8 @@ pub const AddNodeError = error{
     InternalError,
     /// Unknown error from the OPC UA server
     Unknown,
+    /// No space left on device (allocation error)
+    NoSpaceLeft,
 };
 
 pub const Server = struct {
@@ -301,20 +303,31 @@ pub const Server = struct {
         const c_attrs = attrs.toC(allocator) catch return AddNodeError.OutOfMemory;
         defer {
             Variant.freeCVariant(c_attrs.value, allocator);
-            if (c_attrs.arrayDimensionsSize > 0) {
-                allocator.free(c_attrs.arrayDimensions[0..c_attrs.arrayDimensionsSize]);
-            }
+            attrs.freeToC(c_attrs, allocator);
         }
 
         // SAFETY: out_node_id is written to by UA_Server_addVariableNode before being read
         var out_node_id: c.UA_NodeId = undefined;
+
+        // Convert NodeIds and QualifiedName to C representation
+        const c_node_id = try node_id.toC(allocator);
+        defer node_id.freeToC(c_node_id, allocator);
+        const c_parent_node_id = try parent_node_id.toC(allocator);
+        defer parent_node_id.freeToC(c_parent_node_id, allocator);
+        const c_parent_ref_node_id = try parent_ref_node_id.toC(allocator);
+        defer parent_ref_node_id.freeToC(c_parent_ref_node_id, allocator);
+        const c_name = try name.toC(allocator);
+        defer name.freeToC(c_name, allocator);
+        const c_type_definition = try type_definition.toC(allocator);
+        defer type_definition.freeToC(c_type_definition, allocator);
+
         const status = c.UA_Server_addVariableNode(
             self.handle,
-            node_id.toC(),
-            parent_node_id.toC(),
-            parent_ref_node_id.toC(),
-            name.toC(),
-            type_definition.toC(),
+            c_node_id,
+            c_parent_node_id,
+            c_parent_ref_node_id,
+            c_name,
+            c_type_definition,
             c_attrs,
             null, // nodeContext
             &out_node_id,
