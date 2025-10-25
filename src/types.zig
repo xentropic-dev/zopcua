@@ -50,9 +50,21 @@ pub const NodeId = union(enum) {
     pub fn toC(self: NodeId) c.UA_NodeId {
         return switch (self) {
             .numeric => |n| c.UA_NODEID_NUMERIC(n.namespace, n.identifier),
-            .string => |s| c.UA_NODEID_STRING(s.namespace, @constCast(s.identifier.ptr)),
+            .string => |s| blk: {
+                var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+                defer arena.deinit();
+                const buf = arena.allocator().alloc(u8, s.identifier.len + 1) catch unreachable;
+                const null_terminated = std.fmt.bufPrintZ(buf, "{s}", .{s.identifier}) catch unreachable;
+                break :blk c.UA_NODEID_STRING(s.namespace, @constCast(null_terminated.ptr));
+            },
             .guid => |g| c.UA_NODEID_GUID(g.namespace, g.identifier.toC()),
-            .byte_string => |b| c.UA_NODEID_BYTESTRING(b.namespace, @constCast(b.identifier.ptr)),
+            .byte_string => |b| blk: {
+                var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+                defer arena.deinit();
+                const buf = arena.allocator().alloc(u8, b.identifier.len + 1) catch unreachable;
+                const null_terminated = std.fmt.bufPrintZ(buf, "{s}", .{b.identifier}) catch unreachable;
+                break :blk c.UA_NODEID_BYTESTRING(b.namespace, @constCast(null_terminated.ptr));
+            },
         };
     }
 
@@ -98,7 +110,11 @@ pub const QualifiedName = struct {
     }
 
     pub fn toC(self: QualifiedName) c.UA_QualifiedName {
-        return c.UA_QUALIFIEDNAME(self.namespace_index, @constCast(self.name.ptr));
+        var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+        defer arena.deinit();
+        const buf = arena.allocator().alloc(u8, self.name.len + 1) catch unreachable;
+        const null_terminated = std.fmt.bufPrintZ(buf, "{s}", .{self.name}) catch unreachable;
+        return c.UA_QUALIFIEDNAME(self.namespace_index, @constCast(null_terminated.ptr));
     }
 
     pub fn fromC(value: c.UA_QualifiedName) QualifiedName {
