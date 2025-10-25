@@ -43,7 +43,7 @@ pub const VariableAttributes = struct {
                 self.data_type,
             else => self.data_type,
         };
-        result.dataType = data_type.toC();
+        result.dataType = try data_type.toC(allocator);
 
         // Handle array dimensions
         if (self.array_dimensions.len > 0) {
@@ -54,6 +54,17 @@ pub const VariableAttributes = struct {
         }
 
         return result;
+    }
+
+    /// Free memory allocated by toC()
+    pub fn freeToC(self: VariableAttributes, c_attrs: c.UA_VariableAttributes, allocator: std.mem.Allocator) void {
+        // Free data_type NodeId if it was a string/bytestring
+        self.data_type.freeToC(c_attrs.dataType, allocator);
+
+        // Free array dimensions if allocated
+        if (c_attrs.arrayDimensionsSize > 0 and c_attrs.arrayDimensions != null) {
+            allocator.free(c_attrs.arrayDimensions[0..c_attrs.arrayDimensionsSize]);
+        }
     }
 
     /// Convert from C API representation

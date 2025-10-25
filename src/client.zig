@@ -260,7 +260,12 @@ pub const Client = struct {
                 // for cleaning up our temporary variant.
                 defer c.UA_Variant_clear(&c_variant);
 
-                break :blk c.UA_Client_writeValueAttribute(self.handle, node_id.toC(), &c_variant);
+                const c_node_id = node_id.toC(arena.allocator()) catch {
+                    return WriteAttributeError.OutOfMemory;
+                };
+                defer node_id.freeToC(c_node_id, arena.allocator());
+
+                break :blk c.UA_Client_writeValueAttribute(self.handle, c_node_id, &c_variant);
         };
 
         // Map status codes to specific errors based on the C implementation
@@ -361,7 +366,10 @@ pub const Client = struct {
         var c_variant: c.UA_Variant = undefined;
         c.UA_Variant_init(&c_variant);
 
-        const c_node_id = node_id.toC();
+        const c_node_id = node_id.toC(std.heap.c_allocator) catch {
+            return ReadAttributeError.OutOfMemory;
+        };
+        defer node_id.freeToC(c_node_id, std.heap.c_allocator);
 
         const status = c.UA_Client_readValueAttribute(self.handle, c_node_id, &c_variant);
 
