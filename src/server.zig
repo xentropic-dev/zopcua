@@ -41,7 +41,7 @@ pub const AddNodeError = error{
     InternalError,
     /// Unknown error from the OPC UA server
     Unknown,
-};
+} || std.fmt.AllocPrintError || std.mem.Allocator.Error;
 
 pub const Server = struct {
     handle: *c.UA_Server,
