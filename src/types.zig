@@ -47,25 +47,36 @@ pub const NodeId = union(enum) {
     pub const null_id = NodeId{ .numeric = .{ .namespace = 0, .identifier = 0 } };
 
     /// Convert to C API representation
-    pub fn toC(self: NodeId) c.UA_NodeId {
+    /// For string/bytestring variants, allocates temporary null-terminated strings.
+    /// Caller must call freeToC() with the same allocator to clean up.
+    pub fn toC(self: NodeId, allocator: std.mem.Allocator) !c.UA_NodeId {
         return switch (self) {
             .numeric => |n| c.UA_NODEID_NUMERIC(n.namespace, n.identifier),
             .string => |s| blk: {
-                var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
-                defer arena.deinit();
-                const buf = arena.allocator().alloc(u8, s.identifier.len + 1) catch unreachable;
-                const null_terminated = std.fmt.bufPrintZ(buf, "{s}", .{s.identifier}) catch unreachable;
+                const buf = try allocator.alloc(u8, s.identifier.len + 1);
+                const null_terminated = try std.fmt.bufPrintZ(buf, "{s}", .{s.identifier});
                 break :blk c.UA_NODEID_STRING(s.namespace, @constCast(null_terminated.ptr));
             },
             .guid => |g| c.UA_NODEID_GUID(g.namespace, g.identifier.toC()),
             .byte_string => |b| blk: {
-                var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
-                defer arena.deinit();
-                const buf = arena.allocator().alloc(u8, b.identifier.len + 1) catch unreachable;
-                const null_terminated = std.fmt.bufPrintZ(buf, "{s}", .{b.identifier}) catch unreachable;
+                const buf = try allocator.alloc(u8, b.identifier.len + 1);
+                const null_terminated = try std.fmt.bufPrintZ(buf, "{s}", .{b.identifier});
                 break :blk c.UA_NODEID_BYTESTRING(b.namespace, @constCast(null_terminated.ptr));
             },
         };
+    }
+
+    /// Free memory allocated by toC() for string/bytestring NodeIds
+    pub fn freeToC(self: NodeId, c_node_id: c.UA_NodeId, allocator: std.mem.Allocator) void {
+        switch (self) {
+            .string, .byte_string => {
+                if (c_node_id.identifier.string.data) |data| {
+                    const len = c_node_id.identifier.string.length;
+                    allocator.free(data[0..len + 1]); // +1 for null terminator
+                }
+            },
+            .numeric, .guid => {}, // No cleanup needed
+        }
     }
 
     /// Convert from C API representation
@@ -109,12 +120,22 @@ pub const QualifiedName = struct {
         return .{ .namespace_index = namespace_index, .name = name };
     }
 
-    pub fn toC(self: QualifiedName) c.UA_QualifiedName {
-        var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
-        defer arena.deinit();
-        const buf = arena.allocator().alloc(u8, self.name.len + 1) catch unreachable;
-        const null_terminated = std.fmt.bufPrintZ(buf, "{s}", .{self.name}) catch unreachable;
+    /// Convert to C API representation
+    /// Allocates temporary null-terminated string.
+    /// Caller must call freeToC() with the same allocator to clean up.
+    pub fn toC(self: QualifiedName, allocator: std.mem.Allocator) !c.UA_QualifiedName {
+        const buf = try allocator.alloc(u8, self.name.len + 1);
+        const null_terminated = try std.fmt.bufPrintZ(buf, "{s}", .{self.name});
         return c.UA_QUALIFIEDNAME(self.namespace_index, @constCast(null_terminated.ptr));
+    }
+
+    /// Free memory allocated by toC()
+    pub fn freeToC(self: QualifiedName, c_qname: c.UA_QualifiedName, allocator: std.mem.Allocator) void {
+        _ = self;
+        if (c_qname.name.data) |data| {
+            const len = c_qname.name.length;
+            allocator.free(data[0..len + 1]); // +1 for null terminator
+        }
     }
 
     pub fn fromC(value: c.UA_QualifiedName) QualifiedName {
@@ -179,7 +200,8 @@ test "NodeId numeric creation and conversion" {
     try testing.expectEqual(@as(u16, 1), node_id.numeric.namespace);
     try testing.expectEqual(@as(u32, 42), node_id.numeric.identifier);
 
-    const c_node_id = node_id.toC();
+    const c_node_id = try node_id.toC(testing.allocator);
+    defer node_id.freeToC(c_node_id, testing.allocator);
     const roundtrip = NodeId.fromC(c_node_id);
     try testing.expectEqual(node_id.numeric.namespace, roundtrip.numeric.namespace);
     try testing.expectEqual(node_id.numeric.identifier, roundtrip.numeric.identifier);
@@ -192,7 +214,8 @@ test "NodeId string creation and conversion" {
     try testing.expectEqual(@as(u16, 2), node_id.string.namespace);
     try testing.expectEqualStrings("test.node", node_id.string.identifier);
 
-    const c_node_id = node_id.toC();
+    const c_node_id = try node_id.toC(testing.allocator);
+    defer node_id.freeToC(c_node_id, testing.allocator);
     const roundtrip = NodeId.fromC(c_node_id);
     try testing.expectEqual(node_id.string.namespace, roundtrip.string.namespace);
     try testing.expectEqualStrings(node_id.string.identifier, roundtrip.string.identifier);
@@ -220,7 +243,8 @@ test "QualifiedName creation and conversion" {
     try testing.expectEqual(@as(u16, 1), qname.namespace_index);
     try testing.expectEqualStrings("MyVariable", qname.name);
 
-    const c_qname = qname.toC();
+    const c_qname = try qname.toC(testing.allocator);
+    defer qname.freeToC(c_qname, testing.allocator);
     const roundtrip = QualifiedName.fromC(c_qname);
     try testing.expectEqual(qname.namespace_index, roundtrip.namespace_index);
     try testing.expectEqualStrings(qname.name, roundtrip.name);

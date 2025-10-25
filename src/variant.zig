@@ -99,11 +99,10 @@ pub const Variant = union(enum) {
     /// This ensures proper initialization and compatibility with open62541's internal
     /// variant copying and manipulation logic.
     ///
-    /// Note: The allocator parameter is kept for API compatibility but is no longer used
-    /// for most types. open62541's UA_Variant_setScalarCopy and UA_Variant_setArrayCopy
-    /// handle memory management internally.
+    /// Note: The allocator is used for NodeId string conversions.
+    /// open62541's UA_Variant_setScalarCopy and UA_Variant_setArrayCopy
+    /// handle memory management internally for the variant data.
     pub fn toC(self: Variant, allocator: std.mem.Allocator) !c.UA_Variant {
-        _ = allocator;
 
         // SAFETY: result is initialized by UA_Variant_init or helper functions before any use
         var result: c.UA_Variant = undefined;
@@ -194,7 +193,8 @@ pub const Variant = union(enum) {
             },
 
             .node_id => |val| {
-                const c_nodeid = val.toC();
+                const c_nodeid = try val.toC(allocator);
+                defer val.freeToC(c_nodeid, allocator);
                 const status = helpers.helper_variant_setScalarCopy(&result, &c_nodeid, &c.UA_TYPES[c.UA_TYPES_NODEID]);
                 if (status != c.UA_STATUSCODE_GOOD) return error.VariantInitFailed;
             },
