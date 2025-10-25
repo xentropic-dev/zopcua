@@ -167,8 +167,15 @@ pub const Client = struct {
     /// of the full OpcUaError set. This would provide better type safety and clearer
     /// error handling for connection operations.
     pub fn connect(self: Client, endpoint_url: []const u8) !void {
-        const c_url: [*c]const u8 = @ptrCast(endpoint_url.ptr);
-        const status = c.UA_Client_connect(self.handle, c_url);
+        // Use arena allocator to safely create null-terminated string for C API
+        var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+        defer arena.deinit();
+
+        // Allocate buffer and create null-terminated string
+        const buf = try arena.allocator().alloc(u8, endpoint_url.len + 1);
+        const c_url = try std.fmt.bufPrintZ(buf, "{s}", .{endpoint_url});
+
+        const status = c.UA_Client_connect(self.handle, c_url.ptr);
         try ua_error.checkStatus(status);
     }
 
