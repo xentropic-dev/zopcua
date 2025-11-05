@@ -78,6 +78,8 @@ pub fn build(b: *std.Build) void {
             // but works in practice. Fixed in later versions of open62541.
             // See: vendor/open62541.c line ~39788
             "-fno-sanitize=undefined",
+            // Allow __DATE__ and __TIME__ macros in open62541 v1.4.12 for release builds
+            "-Wno-error=date-time",
         },
     });
     lib.addIncludePath(b.path("vendor"));
