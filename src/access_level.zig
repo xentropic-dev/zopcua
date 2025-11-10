@@ -45,3 +45,68 @@ pub const AccessLevel = packed struct(u8) {
         return @bitCast(self);
     }
 };
+
+const std = @import("std");
+
+test "AccessLevel bitfield conversion roundtrip" {
+    const testing = std.testing;
+
+    const level = AccessLevel{ .read = true, .write = true };
+    const c_level = level.toC();
+    const back = AccessLevel.fromC(c_level);
+
+    try testing.expect(back.read == true);
+    try testing.expect(back.write == true);
+    try testing.expect(back.history_read == false);
+    try testing.expect(back.history_write == false);
+}
+
+test "AccessLevel all flags set" {
+    const testing = std.testing;
+
+    const level = AccessLevel{
+        .read = true,
+        .write = true,
+        .history_read = true,
+        .history_write = true,
+        .semantic_change = true,
+        .status_write = true,
+        .timestamp_write = true,
+    };
+
+    const c_level = level.toC();
+    const back = AccessLevel.fromC(c_level);
+
+    try testing.expect(back.read);
+    try testing.expect(back.write);
+    try testing.expect(back.history_read);
+    try testing.expect(back.history_write);
+    try testing.expect(back.semantic_change);
+    try testing.expect(back.status_write);
+    try testing.expect(back.timestamp_write);
+}
+
+test "AccessLevel predefined constants" {
+    const testing = std.testing;
+
+    // none
+    try testing.expect(AccessLevel.none.read == false);
+    try testing.expect(AccessLevel.none.write == false);
+
+    // read_only
+    try testing.expect(AccessLevel.read_only.read == true);
+    try testing.expect(AccessLevel.read_only.write == false);
+
+    // read_write
+    try testing.expect(AccessLevel.read_write.read == true);
+    try testing.expect(AccessLevel.read_write.write == true);
+}
+
+test "AccessLevel default initialization" {
+    const testing = std.testing;
+
+    const level = AccessLevel{};
+    try testing.expect(level.read == false);
+    try testing.expect(level.write == false);
+    try testing.expect(level.history_read == false);
+}

@@ -690,3 +690,84 @@ test "comprehensive status code mapping" {
     const conn_rejected = checkStatus(toStatusCode(c.UA_STATUSCODE_BADCONNECTIONREJECTED));
     try testing.expectError(OpcUaError.BadConnectionRejected, conn_rejected);
 }
+
+test "status code boundary values" {
+    // Test boundary values for each category
+    try testing.expect(isGood(0x00000000)); // Minimum GOOD
+    try testing.expect(isGood(0x3FFFFFFF)); // Maximum GOOD
+    try testing.expect(isUncertain(0x40000000)); // Minimum UNCERTAIN
+    try testing.expect(isUncertain(0x7FFFFFFF)); // Maximum UNCERTAIN
+    try testing.expect(isBad(0x80000000)); // Minimum BAD
+    try testing.expect(isBad(0xBFFFFFFF)); // Middle BAD range
+    try testing.expect(isBad(0xC0000000)); // Upper BAD range
+    try testing.expect(isBad(0xFFFFFFFF)); // Maximum value
+}
+
+test "error mapping for monitoring operations" {
+    const mode_invalid = checkStatus(toStatusCode(c.UA_STATUSCODE_BADMONITORINGMODEINVALID));
+    try testing.expectError(OpcUaError.BadMonitoringModeInvalid, mode_invalid);
+
+    const item_invalid = checkStatus(toStatusCode(c.UA_STATUSCODE_BADMONITOREDITEMIDINVALID));
+    try testing.expectError(OpcUaError.BadMonitoredItemIdInvalid, item_invalid);
+
+    const filter_invalid = checkStatus(toStatusCode(c.UA_STATUSCODE_BADMONITOREDITEMFILTERINVALID));
+    try testing.expectError(OpcUaError.BadMonitoredItemFilterInvalid, filter_invalid);
+}
+
+test "error mapping for browse operations" {
+    const ref_type_invalid = checkStatus(toStatusCode(c.UA_STATUSCODE_BADREFERENCETYPEIDINVALID));
+    try testing.expectError(OpcUaError.BadReferenceTypeIdInvalid, ref_type_invalid);
+
+    const browse_dir_invalid = checkStatus(toStatusCode(c.UA_STATUSCODE_BADBROWSEDIRECTIONINVALID));
+    try testing.expectError(OpcUaError.BadBrowseDirectionInvalid, browse_dir_invalid);
+
+    const not_in_view = checkStatus(toStatusCode(c.UA_STATUSCODE_BADNODENOTINVIEW));
+    try testing.expectError(OpcUaError.BadNodeNotInView, not_in_view);
+}
+
+test "error mapping for history operations" {
+    const history_invalid = checkStatus(toStatusCode(c.UA_STATUSCODE_BADHISTORYOPERATIONINVALID));
+    try testing.expectError(OpcUaError.BadHistoryOperationInvalid, history_invalid);
+
+    const history_unsupported = checkStatus(toStatusCode(c.UA_STATUSCODE_BADHISTORYOPERATIONUNSUPPORTED));
+    try testing.expectError(OpcUaError.BadHistoryOperationUnsupported, history_unsupported);
+
+    const timestamp_arg = checkStatus(toStatusCode(c.UA_STATUSCODE_BADINVALIDTIMESTAMPARGUMENT));
+    try testing.expectError(OpcUaError.BadInvalidTimestampArgument, timestamp_arg);
+}
+
+test "error mapping for subscription operations" {
+    const too_many_subs = checkStatus(toStatusCode(c.UA_STATUSCODE_BADTOOMANYSUBSCRIPTIONS));
+    try testing.expectError(OpcUaError.BadTooManySubscriptions, too_many_subs);
+
+    const no_subscription = checkStatus(toStatusCode(c.UA_STATUSCODE_BADNOSUBSCRIPTION));
+    try testing.expectError(OpcUaError.BadNoSubscription, no_subscription);
+
+    const sub_id_invalid = checkStatus(toStatusCode(c.UA_STATUSCODE_BADSUBSCRIPTIONIDINVALID));
+    try testing.expectError(OpcUaError.BadSubscriptionIdInvalid, sub_id_invalid);
+}
+
+test "error mapping for data operations" {
+    const no_data = checkStatus(toStatusCode(c.UA_STATUSCODE_BADNODATA));
+    try testing.expectError(OpcUaError.BadNoData, no_data);
+
+    const data_lost = checkStatus(toStatusCode(c.UA_STATUSCODE_BADDATALOST));
+    try testing.expectError(OpcUaError.BadDataLost, data_lost);
+
+    const data_unavailable = checkStatus(toStatusCode(c.UA_STATUSCODE_BADDATAUNAVAILABLE));
+    try testing.expectError(OpcUaError.BadDataUnavailable, data_unavailable);
+}
+
+test "isEqualTop with edge cases" {
+    // Same top 16 bits, different bottom bits
+    try testing.expect(isEqualTop(0xFFFF0000, 0xFFFF0001));
+    try testing.expect(isEqualTop(0xFFFF0000, 0xFFFFFFFF));
+
+    // Different top 16 bits
+    try testing.expect(!isEqualTop(0xFFFF0000, 0xFFFE0000));
+    try testing.expect(!isEqualTop(0x80000000, 0x80010000));
+
+    // Zero cases
+    try testing.expect(isEqualTop(0x00000000, 0x00000000));
+    try testing.expect(isEqualTop(0x00000000, 0x0000FFFF));
+}

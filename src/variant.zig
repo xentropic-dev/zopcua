@@ -713,3 +713,150 @@ test "Variant empty" {
 
     try testing.expect(c_variant.type == null or c_variant.data == null);
 }
+
+test "Variant scalar u32" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const variant = Variant.scalar(u32, 12345);
+    try testing.expectEqual(@as(u32, 12345), variant.uint32);
+
+    const c_variant = try variant.toC(allocator);
+    defer Variant.freeCVariant(allocator, c_variant);
+
+    const roundtrip = try Variant.fromC(c_variant, allocator);
+    defer roundtrip.deinit(allocator);
+    try testing.expectEqual(@as(u32, 12345), roundtrip.uint32);
+}
+
+test "Variant scalar i64" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const variant = Variant.scalar(i64, -9876543210);
+    try testing.expectEqual(@as(i64, -9876543210), variant.int64);
+
+    const c_variant = try variant.toC(allocator);
+    defer Variant.freeCVariant(allocator, c_variant);
+
+    const roundtrip = try Variant.fromC(c_variant, allocator);
+    defer roundtrip.deinit(allocator);
+    try testing.expectEqual(@as(i64, -9876543210), roundtrip.int64);
+}
+
+test "Variant scalar guid" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const guid = Guid{
+        .data1 = 0x12345678,
+        .data2 = 0x9ABC,
+        .data3 = 0xDEF0,
+        .data4 = [_]u8{ 1, 2, 3, 4, 5, 6, 7, 8 },
+    };
+    const variant = Variant{ .guid = guid };
+    try testing.expectEqual(guid.data1, variant.guid.data1);
+
+    const c_variant = try variant.toC(allocator);
+    defer Variant.freeCVariant(allocator, c_variant);
+
+    const roundtrip = try Variant.fromC(c_variant, allocator);
+    defer roundtrip.deinit(allocator);
+    try testing.expectEqual(guid.data1, roundtrip.guid.data1);
+    try testing.expectEqualSlices(u8, &guid.data4, &roundtrip.guid.data4);
+}
+
+test "Variant scalar LocalizedText" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const localized = LocalizedText.init("en-US", "Temperature");
+    const variant = Variant.scalar(LocalizedText, localized);
+    try testing.expectEqualStrings("en-US", variant.localized_text.locale);
+    try testing.expectEqualStrings("Temperature", variant.localized_text.text);
+
+    const c_variant = try variant.toC(allocator);
+    defer Variant.freeCVariant(allocator, c_variant);
+
+    const roundtrip = try Variant.fromC(c_variant, allocator);
+    defer roundtrip.deinit(allocator);
+    try testing.expectEqualStrings("en-US", roundtrip.localized_text.locale);
+    try testing.expectEqualStrings("Temperature", roundtrip.localized_text.text);
+}
+
+test "Variant scalar NodeId" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const node_id = NodeId.initNumeric(1, 1000);
+    const variant = Variant.scalar(NodeId, node_id);
+    try testing.expectEqual(@as(u16, 1), variant.node_id.numeric.namespace);
+    try testing.expectEqual(@as(u32, 1000), variant.node_id.numeric.identifier);
+
+    const c_variant = try variant.toC(allocator);
+    defer Variant.freeCVariant(allocator, c_variant);
+
+    const roundtrip = try Variant.fromC(c_variant, allocator);
+    defer roundtrip.deinit(allocator);
+    try testing.expectEqual(@as(u16, 1), roundtrip.node_id.numeric.namespace);
+    try testing.expectEqual(@as(u32, 1000), roundtrip.node_id.numeric.identifier);
+}
+
+test "Variant array with zero elements" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const empty_array: [0]i32 = .{};
+    const variant = Variant.array(i32, &empty_array);
+    try testing.expectEqual(@as(usize, 0), variant.int32_array.len);
+
+    const c_variant = try variant.toC(allocator);
+    defer Variant.freeCVariant(allocator, c_variant);
+
+    // Zero-length arrays may come back as empty variant from C
+    // Don't try to round-trip as the C library may not handle this case consistently
+    try testing.expect(c_variant.arrayLength == 0 or c_variant.data == null);
+}
+
+test "Variant dataTypeNodeId for scalar types" {
+    const testing = std.testing;
+
+    const int_variant = Variant.scalar(i32, 42);
+    const int_type = int_variant.dataTypeNodeId();
+    try testing.expectEqual(@as(u32, c.UA_TYPES[c.UA_TYPES_INT32].typeId.identifier.numeric), int_type.numeric.identifier);
+
+    const bool_variant = Variant.scalar(bool, true);
+    const bool_type = bool_variant.dataTypeNodeId();
+    try testing.expectEqual(@as(u32, c.UA_TYPES[c.UA_TYPES_BOOLEAN].typeId.identifier.numeric), bool_type.numeric.identifier);
+
+    const string_variant = Variant.scalar([]const u8, "test");
+    const string_type = string_variant.dataTypeNodeId();
+    try testing.expectEqual(@as(u32, c.UA_TYPES[c.UA_TYPES_STRING].typeId.identifier.numeric), string_type.numeric.identifier);
+
+    const double_variant = Variant.scalar(f64, 3.14);
+    const double_type = double_variant.dataTypeNodeId();
+    try testing.expectEqual(@as(u32, c.UA_TYPES[c.UA_TYPES_DOUBLE].typeId.identifier.numeric), double_type.numeric.identifier);
+}
+
+test "Variant dataTypeNodeId for array types" {
+    const testing = std.testing;
+
+    const int_array = [_]i32{ 1, 2, 3 };
+    const array_variant = Variant.array(i32, &int_array);
+    const array_type = array_variant.dataTypeNodeId();
+    try testing.expectEqual(@as(u32, c.UA_TYPES[c.UA_TYPES_INT32].typeId.identifier.numeric), array_type.numeric.identifier);
+
+    const bool_array = [_]bool{ true, false };
+    const bool_variant = Variant.array(bool, &bool_array);
+    const bool_type = bool_variant.dataTypeNodeId();
+    try testing.expectEqual(@as(u32, c.UA_TYPES[c.UA_TYPES_BOOLEAN].typeId.identifier.numeric), bool_type.numeric.identifier);
+}
+
+test "Variant dataTypeNodeId for empty variant" {
+    const testing = std.testing;
+
+    const empty_variant = Variant{ .empty = {} };
+    const empty_type = empty_variant.dataTypeNodeId();
+    try testing.expectEqual(NodeId.null_id.numeric.namespace, empty_type.numeric.namespace);
+    try testing.expectEqual(NodeId.null_id.numeric.identifier, empty_type.numeric.identifier);
+}

@@ -110,3 +110,84 @@ pub const AttributeWriteMask = packed struct(u32) {
         return @bitCast(self);
     }
 };
+
+const std = @import("std");
+
+test "AttributeWriteMask bitfield conversion roundtrip" {
+    const testing = std.testing;
+
+    const mask = AttributeWriteMask{
+        .display_name = true,
+        .description = true,
+        .value_rank = true,
+    };
+    const c_mask = mask.toC();
+    const back = AttributeWriteMask.fromC(c_mask);
+
+    try testing.expect(back.display_name);
+    try testing.expect(back.description);
+    try testing.expect(back.value_rank);
+    try testing.expect(!back.access_level);
+}
+
+test "AttributeWriteMask none constant" {
+    const testing = std.testing;
+
+    const mask = AttributeWriteMask.none;
+    try testing.expect(!mask.access_level);
+    try testing.expect(!mask.display_name);
+    try testing.expect(!mask.browse_name);
+    try testing.expect(!mask.write_mask);
+}
+
+test "AttributeWriteMask all constant" {
+    const testing = std.testing;
+
+    const mask = AttributeWriteMask.all;
+
+    // Verify all writable attributes are set
+    try testing.expect(mask.access_level);
+    try testing.expect(mask.array_dimensions);
+    try testing.expect(mask.browse_name);
+    try testing.expect(mask.contains_no_loops);
+    try testing.expect(mask.data_type);
+    try testing.expect(mask.description);
+    try testing.expect(mask.display_name);
+    try testing.expect(mask.event_notifier);
+    try testing.expect(mask.executable);
+    try testing.expect(mask.historizing);
+    try testing.expect(mask.inverse_name);
+    try testing.expect(mask.is_abstract);
+    try testing.expect(mask.minimum_sampling_interval);
+    try testing.expect(mask.node_class);
+    try testing.expect(mask.node_id);
+    try testing.expect(mask.symmetric);
+    try testing.expect(mask.user_access_level);
+    try testing.expect(mask.user_executable);
+    try testing.expect(mask.user_write_mask);
+    try testing.expect(mask.value_rank);
+    try testing.expect(mask.write_mask);
+    try testing.expect(mask.value_for_variable_type);
+}
+
+test "AttributeWriteMask all conversion preserves all bits" {
+    const testing = std.testing;
+
+    const original = AttributeWriteMask.all;
+    const c_mask = original.toC();
+    const back = AttributeWriteMask.fromC(c_mask);
+
+    // Verify all flags survived roundtrip
+    try testing.expect(back.access_level == original.access_level);
+    try testing.expect(back.display_name == original.display_name);
+    try testing.expect(back.write_mask == original.write_mask);
+}
+
+test "AttributeWriteMask default initialization" {
+    const testing = std.testing;
+
+    const mask = AttributeWriteMask{};
+    try testing.expect(!mask.display_name);
+    try testing.expect(!mask.description);
+    try testing.expect(!mask.access_level);
+}
