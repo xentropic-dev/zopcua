@@ -394,4 +394,92 @@ pub const Server = struct {
             else => AddNodeError.Unknown,
         };
     }
+
+    /// Add a new namespace to the server.
+    ///
+    /// Namespaces allow organizing nodes into logical groups and avoiding naming conflicts.
+    /// The server starts with two pre-defined namespaces:
+    /// - Index 0: "http://opcfoundation.org/UA/" (OPC UA standard namespace)
+    /// - Index 1: "urn:open62541:server:default" (server's default namespace)
+    ///
+    /// New namespaces are assigned sequential indices starting from 2.
+    ///
+    /// **Important**: Namespaces must be added before `start()` is called. Adding namespaces
+    /// after startup may cause undefined behavior.
+    ///
+    /// Parameters:
+    ///   - namespace_uri: URI string identifying the namespace (e.g., "http://example.com/myapp")
+    ///   - allocator: Memory allocator for temporary C string conversion
+    ///
+    /// Returns:
+    ///   - The assigned namespace index (u16), typically 2 or higher
+    ///
+    /// Errors:
+    ///   - `InvalidNamespaceUri`: Empty or null URI
+    ///   - `TooManyNamespaces`: Exceeded maximum namespace count (very rare)
+    ///   - `OutOfMemory`: Allocation failed
+    ///
+    /// Example:
+    /// ```zig
+    /// var server = try Server.init();
+    /// defer server.deinit();
+    ///
+    /// const ns_idx = try server.addNamespace("http://example.com/sensors", allocator);
+    /// // ns_idx will be 2 (first custom namespace)
+    ///
+    /// // Now use ns_idx when creating nodes:
+    /// const node = try server.addVariableNode(
+    ///     NodeId.initString(ns_idx, "temperature"),
+    ///     // ... other params
+    /// );
+    /// ```
+    pub fn addNamespace(
+        self: *Server,
+        namespace_uri: []const u8,
+        allocator: std.mem.Allocator,
+    ) NamespaceError!u16 {
+        // Validation
+        if (namespace_uri.len == 0) return NamespaceError.InvalidNamespaceUri;
+
+        // Convert to null-terminated C string
+        const c_uri = allocator.allocSentinel(u8, namespace_uri.len, 0) catch {
+            return NamespaceError.OutOfMemory;
+        };
+        defer allocator.free(c_uri);
+        @memcpy(c_uri, namespace_uri);
+
+        // Call C API
+        const index = c.UA_Server_addNamespace(self.handle, c_uri.ptr);
+
+        // Check for failure (C API returns 0 on error for user namespaces)
+        // Note: 0 is valid for standard namespace, but addNamespace never returns 0 for new namespaces
+        if (index == 0) return NamespaceError.InternalError;
+
+        return index;
+    }
 };
+
+test "Server.addNamespace basic functionality" {
+    const testing = std.testing;
+
+    var server = try Server.init();
+    defer server.deinit();
+
+    // First custom namespace should be index 2
+    const idx1 = try server.addNamespace("http://example.com/test", testing.allocator);
+    try testing.expectEqual(@as(u16, 2), idx1);
+
+    // Second should be index 3
+    const idx2 = try server.addNamespace("http://example.com/other", testing.allocator);
+    try testing.expectEqual(@as(u16, 3), idx2);
+}
+
+test "Server.addNamespace rejects empty URI" {
+    const testing = std.testing;
+
+    var server = try Server.init();
+    defer server.deinit();
+
+    const result = server.addNamespace("", testing.allocator);
+    try testing.expectError(NamespaceError.InvalidNamespaceUri, result);
+}
