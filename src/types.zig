@@ -592,8 +592,15 @@ test "ExpandedNodeId with GUID NodeId" {
     try testing.expectEqual(expanded.server_index, roundtrip.server_index);
     try testing.expectEqualStrings(expanded.namespace_uri, roundtrip.namespace_uri);
     try testing.expectEqual(expanded.node_id.guid.namespace, roundtrip.node_id.guid.namespace);
-    try testing.expectEqual(expanded.node_id.guid.identifier.data1, roundtrip.node_id.guid.identifier.data1);
-    try testing.expectEqualSlices(u8, &expanded.node_id.guid.identifier.data4, &roundtrip.node_id.guid.identifier.data4);
+    try testing.expectEqual(
+        expanded.node_id.guid.identifier.data1,
+        roundtrip.node_id.guid.identifier.data1,
+    );
+    try testing.expectEqualSlices(
+        u8,
+        &expanded.node_id.guid.identifier.data4,
+        &roundtrip.node_id.guid.identifier.data4,
+    );
 }
 
 test "ExpandedNodeId with ByteString NodeId" {

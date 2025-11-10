@@ -23,7 +23,7 @@ fn temperatureCallback(
     _ = monitored_item_id;
 
     // Extract our context
-    const ctx = @as(*TemperatureContext, @ptrCast(@alignCast(userdata.?)));
+    const ctx: *TemperatureContext = @ptrCast(@alignCast(userdata.?));
     ctx.count += 1;
 
     // Extract and store the value
@@ -44,7 +44,7 @@ fn statusCallback(
     _ = monitored_item_id;
 
     // Extract our context
-    const ctx = @as(*StatusContext, @ptrCast(@alignCast(userdata.?)));
+    const ctx: *StatusContext = @ptrCast(@alignCast(userdata.?));
     ctx.count += 1;
 
     // Log the string value (no need to store it - variant is only valid during callback)
@@ -133,7 +133,9 @@ fn clientOperations() !void {
         .publishing_interval = 100.0, // 100ms for quick updates
         .priority = 10,
     });
-    defer client.deleteSubscription(subscription_id) catch {};
+    defer client.deleteSubscription(subscription_id) catch |err| {
+        std.log.err("Failed to delete subscription: {}", .{err});
+    };
     std.log.info("Subscription created (ID: {d})", .{subscription_id});
 
     // Create callback contexts
@@ -152,7 +154,9 @@ fn clientOperations() !void {
         temperatureCallback,
         &temp_ctx,
     );
-    defer client.deleteMonitoredItem(subscription_id, temp_mon_id) catch {};
+    defer client.deleteMonitoredItem(subscription_id, temp_mon_id) catch |err| {
+        std.log.err("Failed to delete monitored item: {}", .{err});
+    };
     std.log.info("Temperature monitored item created (ID: {d})", .{temp_mon_id});
 
     // Create monitored item for status (string)
@@ -167,7 +171,9 @@ fn clientOperations() !void {
         statusCallback,
         &status_ctx,
     );
-    defer client.deleteMonitoredItem(subscription_id, status_mon_id) catch {};
+    defer client.deleteMonitoredItem(subscription_id, status_mon_id) catch |err| {
+        std.log.err("Failed to delete monitored item: {}", .{err});
+    };
     std.log.info("Status monitored item created (ID: {d})", .{status_mon_id});
 
     std.log.info("\nWaiting for initial callbacks...", .{});

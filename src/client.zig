@@ -36,7 +36,7 @@ fn dataChangeCallbackWrapper(
     _ = sub_context;
 
     // Extract context
-    const ctx = @as(*MonitoredItemContext, @ptrCast(@alignCast(mon_context.?)));
+    const ctx: *MonitoredItemContext = @ptrCast(@alignCast(mon_context.?));
 
     // Convert UA_DataValue to Variant (temporary, valid only during callback)
     // Use c_allocator since this is managed by C library lifecycle
@@ -64,7 +64,7 @@ fn deleteMonitoredItemCallbackWrapper(
     _ = mon_id;
 
     if (mon_context) |ctx_ptr| {
-        const ctx = @as(*MonitoredItemContext, @ptrCast(@alignCast(ctx_ptr)));
+        const ctx: *MonitoredItemContext = @ptrCast(@alignCast(ctx_ptr));
         std.heap.c_allocator.destroy(ctx);
     }
 }
@@ -1530,7 +1530,7 @@ test "Client monitored item with callback integration test" {
         ) void {
             _ = sub_id;
             _ = mon_id;
-            const ctx = @as(*CallbackContext, @ptrCast(@alignCast(userdata.?)));
+            const ctx: *CallbackContext = @ptrCast(@alignCast(userdata.?));
             ctx.call_count += 1;
             if (value.* == .double) {
                 ctx.last_value = value.double;

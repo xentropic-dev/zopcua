@@ -11,7 +11,9 @@ pub fn main() !void {
 
     std.log.info("Connecting to server at opc.tcp://localhost:4840...", .{});
     try client.connect("opc.tcp://localhost:4840");
-    defer client.disconnect() catch {};
+    defer client.disconnect() catch |err| {
+        std.log.err("Failed to disconnect: {}", .{err});
+    };
 
     std.log.info("Connected successfully!", .{});
 

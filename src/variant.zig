@@ -824,19 +824,23 @@ test "Variant dataTypeNodeId for scalar types" {
 
     const int_variant = Variant.scalar(i32, 42);
     const int_type = int_variant.dataTypeNodeId();
-    try testing.expectEqual(@as(u32, c.UA_TYPES[c.UA_TYPES_INT32].typeId.identifier.numeric), int_type.numeric.identifier);
+    const expected_int_type: u32 = c.UA_TYPES[c.UA_TYPES_INT32].typeId.identifier.numeric;
+    try testing.expectEqual(expected_int_type, int_type.numeric.identifier);
 
     const bool_variant = Variant.scalar(bool, true);
     const bool_type = bool_variant.dataTypeNodeId();
-    try testing.expectEqual(@as(u32, c.UA_TYPES[c.UA_TYPES_BOOLEAN].typeId.identifier.numeric), bool_type.numeric.identifier);
+    const expected_bool_type: u32 = c.UA_TYPES[c.UA_TYPES_BOOLEAN].typeId.identifier.numeric;
+    try testing.expectEqual(expected_bool_type, bool_type.numeric.identifier);
 
     const string_variant = Variant.scalar([]const u8, "test");
     const string_type = string_variant.dataTypeNodeId();
-    try testing.expectEqual(@as(u32, c.UA_TYPES[c.UA_TYPES_STRING].typeId.identifier.numeric), string_type.numeric.identifier);
+    const expected_string_type: u32 = c.UA_TYPES[c.UA_TYPES_STRING].typeId.identifier.numeric;
+    try testing.expectEqual(expected_string_type, string_type.numeric.identifier);
 
     const double_variant = Variant.scalar(f64, 3.14);
     const double_type = double_variant.dataTypeNodeId();
-    try testing.expectEqual(@as(u32, c.UA_TYPES[c.UA_TYPES_DOUBLE].typeId.identifier.numeric), double_type.numeric.identifier);
+    const expected_double_type: u32 = c.UA_TYPES[c.UA_TYPES_DOUBLE].typeId.identifier.numeric;
+    try testing.expectEqual(expected_double_type, double_type.numeric.identifier);
 }
 
 test "Variant dataTypeNodeId for array types" {
@@ -845,12 +849,14 @@ test "Variant dataTypeNodeId for array types" {
     const int_array = [_]i32{ 1, 2, 3 };
     const array_variant = Variant.array(i32, &int_array);
     const array_type = array_variant.dataTypeNodeId();
-    try testing.expectEqual(@as(u32, c.UA_TYPES[c.UA_TYPES_INT32].typeId.identifier.numeric), array_type.numeric.identifier);
+    const expected_array_type: u32 = c.UA_TYPES[c.UA_TYPES_INT32].typeId.identifier.numeric;
+    try testing.expectEqual(expected_array_type, array_type.numeric.identifier);
 
     const bool_array = [_]bool{ true, false };
     const bool_variant = Variant.array(bool, &bool_array);
     const bool_type = bool_variant.dataTypeNodeId();
-    try testing.expectEqual(@as(u32, c.UA_TYPES[c.UA_TYPES_BOOLEAN].typeId.identifier.numeric), bool_type.numeric.identifier);
+    const expected_bool_array_type: u32 = c.UA_TYPES[c.UA_TYPES_BOOLEAN].typeId.identifier.numeric;
+    try testing.expectEqual(expected_bool_array_type, bool_type.numeric.identifier);
 }
 
 test "Variant dataTypeNodeId for empty variant" {
