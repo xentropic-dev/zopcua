@@ -243,10 +243,43 @@ def update_roadmap(filepath: str, percentages: Dict[str, Tuple[float, int, int]]
     with open(filepath, 'w') as f:
         f.write(content)
 
+def update_readme(readme_path: str, percentage: float):
+    """Update the progress bar and percentage in README.md"""
+    with open(readme_path, 'r') as f:
+        content = f.read()
+
+    # Calculate progress bar (20 blocks total)
+    filled = int(percentage / 5)  # Each block represents 5%
+    empty = 20 - filled
+    progress_bar = '█' * filled + '░' * empty
+
+    # Update feature parity line
+    content = re.sub(
+        r'\*\*Feature Parity:\*\* \d+% complete',
+        f'**Feature Parity:** {percentage:.0f}% complete',
+        content
+    )
+
+    # Update progress bar
+    pattern = r'```\nProgress: \[.*?\] \d+%\n```'
+    replacement = f'```\nProgress: [{progress_bar}] {percentage:.0f}%\n```'
+    content = re.sub(pattern, replacement, content)
+
+    # Update other percentage references
+    content = re.sub(
+        r'The library is at \d+% parity',
+        f'The library is at {percentage:.0f}% parity',
+        content
+    )
+
+    with open(readme_path, 'w') as f:
+        f.write(content)
+
 def main():
-    # Get roadmap path relative to script location
+    # Get paths relative to script location
     script_dir = Path(__file__).parent
     roadmap_path = script_dir.parent / 'docs' / 'ROADMAP.md'
+    readme_path = script_dir.parent / 'README.md'
 
     if not roadmap_path.exists():
         print(f"Error: ROADMAP.md not found at {roadmap_path}")
@@ -259,8 +292,10 @@ def main():
     print("-" * 70)
 
     # Print overall first
+    overall_pct = 0
     if 'OVERALL' in percentages:
         pct, comp, tot = percentages['OVERALL']
+        overall_pct = pct
         print(f"{'OVERALL':40s} {pct:5.1f}% ({comp}/{tot})")
         print("-" * 70)
 
@@ -274,7 +309,11 @@ def main():
     print("\nUpdating ROADMAP.md...")
     update_roadmap(str(roadmap_path), percentages)
 
-    print("✅ Done! ROADMAP.md has been updated with calculated percentages.")
+    if readme_path.exists():
+        print("Updating README.md...")
+        update_readme(str(readme_path), overall_pct)
+
+    print("✅ Done! Documentation has been updated with calculated percentages.")
     return 0
 
 if __name__ == '__main__':

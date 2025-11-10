@@ -13,10 +13,15 @@
 
 **This library is under active development and NOT ready for production use.**
 
+**Feature Parity:** 25% complete (see [ROADMAP.md](docs/ROADMAP.md))
+
+```
+Progress: [█████░░░░░░░░░░░░░░░] 25%
+```
+
 - Requires Zig 0.15.2
 - See branch/tag history for previous Zig versions
 - APIs are unstable and subject to change
-- Currently at 25% feature parity with open62541 (see [ROADMAP.md](docs/ROADMAP.md))
 
 ### Project Goals
 

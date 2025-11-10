@@ -4,7 +4,7 @@ Utility scripts for maintaining the zopcua project.
 
 ## update_roadmap.py
 
-Automatically calculates and updates completion percentages in `docs/ROADMAP.md`.
+Automatically calculates and updates completion percentages in `docs/ROADMAP.md` and `README.md`.
 
 ### Usage
 
@@ -20,11 +20,15 @@ python3 scripts/update_roadmap.py
    - 🟡 Partial: 0.5 (50%)
    - 🔴 Minimal: 0.1 (10%)
    - ❌ Missing: 0.0 (0%)
-3. **Updates all percentages** - Modifies the roadmap file in-place:
+3. **Updates ROADMAP.md** - Modifies the roadmap file in-place:
    - Overall progress in header
    - Section progress lines
    - Subsection percentages
    - Category summary table
+4. **Updates README.md** - Updates the progress bar and percentages:
+   - Feature parity percentage
+   - Visual progress bar
+   - Contributing section percentage
 
 ### When to run
 
