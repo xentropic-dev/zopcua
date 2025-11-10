@@ -42,6 +42,7 @@ pub const AttributeWriteMask = variable_attributes_module.AttributeWriteMask;
 pub const LocalizedText = localized_text_module.LocalizedText;
 
 pub const AddNodeError = server_module.AddNodeError;
+pub const NamespaceError = server_module.NamespaceError;
 pub const BrowseError = client_module.BrowseError;
 
 pub const BrowseDescription = browse_module.BrowseDescription;
