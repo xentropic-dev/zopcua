@@ -4,6 +4,7 @@ const helpers = @import("helpers.zig");
 const types = @import("types.zig");
 const ua_error = @import("ua_error.zig");
 const VariableAttributes = @import("variable_attributes.zig").VariableAttributes;
+const ObjectAttributes = @import("object_attributes.zig").ObjectAttributes;
 const Variant = @import("variant.zig").Variant;
 const LocalizedText = @import("localized_text.zig").LocalizedText;
 const NodeId = @import("types.zig").NodeId;
@@ -270,7 +271,6 @@ pub const Server = struct {
     /// attributes and relationships.
     ///
     /// Parameters:
-    ///   - allocator: Memory allocator for temporary C conversions
     ///   - node_id: The desired NodeId for the new variable. Use NodeId.initNumeric()
     ///              or NodeId.initString() to create. The server may assign a different
     ///              ID if this one is already in use.
@@ -295,7 +295,6 @@ pub const Server = struct {
     /// Scalar variable:
     /// ```zig
     /// const temp_node = try server.addVariableNode(
-    ///     allocator,
     ///     NodeId.initString(1, "temperature"),
     ///     StandardNodeId.objects_folder,
     ///     ReferenceType.organizes,
@@ -316,7 +315,6 @@ pub const Server = struct {
     /// const measurements = [_]f64{ 10.1, 20.2, 30.3, 40.4, 50.5 };
     /// const array_dims = [_]u32{5};
     /// const array_node = try server.addVariableNode(
-    ///     allocator,
     ///     NodeId.initString(1, "measurements"),
     ///     StandardNodeId.objects_folder,
     ///     ReferenceType.organizes,
@@ -333,7 +331,6 @@ pub const Server = struct {
     /// ```
     pub fn addVariableNode(
         self: *Server,
-        allocator: std.mem.Allocator,
         node_id: NodeId,
         parent_node_id: NodeId,
         parent_ref_node_id: NodeId,
@@ -341,29 +338,142 @@ pub const Server = struct {
         type_definition: NodeId,
         attrs: VariableAttributes,
     ) AddNodeError!NodeId {
+        // Use internal arena for temporary C conversions
+        var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+        defer arena.deinit();
+
+        const arena_allocator = arena.allocator();
+
         // Convert to C types
-        const c_attrs = attrs.toC(allocator) catch return AddNodeError.OutOfMemory;
-        defer {
-            Variant.freeCVariant(allocator, c_attrs.value);
-            attrs.freeToC(allocator, c_attrs);
-        }
+        const c_attrs = attrs.toC(arena_allocator) catch return AddNodeError.OutOfMemory;
 
         // SAFETY: out_node_id is written to by UA_Server_addVariableNode before being read
         var out_node_id: c.UA_NodeId = undefined;
 
         // Convert NodeIds and QualifiedName to C representation
-        const c_node_id = try node_id.toC(allocator);
-        defer node_id.freeToC(allocator, c_node_id);
-        const c_parent_node_id = try parent_node_id.toC(allocator);
-        defer parent_node_id.freeToC(allocator, c_parent_node_id);
-        const c_parent_ref_node_id = try parent_ref_node_id.toC(allocator);
-        defer parent_ref_node_id.freeToC(allocator, c_parent_ref_node_id);
-        const c_name = try name.toC(allocator);
-        defer name.freeToC(allocator, c_name);
-        const c_type_definition = try type_definition.toC(allocator);
-        defer type_definition.freeToC(allocator, c_type_definition);
+        const c_node_id = try node_id.toC(arena_allocator);
+        const c_parent_node_id = try parent_node_id.toC(arena_allocator);
+        const c_parent_ref_node_id = try parent_ref_node_id.toC(arena_allocator);
+        const c_name = try name.toC(arena_allocator);
+        const c_type_definition = try type_definition.toC(arena_allocator);
 
         const status = c.UA_Server_addVariableNode(
+            self.handle,
+            c_node_id,
+            c_parent_node_id,
+            c_parent_ref_node_id,
+            c_name,
+            c_type_definition,
+            c_attrs,
+            null, // nodeContext
+            &out_node_id,
+        );
+
+        // Map status codes to specific errors
+        return switch (status) {
+            c.UA_STATUSCODE_GOOD => NodeId.fromC(out_node_id),
+            c.UA_STATUSCODE_BADNODEIDEXISTS => AddNodeError.NodeIdExists,
+            c.UA_STATUSCODE_BADPARENTNODEIDINVALID => AddNodeError.InvalidParentNodeId,
+            c.UA_STATUSCODE_BADREFERENCENOTALLOWED => AddNodeError.ReferenceNotAllowed,
+            c.UA_STATUSCODE_BADTYPEMISMATCH => AddNodeError.TypeMismatch,
+            c.UA_STATUSCODE_BADNODECLASSINVALID => AddNodeError.InvalidNodeClass,
+            c.UA_STATUSCODE_BADNODEATTRIBUTESINVALID => AddNodeError.InvalidNodeAttributes,
+            c.UA_STATUSCODE_BADTYPEDEFINITIONINVALID => AddNodeError.InvalidTypeDefinition,
+            c.UA_STATUSCODE_BADBROWSENAMEINVALID => AddNodeError.InvalidBrowseName,
+            c.UA_STATUSCODE_BADBROWSENAMEDUPLICATED => AddNodeError.DuplicateBrowseName,
+            c.UA_STATUSCODE_BADNODEIDUNKNOWN => AddNodeError.NodeIdUnknown,
+            c.UA_STATUSCODE_BADOUTOFMEMORY => AddNodeError.OutOfMemory,
+            c.UA_STATUSCODE_BADTOOMANYOPERATIONS => AddNodeError.TooManyOperations,
+            c.UA_STATUSCODE_BADINTERNALERROR => AddNodeError.InternalError,
+            else => AddNodeError.Unknown,
+        };
+    }
+
+    /// Add an object node to the OPC UA server
+    ///
+    /// Creates a new object node in the server's address space. Object nodes serve as
+    /// containers for organizing other nodes (variables, methods, other objects) and
+    /// represent physical or logical objects in the system.
+    ///
+    /// Parameters:
+    ///   - node_id: The desired NodeId for the new object. Use NodeId.initNumeric()
+    ///              or NodeId.initString() to create. The server may assign a different
+    ///              ID if this one is already in use.
+    ///   - parent_node_id: The NodeId of the parent node (e.g., StandardNodeId.objects_folder)
+    ///   - parent_ref_node_id: The reference type connecting to parent (e.g., ReferenceType.organizes)
+    ///   - name: The qualified name (browse name) for the object
+    ///   - type_definition: The type definition NodeId (e.g., StandardNodeId.base_object_type)
+    ///   - attrs: Object attributes including display name, description, event notifier
+    ///
+    /// Returns:
+    ///   - The actual NodeId assigned by the server (may differ from requested node_id)
+    ///
+    /// Errors:
+    ///   - NodeIdExists: The requested NodeId is already in use
+    ///   - InvalidParentNodeId: The parent node doesn't exist
+    ///   - InvalidTypeDefinition: The type definition node doesn't exist
+    ///   - OutOfMemory: Allocation failed during conversion
+    ///   - (see AddNodeError for complete list)
+    ///
+    /// Example:
+    /// ```zig
+    /// // Create a "Sensors" folder object to organize sensor variables
+    /// const sensors_folder = try server.addObjectNode(
+    ///     NodeId.initString(1, "sensors"),
+    ///     StandardNodeId.objects_folder,
+    ///     ReferenceType.organizes,
+    ///     QualifiedName.init(1, "Sensors"),
+    ///     StandardNodeId.folder_type,
+    ///     .{
+    ///         .display_name = LocalizedText.init("en-US", "Sensors"),
+    ///         .description = LocalizedText.initText("Folder containing all sensor nodes"),
+    ///     },
+    /// );
+    ///
+    /// // Now add variables under the sensors folder
+    /// _ = try server.addVariableNode(
+    ///     allocator,
+    ///     NodeId.initString(1, "temperature"),
+    ///     sensors_folder,  // parent is the sensors folder
+    ///     ReferenceType.has_component,
+    ///     QualifiedName.init(1, "Temperature"),
+    ///     StandardNodeId.base_data_variable_type,
+    ///     .{
+    ///         .value = Variant.scalar(f64, 23.5),
+    ///         .display_name = LocalizedText.init("en-US", "Temperature"),
+    ///         .access_level = .{ .read = true },
+    ///     },
+    /// );
+    /// ```
+    pub fn addObjectNode(
+        self: *Server,
+        node_id: NodeId,
+        parent_node_id: NodeId,
+        parent_ref_node_id: NodeId,
+        name: QualifiedName,
+        type_definition: NodeId,
+        attrs: ObjectAttributes,
+    ) AddNodeError!NodeId {
+        // Use internal arena for temporary C conversions
+        var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+        defer arena.deinit();
+
+        const arena_allocator = arena.allocator();
+
+        // Convert to C types
+        const c_attrs = attrs.toC();
+
+        // SAFETY: out_node_id is written to by UA_Server_addObjectNode before being read
+        var out_node_id: c.UA_NodeId = undefined;
+
+        // Convert NodeIds and QualifiedName to C representation
+        const c_node_id = try node_id.toC(arena_allocator);
+        const c_parent_node_id = try parent_node_id.toC(arena_allocator);
+        const c_parent_ref_node_id = try parent_ref_node_id.toC(arena_allocator);
+        const c_name = try name.toC(arena_allocator);
+        const c_type_definition = try type_definition.toC(arena_allocator);
+
+        const status = c.UA_Server_addObjectNode(
             self.handle,
             c_node_id,
             c_parent_node_id,
@@ -408,7 +518,6 @@ pub const Server = struct {
     /// after startup may cause undefined behavior.
     ///
     /// Parameters:
-    ///   - allocator: Memory allocator for temporary C string conversion
     ///   - namespace_uri: URI string identifying the namespace (e.g., "http://example.com/myapp")
     ///
     /// Returns:
@@ -424,28 +533,31 @@ pub const Server = struct {
     /// var server = try Server.init();
     /// defer server.deinit();
     ///
-    /// const ns_idx = try server.addNamespace(allocator, "http://example.com/sensors");
+    /// const ns_idx = try server.addNamespace("http://example.com/sensors");
     /// // ns_idx will be 2 (first custom namespace)
     ///
     /// // Now use ns_idx when creating nodes:
     /// const node = try server.addVariableNode(
+    ///     allocator,
     ///     NodeId.initString(ns_idx, "temperature"),
     ///     // ... other params
     /// );
     /// ```
     pub fn addNamespace(
         self: *Server,
-        allocator: std.mem.Allocator,
         namespace_uri: []const u8,
     ) NamespaceError!u16 {
         // Validation
         if (namespace_uri.len == 0) return NamespaceError.InvalidNamespaceUri;
 
+        // Use internal arena for temporary C string conversion
+        var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+        defer arena.deinit();
+
         // Convert to null-terminated C string
-        const c_uri = allocator.allocSentinel(u8, namespace_uri.len, 0) catch {
+        const c_uri = arena.allocator().allocSentinel(u8, namespace_uri.len, 0) catch {
             return NamespaceError.OutOfMemory;
         };
-        defer allocator.free(c_uri);
         @memcpy(c_uri, namespace_uri);
 
         // Call C API
@@ -565,11 +677,11 @@ test "Server.addNamespace basic functionality" {
     defer server.deinit();
 
     // First custom namespace should be index 2
-    const idx1 = try server.addNamespace(testing.allocator, "http://example.com/test");
+    const idx1 = try server.addNamespace("http://example.com/test");
     try testing.expectEqual(@as(u16, 2), idx1);
 
     // Second should be index 3
-    const idx2 = try server.addNamespace(testing.allocator, "http://example.com/other");
+    const idx2 = try server.addNamespace("http://example.com/other");
     try testing.expectEqual(@as(u16, 3), idx2);
 }
 
@@ -579,7 +691,7 @@ test "Server.addNamespace rejects empty URI" {
     var server = try Server.init();
     defer server.deinit();
 
-    const result = server.addNamespace(testing.allocator, "");
+    const result = server.addNamespace("");
     try testing.expectError(NamespaceError.InvalidNamespaceUri, result);
 }
 
@@ -599,7 +711,7 @@ test "Server.getNamespaceByName finds custom namespace" {
     var server = try Server.init();
     defer server.deinit();
 
-    const added_idx = try server.addNamespace(testing.allocator, "http://example.com/test");
+    const added_idx = try server.addNamespace("http://example.com/test");
     const found_idx = try server.getNamespaceByName("http://example.com/test");
     try testing.expectEqual(added_idx, found_idx);
 }
@@ -633,7 +745,7 @@ test "Server.getNamespaceByIndex retrieves custom namespace" {
     defer server.deinit();
 
     const test_uri = "http://example.com/custom";
-    const idx = try server.addNamespace(testing.allocator, test_uri);
+    const idx = try server.addNamespace(test_uri);
 
     const retrieved_uri = try server.getNamespaceByIndex(testing.allocator, idx);
     defer testing.allocator.free(retrieved_uri);

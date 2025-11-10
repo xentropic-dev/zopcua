@@ -7,6 +7,7 @@ pub const ua_error = @import("ua_error.zig");
 const types_module = @import("types.zig");
 const variant_module = @import("variant.zig");
 const variable_attributes_module = @import("variable_attributes.zig");
+const object_attributes_module = @import("object_attributes.zig");
 const localized_text_module = @import("localized_text.zig");
 const server_module = @import("server.zig");
 const client_module = @import("client.zig");
@@ -39,6 +40,9 @@ pub const VariableAttributes = variable_attributes_module.VariableAttributes;
 pub const AccessLevel = variable_attributes_module.AccessLevel;
 pub const AttributeWriteMask = variable_attributes_module.AttributeWriteMask;
 
+pub const ObjectAttributes = object_attributes_module.ObjectAttributes;
+pub const EventNotifier = object_attributes_module.EventNotifier;
+
 pub const LocalizedText = localized_text_module.LocalizedText;
 
 pub const AddNodeError = server_module.AddNodeError;
@@ -61,6 +65,8 @@ test {
     _ = @import("ua_error.zig");
     _ = @import("variant.zig");
     _ = @import("variable_attributes.zig");
+    _ = @import("object_attributes.zig");
+    _ = @import("event_notifier.zig");
     _ = @import("types.zig");
     _ = @import("server_config.zig");
     _ = @import("client_config.zig");

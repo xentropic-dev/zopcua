@@ -10,14 +10,8 @@ pub fn main() !void {
     defer server.deinit();
 
     // Add custom namespaces
-    const sensor_ns = try server.addNamespace(
-        allocator,
-        "http://example.com/sensors",
-    );
-    const actuator_ns = try server.addNamespace(
-        allocator,
-        "http://example.com/actuators",
-    );
+    const sensor_ns = try server.addNamespace("http://example.com/sensors");
+    const actuator_ns = try server.addNamespace("http://example.com/actuators");
 
     std.log.info("Created sensor namespace at index {d}", .{sensor_ns});
     std.log.info("Created actuator namespace at index {d}", .{actuator_ns});

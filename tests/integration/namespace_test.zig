@@ -8,14 +8,8 @@ test "namespace management end-to-end" {
     defer server.deinit();
 
     // Add custom namespaces
-    const sensor_ns = try server.addNamespace(
-        testing.allocator,
-        "http://example.com/sensors",
-    );
-    const control_ns = try server.addNamespace(
-        testing.allocator,
-        "http://example.com/controls",
-    );
+    const sensor_ns = try server.addNamespace("http://example.com/sensors");
+    const control_ns = try server.addNamespace("http://example.com/controls");
 
     // Verify indices are sequential
     try testing.expectEqual(@as(u16, 2), sensor_ns);
@@ -32,7 +26,6 @@ test "namespace management end-to-end" {
 
     // Use namespace in node creation
     _ = try server.addVariableNode(
-        testing.allocator,
         ua.NodeId.initString(sensor_ns, "temperature"),
         ua.StandardNodeId.objects_folder,
         ua.ReferenceType.organizes,
@@ -51,10 +44,7 @@ test "namespace persistence across server lifecycle" {
 
     var server = try ua.Server.init();
 
-    const ns_idx = try server.addNamespace(
-        testing.allocator,
-        "http://example.com/persistent",
-    );
+    const ns_idx = try server.addNamespace("http://example.com/persistent");
 
     // Start and stop server (namespace should survive)
     try server.start();

@@ -26,7 +26,7 @@ fn serverThread(allocator: std.mem.Allocator) !void {
 
     // Add a counter variable that we'll modify
     _ = try server.addVariableNode(
-        allocator,
+
         ua.NodeId.initString(1, "counter"),
         ua.StandardNodeId.objects_folder,
         ua.ReferenceType.organizes,
@@ -38,7 +38,7 @@ fn serverThread(allocator: std.mem.Allocator) !void {
             .description = ua.LocalizedText.init("en-US", "A counter that the client will increment"),
             .access_level = .{ .read = true, .write = true },
         },
-        allocator,
+
     );
 
     std.log.info("Server started on opc.tcp://localhost:4840", .{});

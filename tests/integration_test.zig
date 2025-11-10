@@ -77,7 +77,6 @@ pub fn main() !void {
 
     // Add a simple writable integer variable
     _ = try rw_server.addVariableNode(
-        allocator,
         ua.NodeId.initString(1, "test.value"),
         ua.StandardNodeId.objects_folder,
         ua.ReferenceType.organizes,
