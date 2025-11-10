@@ -26,6 +26,7 @@ pub const BrowseDescription = struct {
 
     /// Convert to C API representation
     pub fn toC(self: BrowseDescription, allocator: std.mem.Allocator) !c.UA_BrowseDescription {
+        // SAFETY: result fields are all initialized below before returning
         var result: c.UA_BrowseDescription = undefined;
 
         result.nodeId = try self.node_id.toC(allocator);

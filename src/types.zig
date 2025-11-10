@@ -252,6 +252,7 @@ pub const ExpandedNodeId = struct {
     /// For namespace_uri, allocates temporary null-terminated string.
     /// Caller must call freeToC() with the same allocator to clean up.
     pub fn toC(self: ExpandedNodeId, allocator: std.mem.Allocator) !c.UA_ExpandedNodeId {
+        // SAFETY: result fields are all initialized below before returning
         var result: c.UA_ExpandedNodeId = undefined;
         result.nodeId = try self.node_id.toC(allocator);
         result.serverIndex = self.server_index;

@@ -596,6 +596,7 @@ pub const Client = struct {
         defer description.freeToC(c_desc, arena.allocator());
 
         // Create browse request
+        // SAFETY: request is immediately initialized by UA_BrowseRequest_init before any use
         var request: c.UA_BrowseRequest = undefined;
         c.UA_BrowseRequest_init(&request);
         request.requestedMaxReferencesPerNode = max_references;
@@ -655,6 +656,7 @@ pub const Client = struct {
         allocator: std.mem.Allocator,
     ) BrowseError!BrowseResult {
         // Create browse next request
+        // SAFETY: request is immediately initialized by UA_BrowseNextRequest_init before any use
         var request: c.UA_BrowseNextRequest = undefined;
         c.UA_BrowseNextRequest_init(&request);
         request.releaseContinuationPoints = false;
