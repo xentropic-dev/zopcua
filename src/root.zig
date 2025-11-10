@@ -14,6 +14,7 @@ const client_module = @import("client.zig");
 const server_config_module = @import("server_config.zig");
 const client_config_module = @import("client_config.zig");
 const browse_module = @import("browse.zig");
+const subscription_module = @import("subscription.zig");
 
 pub const Server = server_module.Server;
 pub const ServerConfig = server_config_module.ServerConfig;
@@ -48,6 +49,14 @@ pub const LocalizedText = localized_text_module.LocalizedText;
 pub const AddNodeError = server_module.AddNodeError;
 pub const NamespaceError = server_module.NamespaceError;
 pub const BrowseError = client_module.BrowseError;
+pub const SubscriptionError = client_module.SubscriptionError;
+pub const MonitoredItemError = client_module.MonitoredItemError;
+
+pub const SubscriptionParameters = subscription_module.SubscriptionParameters;
+pub const SubscriptionId = subscription_module.SubscriptionId;
+pub const MonitoredItemParameters = subscription_module.MonitoredItemParameters;
+pub const MonitoredItemId = subscription_module.MonitoredItemId;
+pub const MonitoringMode = subscription_module.MonitoringMode;
 
 pub const BrowseDescription = browse_module.BrowseDescription;
 pub const BrowseResult = browse_module.BrowseResult;
@@ -60,6 +69,7 @@ pub const variant = variant_module;
 pub const server = server_module;
 pub const client = client_module;
 pub const browse = browse_module;
+pub const subscription = subscription_module;
 
 test {
     _ = @import("ua_error.zig");
@@ -71,4 +81,5 @@ test {
     _ = @import("server_config.zig");
     _ = @import("client_config.zig");
     _ = @import("browse.zig");
+    _ = @import("subscription.zig");
 }
