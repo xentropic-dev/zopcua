@@ -50,4 +50,5 @@ test {
     _ = @import("types.zig");
     _ = @import("server_config.zig");
     _ = @import("client_config.zig");
+    _ = @import("browse.zig");
 }
