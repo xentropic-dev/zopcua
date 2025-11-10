@@ -12,6 +12,20 @@ const ReferenceType = @import("types.zig").ReferenceType;
 const QualifiedName = @import("types.zig").QualifiedName;
 const ServerConfig = @import("server_config.zig").ServerConfig;
 
+/// Errors that can occur during namespace operations
+pub const NamespaceError = error{
+    /// The namespace URI is invalid or empty
+    InvalidNamespaceUri,
+    /// The namespace was not found
+    NamespaceNotFound,
+    /// Maximum namespaces exceeded (rare)
+    TooManyNamespaces,
+    /// Out of memory
+    OutOfMemory,
+    /// Internal server error
+    InternalError,
+};
+
 /// Errors that can occur when adding a variable node
 pub const AddNodeError = error{
     /// The requested NodeId already exists in the address space
