@@ -548,7 +548,7 @@ pub const Client = struct {
     ///     .browse_direction = .forward,
     ///     .reference_type_id = ReferenceType.organizes,
     ///     .include_subtypes = true,
-    ///     .node_class_mask = @intFromEnum(NodeClass.object),
+    ///     .node_class_mask = .objects_only,
     /// };
     /// const result = try client.browseWithDescription(desc, 100, allocator);
     /// defer result.deinit(allocator);

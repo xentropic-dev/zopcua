@@ -2,6 +2,8 @@ const std = @import("std");
 const c = @import("c.zig");
 const types = @import("types.zig");
 const LocalizedText = @import("localized_text.zig").LocalizedText;
+pub const NodeClassMask = @import("node_class_mask.zig").NodeClassMask;
+pub const BrowseResultMask = @import("browse_result_mask.zig").BrowseResultMask;
 
 const NodeId = types.NodeId;
 const ExpandedNodeId = types.ExpandedNodeId;
@@ -19,10 +21,10 @@ pub const BrowseDescription = struct {
     reference_type_id: NodeId = NodeId.null_id,
     /// Whether to include subtypes of the reference type
     include_subtypes: bool = true,
-    /// Mask of node classes to return (0 = all classes)
-    node_class_mask: u32 = 0,
-    /// Mask of fields to return in ReferenceDescription (0x3F = all fields)
-    result_mask: u32 = 0x3F,
+    /// Mask of node classes to return (all = all classes)
+    node_class_mask: NodeClassMask = .all,
+    /// Mask of fields to return in ReferenceDescription (all = all fields)
+    result_mask: BrowseResultMask = .all,
 
     /// Convert to C API representation
     pub fn toC(self: BrowseDescription, allocator: std.mem.Allocator) !c.UA_BrowseDescription {
@@ -33,8 +35,8 @@ pub const BrowseDescription = struct {
         result.browseDirection = self.browse_direction.toC();
         result.referenceTypeId = try self.reference_type_id.toC(allocator);
         result.includeSubtypes = self.include_subtypes;
-        result.nodeClassMask = self.node_class_mask;
-        result.resultMask = self.result_mask;
+        result.nodeClassMask = self.node_class_mask.toC();
+        result.resultMask = self.result_mask.toC();
 
         return result;
     }
@@ -249,8 +251,8 @@ test "BrowseDescription default values" {
 
     try testing.expectEqual(BrowseDirection.forward, desc.browse_direction);
     try testing.expect(desc.include_subtypes);
-    try testing.expectEqual(@as(u32, 0), desc.node_class_mask);
-    try testing.expectEqual(@as(u32, 0x3F), desc.result_mask);
+    try testing.expectEqual(NodeClassMask.all, desc.node_class_mask);
+    try testing.expectEqual(BrowseResultMask.all, desc.result_mask);
 }
 
 test "BrowseDescription toC/freeToC" {
@@ -264,8 +266,8 @@ test "BrowseDescription toC/freeToC" {
         .browse_direction = .both,
         .reference_type_id = ref_type,
         .include_subtypes = false,
-        .node_class_mask = @intFromEnum(NodeClass.variable),
-        .result_mask = 0x1F,
+        .node_class_mask = .variables_only,
+        .result_mask = .{ .reference_type_id = true, .is_forward = true, .node_class = true, .browse_name = true, .display_name = true },
     };
 
     const c_desc = try desc.toC(testing.allocator);
@@ -273,7 +275,7 @@ test "BrowseDescription toC/freeToC" {
 
     try testing.expectEqual(@as(u32, c.UA_BROWSEDIRECTION_BOTH), c_desc.browseDirection);
     try testing.expectEqual(false, c_desc.includeSubtypes);
-    try testing.expectEqual(@as(u32, @intFromEnum(NodeClass.variable)), c_desc.nodeClassMask);
+    try testing.expectEqual(@as(u32, c.UA_NODECLASS_VARIABLE), c_desc.nodeClassMask);
     try testing.expectEqual(@as(u32, 0x1F), c_desc.resultMask);
 }
 

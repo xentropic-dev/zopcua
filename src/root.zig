@@ -37,11 +37,18 @@ pub const Variant = variant_module.Variant;
 
 pub const VariableAttributes = variable_attributes_module.VariableAttributes;
 pub const AccessLevel = variable_attributes_module.AccessLevel;
+pub const AttributeWriteMask = variable_attributes_module.AttributeWriteMask;
 
 pub const LocalizedText = localized_text_module.LocalizedText;
 
 pub const AddNodeError = server_module.AddNodeError;
 pub const BrowseError = client_module.BrowseError;
+
+pub const BrowseDescription = browse_module.BrowseDescription;
+pub const BrowseResult = browse_module.BrowseResult;
+pub const ReferenceDescription = browse_module.ReferenceDescription;
+pub const NodeClassMask = browse_module.NodeClassMask;
+pub const BrowseResultMask = browse_module.BrowseResultMask;
 
 pub const types = types_module;
 pub const variant = variant_module;
