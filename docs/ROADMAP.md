@@ -263,10 +263,10 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 - ❌ `UA_Client_findServersOnNetwork` - Find servers on network
 - ❌ `UA_Client_getEndpoints` - Get server endpoints
 
-### 2.12 Client Advanced (0% ❌)
+### 2.12 Client Advanced (11% 🔴)
 - ❌ `UA_Client_Service_*` - Low-level service calls
 - ❌ `UA_Client_forEachChildNodeCall` - Iterate child nodes
-- ❌ `UA_Client_NamespaceGetIndex` - Get namespace index
+- ✅ `Client.getNamespaceByName()` - Get namespace index from URI
 - ❌ `UA_Client_addTimedCallback` - Add timed callback
 - ❌ `UA_Client_addRepeatedCallback` - Add repeated callback
 - ❌ `UA_Client_removeCallback` - Remove callback
@@ -401,7 +401,7 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 
 **Progress: 61%**
 
-### 6.1 Examples (69% 🟡)
+### 6.1 Examples (75% 🟡)
 - ✅ `server-minimal` - Minimal server
 - ✅ `server-simple` - Simple server with variables
 - ✅ `server-advanced` - Advanced server features
@@ -413,6 +413,7 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 - ✅ `client-write` - Write operations
 - ✅ `client-custom-config` - Custom configuration
 - ✅ `client-server` - Combined client-server
+- ✅ `client-namespace` - Namespace discovery
 - ❌ Subscription examples
 - ❌ Method call examples
 - ❌ Event examples

@@ -2,10 +2,6 @@ const std = @import("std");
 const ua = @import("ua");
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
     var server = try ua.Server.init();
     defer server.deinit();
 
@@ -22,7 +18,6 @@ pub fn main() !void {
 
     // Add nodes in different namespaces
     _ = try server.addVariableNode(
-        allocator,
         ua.NodeId.initString(sensor_ns, "temperature"),
         ua.StandardNodeId.objects_folder,
         ua.ReferenceType.organizes,
@@ -34,11 +29,9 @@ pub fn main() !void {
             .description = ua.LocalizedText.init("en-US", "Temperature in Celsius"),
             .access_level = .{ .read = true },
         },
-        allocator,
     );
 
     _ = try server.addVariableNode(
-        allocator,
         ua.NodeId.initString(sensor_ns, "humidity"),
         ua.StandardNodeId.objects_folder,
         ua.ReferenceType.organizes,
@@ -50,11 +43,9 @@ pub fn main() !void {
             .description = ua.LocalizedText.init("en-US", "Relative humidity percentage"),
             .access_level = .{ .read = true },
         },
-        allocator,
     );
 
     _ = try server.addVariableNode(
-        allocator,
         ua.NodeId.initString(actuator_ns, "valve"),
         ua.StandardNodeId.objects_folder,
         ua.ReferenceType.organizes,
@@ -66,7 +57,6 @@ pub fn main() !void {
             .description = ua.LocalizedText.init("en-US", "Main control valve (open/closed)"),
             .access_level = .{ .read = true, .write = true },
         },
-        allocator,
     );
 
     std.log.info("Server running on opc.tcp://localhost:4840", .{});

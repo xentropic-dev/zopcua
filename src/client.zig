@@ -141,6 +141,30 @@ pub const WriteAttributeError = error{
     UnexpectedError,
 };
 
+/// Errors that can occur during namespace operations
+pub const NamespaceError = error{
+    /// The namespace URI is invalid or empty
+    InvalidNamespaceUri,
+    /// The namespace was not found on the server
+    NamespaceNotFound,
+    /// The client is not connected to a server
+    ServerNotConnected,
+    /// The session has been closed
+    SessionClosed,
+    /// The operation timed out
+    Timeout,
+    /// Network communication error occurred
+    CommunicationError,
+    /// Insufficient memory to complete the operation
+    OutOfMemory,
+    /// An internal error occurred
+    InternalError,
+    /// The service is not supported
+    ServiceUnsupported,
+    /// An unexpected error occurred
+    UnexpectedError,
+};
+
 pub const Client = struct {
     handle: *c.UA_Client,
 
@@ -692,6 +716,91 @@ pub const Client = struct {
             return BrowseError.OutOfMemory;
         };
     }
+
+    /// Get the namespace index for a given URI from the connected server.
+    ///
+    /// Queries the server's namespace table for a matching URI and returns its index.
+    /// This is useful for dynamically discovering namespace indices at runtime instead
+    /// of hardcoding them, especially when connecting to servers with varying configurations.
+    ///
+    /// **Memory management:**
+    /// This function uses internal temporary allocations only. No cleanup is required by the caller.
+    ///
+    /// **Parameters:**
+    /// - `namespace_uri`: URI string to search for (e.g., "http://example.com/sensors")
+    ///
+    /// **Returns:**
+    /// - The namespace index if found (typically 0 for OPC UA standard, 1 for server default, 2+ for custom)
+    ///
+    /// **Errors:**
+    /// - `InvalidNamespaceUri` - Empty or null URI provided
+    /// - `NamespaceNotFound` - No namespace with this URI exists on the server
+    /// - `ServerNotConnected` - The client is not connected to a server
+    /// - `SessionClosed` - The session has been closed
+    /// - `Timeout` - The operation timed out
+    /// - `CommunicationError` - Network communication error occurred
+    /// - `OutOfMemory` - Insufficient memory to complete the operation
+    /// - `InternalError` - An internal error occurred
+    /// - `ServiceUnsupported` - The service is not supported by the server
+    /// - `UnexpectedError` - An unexpected error occurred
+    ///
+    /// **Example usage:**
+    /// ```zig
+    /// var client = try Client.init();
+    /// defer client.deinit();
+    /// try client.connect("opc.tcp://localhost:4840");
+    /// defer client.disconnect() catch {};
+    ///
+    /// // Dynamically discover the namespace index
+    /// const ns_idx = try client.getNamespaceByName("http://example.com/sensors");
+    /// std.debug.print("Sensors namespace is at index: {d}\n", .{ns_idx});
+    ///
+    /// // Use the discovered index to construct NodeIds
+    /// const node_id = NodeId.initString(ns_idx, "temperature");
+    /// const value = try client.readValueAttribute(allocator, node_id);
+    /// defer value.deinit(allocator);
+    /// ```
+    pub fn getNamespaceByName(
+        self: Client,
+        namespace_uri: []const u8,
+    ) NamespaceError!u16 {
+        if (namespace_uri.len == 0) return NamespaceError.InvalidNamespaceUri;
+
+        // Convert URI to UA_String
+        var c_uri = c.UA_String{
+            .length = namespace_uri.len,
+            .data = @constCast(namespace_uri.ptr),
+        };
+
+        var found_index: u16 = 0;
+        const status = c.UA_Client_NamespaceGetIndex(
+            self.handle,
+            &c_uri,
+            &found_index,
+        );
+
+        return switch (status) {
+            c.UA_STATUSCODE_GOOD => found_index,
+
+            // Namespace not found
+            c.UA_STATUSCODE_BADNOTFOUND => NamespaceError.NamespaceNotFound,
+
+            // Connection/Session errors
+            c.UA_STATUSCODE_BADSERVERNOTCONNECTED => NamespaceError.ServerNotConnected,
+            c.UA_STATUSCODE_BADSESSIONCLOSED => NamespaceError.SessionClosed,
+            c.UA_STATUSCODE_BADTIMEOUT => NamespaceError.Timeout,
+            c.UA_STATUSCODE_BADREQUESTTIMEOUT => NamespaceError.Timeout,
+            c.UA_STATUSCODE_BADCOMMUNICATIONERROR => NamespaceError.CommunicationError,
+
+            // System errors
+            c.UA_STATUSCODE_BADOUTOFMEMORY => NamespaceError.OutOfMemory,
+            c.UA_STATUSCODE_BADINTERNALERROR => NamespaceError.InternalError,
+            c.UA_STATUSCODE_BADSERVICEUNSUPPORTED => NamespaceError.ServiceUnsupported,
+
+            // Catch-all
+            else => NamespaceError.UnexpectedError,
+        };
+    }
 };
 
 /// Map OPC UA status codes to BrowseError
@@ -726,4 +835,51 @@ fn mapBrowseError(status: c.UA_StatusCode) BrowseError {
         // Catch-all
         else => BrowseError.UnexpectedError,
     };
+}
+
+test "Client.getNamespaceByName rejects empty URI" {
+    const testing = std.testing;
+
+    var client = try Client.init();
+    defer client.deinit();
+
+    const result = client.getNamespaceByName("");
+    try testing.expectError(NamespaceError.InvalidNamespaceUri, result);
+}
+
+test "Client.getNamespaceByName integration test" {
+    const testing = std.testing;
+    const server_mod = @import("server.zig");
+
+    // Start a test server with custom namespaces
+    var server = try server_mod.Server.init();
+    defer server.deinit();
+
+    const test_uri = "http://example.com/test-namespace";
+    const expected_idx = try server.addNamespace(test_uri);
+
+    try server.start();
+    defer server.stop() catch {};
+
+    // Give server time to start
+    std.time.sleep(50 * std.time.ns_per_ms);
+
+    // Connect client
+    var client = try Client.init();
+    defer client.deinit();
+
+    try client.connect("opc.tcp://localhost:4840");
+    defer client.disconnect() catch {};
+
+    // Test: Find standard OPC UA namespace
+    const std_idx = try client.getNamespaceByName("http://opcfoundation.org/UA/");
+    try testing.expectEqual(@as(u16, 0), std_idx);
+
+    // Test: Find custom namespace
+    const found_idx = try client.getNamespaceByName(test_uri);
+    try testing.expectEqual(expected_idx, found_idx);
+
+    // Test: Non-existent namespace
+    const result = client.getNamespaceByName("http://nonexistent.example.com/");
+    try testing.expectError(NamespaceError.NamespaceNotFound, result);
 }
