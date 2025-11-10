@@ -965,18 +965,17 @@ pub const Client = struct {
         request.publishingEnabled = true;
         request.priority = params.priority;
 
-        // Create subscription (callback can be null for now)
-        var subscription_id: u32 = 0;
-        const status = c.UA_Client_Subscriptions_create(
+        // Create subscription - returns response struct
+        const response = c.UA_Client_Subscriptions_create(
             self.handle,
             request,
             null, // context
+            null, // status change callback
             null, // delete callback
-            &subscription_id,
         );
 
-        return switch (status) {
-            c.UA_STATUSCODE_GOOD => subscription_id,
+        return switch (response.responseHeader.serviceResult) {
+            c.UA_STATUSCODE_GOOD => response.subscriptionId,
             c.UA_STATUSCODE_BADSERVERNOTCONNECTED => SubscriptionError.ServerNotConnected,
             c.UA_STATUSCODE_BADSESSIONCLOSED => SubscriptionError.SessionClosed,
             c.UA_STATUSCODE_BADTIMEOUT => SubscriptionError.Timeout,
@@ -1083,20 +1082,19 @@ pub const Client = struct {
         request.requestedParameters.queueSize = params.queue_size;
         request.requestedParameters.discardOldest = params.discard_oldest;
 
-        // Create monitored item (callback can be null for polling)
-        var monitored_item_id: u32 = 0;
-        const status = c.UA_Client_MonitoredItems_createDataChange(
+        // Create monitored item (callback can be null for polling) - returns result struct
+        const result = c.UA_Client_MonitoredItems_createDataChange(
             self.handle,
             subscription_id,
             c.UA_TIMESTAMPSTORETURN_BOTH,
             request,
             null, // context
             null, // callback
-            &monitored_item_id,
+            null, // delete callback
         );
 
-        return switch (status) {
-            c.UA_STATUSCODE_GOOD => monitored_item_id,
+        return switch (result.statusCode) {
+            c.UA_STATUSCODE_GOOD => result.monitoredItemId,
             c.UA_STATUSCODE_BADSERVERNOTCONNECTED => MonitoredItemError.ServerNotConnected,
             c.UA_STATUSCODE_BADSESSIONCLOSED => MonitoredItemError.SessionClosed,
             c.UA_STATUSCODE_BADTIMEOUT => MonitoredItemError.Timeout,
@@ -1107,7 +1105,7 @@ pub const Client = struct {
             c.UA_STATUSCODE_BADINVALIDARGUMENT => MonitoredItemError.InvalidParameters,
             c.UA_STATUSCODE_BADSUBSCRIPTIONIDINVALID => MonitoredItemError.SubscriptionIdInvalid,
             c.UA_STATUSCODE_BADATTRIBUTEIDINVALID => MonitoredItemError.AttributeNotSupported,
-            c.UA_STATUSCODE_BADTOOMANYMONITOREDITEMSINDATACHANGEFILTER => MonitoredItemError.TooManyMonitoredItems,
+            c.UA_STATUSCODE_BADTOOMANYMONITOREDITEMS => MonitoredItemError.TooManyMonitoredItems,
             c.UA_STATUSCODE_BADOUTOFMEMORY => MonitoredItemError.OutOfMemory,
             c.UA_STATUSCODE_BADINTERNALERROR => MonitoredItemError.InternalError,
             c.UA_STATUSCODE_BADSERVICEUNSUPPORTED => MonitoredItemError.ServiceUnsupported,
@@ -1240,9 +1238,8 @@ pub const Client = struct {
         request.requestedParameters.queueSize = params.queue_size;
         request.requestedParameters.discardOldest = params.discard_oldest;
 
-        // Create monitored item with callback
-        var monitored_item_id: u32 = 0;
-        const status = c.UA_Client_MonitoredItems_createDataChange(
+        // Create monitored item with callback - returns result struct
+        const result = c.UA_Client_MonitoredItems_createDataChange(
             self.handle,
             subscription_id,
             c.UA_TIMESTAMPSTORETURN_BOTH,
@@ -1250,17 +1247,16 @@ pub const Client = struct {
             ctx, // context will be passed to callbacks
             dataChangeCallbackWrapper,
             deleteMonitoredItemCallbackWrapper,
-            &monitored_item_id,
         );
 
         // Check status before returning
-        if (status != c.UA_STATUSCODE_GOOD) {
+        if (result.statusCode != c.UA_STATUSCODE_GOOD) {
             // Failed to create - free the context
             std.heap.c_allocator.destroy(ctx);
         }
 
-        return switch (status) {
-            c.UA_STATUSCODE_GOOD => monitored_item_id,
+        return switch (result.statusCode) {
+            c.UA_STATUSCODE_GOOD => result.monitoredItemId,
             c.UA_STATUSCODE_BADSERVERNOTCONNECTED => MonitoredItemError.ServerNotConnected,
             c.UA_STATUSCODE_BADSESSIONCLOSED => MonitoredItemError.SessionClosed,
             c.UA_STATUSCODE_BADTIMEOUT => MonitoredItemError.Timeout,
@@ -1271,7 +1267,7 @@ pub const Client = struct {
             c.UA_STATUSCODE_BADINVALIDARGUMENT => MonitoredItemError.InvalidParameters,
             c.UA_STATUSCODE_BADSUBSCRIPTIONIDINVALID => MonitoredItemError.SubscriptionIdInvalid,
             c.UA_STATUSCODE_BADATTRIBUTEIDINVALID => MonitoredItemError.AttributeNotSupported,
-            c.UA_STATUSCODE_BADTOOMANYMONITOREDITEMSINDATACHANGEFILTER => MonitoredItemError.TooManyMonitoredItems,
+            c.UA_STATUSCODE_BADTOOMANYMONITOREDITEMS => MonitoredItemError.TooManyMonitoredItems,
             c.UA_STATUSCODE_BADOUTOFMEMORY => MonitoredItemError.OutOfMemory,
             c.UA_STATUSCODE_BADINTERNALERROR => MonitoredItemError.InternalError,
             c.UA_STATUSCODE_BADSERVICEUNSUPPORTED => MonitoredItemError.ServiceUnsupported,
@@ -1317,6 +1313,7 @@ fn mapBrowseError(status: c.UA_StatusCode) BrowseError {
 
 test "Client.getNamespaceByName rejects empty URI" {
     const testing = std.testing;
+    std.testing.refAllDecls(@This());
 
     var client = try Client.init();
     defer client.deinit();
@@ -1535,10 +1532,8 @@ test "Client monitored item with callback integration test" {
             _ = mon_id;
             const ctx = @as(*CallbackContext, @ptrCast(@alignCast(userdata.?)));
             ctx.call_count += 1;
-            if (value.* == .scalar) {
-                if (value.scalar == .f64) {
-                    ctx.last_value = value.scalar.f64;
-                }
+            if (value.* == .double) {
+                ctx.last_value = value.double;
             }
         }
     }.onDataChange;
