@@ -267,7 +267,13 @@ test "BrowseDescription toC/freeToC" {
         .reference_type_id = ref_type,
         .include_subtypes = false,
         .node_class_mask = .variables_only,
-        .result_mask = .{ .reference_type_id = true, .is_forward = true, .node_class = true, .browse_name = true, .display_name = true },
+        .result_mask = .{
+            .reference_type_id = true,
+            .is_forward = true,
+            .node_class = true,
+            .browse_name = true,
+            .display_name = true,
+        },
     };
 
     const c_desc = try desc.toC(testing.allocator);
