@@ -23,10 +23,7 @@ pub fn main() !void {
     std.log.info("Created actuator namespace at index {d}", .{actuator_ns});
 
     // Verify namespace lookup
-    const found_ns = try server.getNamespaceByName(
-        allocator,
-        "http://example.com/sensors",
-    );
+    const found_ns = try server.getNamespaceByName("http://example.com/sensors");
     std.log.info("Verified sensor namespace lookup: index {d}", .{found_ns});
 
     // Add nodes in different namespaces

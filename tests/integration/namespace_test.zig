@@ -22,10 +22,7 @@ test "namespace management end-to-end" {
     try testing.expectEqual(@as(u16, 3), control_ns);
 
     // Lookup by name
-    const found_sensor = try server.getNamespaceByName(
-        testing.allocator,
-        "http://example.com/sensors",
-    );
+    const found_sensor = try server.getNamespaceByName("http://example.com/sensors");
     try testing.expectEqual(sensor_ns, found_sensor);
 
     // Lookup by index
@@ -63,10 +60,7 @@ test "namespace persistence across server lifecycle" {
     try server.start();
 
     // Verify namespace still accessible
-    const found = try server.getNamespaceByName(
-        testing.allocator,
-        "http://example.com/persistent",
-    );
+    const found = try server.getNamespaceByName("http://example.com/persistent");
     try testing.expectEqual(ns_idx, found);
 
     try server.stop();

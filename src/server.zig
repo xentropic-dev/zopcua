@@ -463,7 +463,6 @@ pub const Server = struct {
     /// Searches the server's namespace table for a matching URI and returns its index.
     ///
     /// Parameters:
-    ///   - allocator: Memory allocator for temporary C string conversion
     ///   - namespace_uri: URI string to search for
     ///
     /// Returns:
@@ -472,22 +471,16 @@ pub const Server = struct {
     /// Errors:
     ///   - `NamespaceNotFound`: No namespace with this URI exists
     ///   - `InvalidNamespaceUri`: Empty or null URI
-    ///   - `OutOfMemory`: Allocation failed
     ///
     /// Example:
     /// ```zig
-    /// const idx = try server.getNamespaceByName(
-    ///     allocator,
-    ///     "http://opcfoundation.org/UA/",
-    /// );
+    /// const idx = try server.getNamespaceByName("http://opcfoundation.org/UA/");
     /// // idx will be 0 (standard namespace)
     /// ```
     pub fn getNamespaceByName(
         self: *Server,
-        allocator: std.mem.Allocator,
         namespace_uri: []const u8,
     ) NamespaceError!u16 {
-        _ = allocator;
         if (namespace_uri.len == 0) return NamespaceError.InvalidNamespaceUri;
 
         // Convert URI to UA_String
@@ -596,10 +589,7 @@ test "Server.getNamespaceByName finds standard namespace" {
     var server = try Server.init();
     defer server.deinit();
 
-    const idx = try server.getNamespaceByName(
-        testing.allocator,
-        "http://opcfoundation.org/UA/",
-    );
+    const idx = try server.getNamespaceByName("http://opcfoundation.org/UA/");
     try testing.expectEqual(@as(u16, 0), idx);
 }
 
@@ -610,7 +600,7 @@ test "Server.getNamespaceByName finds custom namespace" {
     defer server.deinit();
 
     const added_idx = try server.addNamespace(testing.allocator, "http://example.com/test");
-    const found_idx = try server.getNamespaceByName(testing.allocator, "http://example.com/test");
+    const found_idx = try server.getNamespaceByName("http://example.com/test");
     try testing.expectEqual(added_idx, found_idx);
 }
 
@@ -620,7 +610,7 @@ test "Server.getNamespaceByName returns error for unknown namespace" {
     var server = try Server.init();
     defer server.deinit();
 
-    const result = server.getNamespaceByName(testing.allocator, "http://nonexistent.com/");
+    const result = server.getNamespaceByName("http://nonexistent.com/");
     try testing.expectError(NamespaceError.NamespaceNotFound, result);
 }
 
