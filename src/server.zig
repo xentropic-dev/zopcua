@@ -762,3 +762,97 @@ test "Server.getNamespaceByIndex returns error for invalid index" {
     const result = server.getNamespaceByIndex(testing.allocator, 999);
     try testing.expectError(NamespaceError.NamespaceNotFound, result);
 }
+
+test "Server.addObjectNode basic functionality" {
+    const testing = std.testing;
+
+    var server = try Server.init();
+    defer server.deinit();
+
+    // Create a basic folder object
+    const folder = try server.addObjectNode(
+        NodeId.initString(1, "my_folder"),
+        StandardNodeId.objects_folder,
+        ReferenceType.organizes,
+        QualifiedName.init(1, "MyFolder"),
+        StandardNodeId.folder_type,
+        .{
+            .display_name = LocalizedText.init("en-US", "My Folder"),
+            .description = LocalizedText.initText("A test folder"),
+        },
+    );
+
+    // Verify we got a NodeId back
+    try testing.expectEqual(@as(u16, 1), folder.namespace);
+}
+
+test "Server.addObjectNode with nested variable" {
+    const testing = std.testing;
+
+    var server = try Server.init();
+    defer server.deinit();
+
+    // Create a "Sensors" folder object
+    const sensors_folder = try server.addObjectNode(
+        NodeId.initString(1, "sensors"),
+        StandardNodeId.objects_folder,
+        ReferenceType.organizes,
+        QualifiedName.init(1, "Sensors"),
+        StandardNodeId.folder_type,
+        .{
+            .display_name = LocalizedText.init("en-US", "Sensors"),
+            .description = LocalizedText.initText("Folder containing all sensor nodes"),
+        },
+    );
+
+    // Add a temperature variable under the sensors folder
+    const temp_var = try server.addVariableNode(
+        NodeId.initString(1, "temperature"),
+        sensors_folder, // parent is the sensors folder
+        ReferenceType.has_component,
+        QualifiedName.init(1, "Temperature"),
+        StandardNodeId.base_data_variable_type,
+        .{
+            .value = Variant.scalar(f64, 23.5),
+            .display_name = LocalizedText.init("en-US", "Temperature"),
+            .access_level = .{ .read = true },
+        },
+    );
+
+    // Verify both nodes were created
+    try testing.expectEqual(@as(u16, 1), sensors_folder.namespace);
+    try testing.expectEqual(@as(u16, 1), temp_var.namespace);
+}
+
+test "Server.addObjectNode rejects duplicate NodeId" {
+    const testing = std.testing;
+
+    var server = try Server.init();
+    defer server.deinit();
+
+    // Create first object
+    _ = try server.addObjectNode(
+        NodeId.initString(1, "duplicate"),
+        StandardNodeId.objects_folder,
+        ReferenceType.organizes,
+        QualifiedName.init(1, "First"),
+        StandardNodeId.folder_type,
+        .{
+            .display_name = LocalizedText.init("en-US", "First"),
+        },
+    );
+
+    // Try to create another with same NodeId
+    const result = server.addObjectNode(
+        NodeId.initString(1, "duplicate"),
+        StandardNodeId.objects_folder,
+        ReferenceType.organizes,
+        QualifiedName.init(1, "Second"),
+        StandardNodeId.folder_type,
+        .{
+            .display_name = LocalizedText.init("en-US", "Second"),
+        },
+    );
+
+    try testing.expectError(AddNodeError.NodeIdExists, result);
+}

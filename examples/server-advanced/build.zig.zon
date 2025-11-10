@@ -2,7 +2,7 @@
     .name = .server_advanced,
     .version = "0.0.0",
     .fingerprint = 0x7e2be9cd2990d5bb,
-    .minimum_zig_version = "0.14.0",
+    .minimum_zig_version = "0.15.0",
 
     .dependencies = .{
         .zopcua = .{ .path = "../../" },

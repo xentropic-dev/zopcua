@@ -2,7 +2,7 @@
     .name = .client_write,
     .version = "0.0.0",
     .fingerprint = 0xde06e6e8b49bc7b3,
-    .minimum_zig_version = "0.14.0",
+    .minimum_zig_version = "0.15.0",
 
     .dependencies = .{
         .zopcua = .{ .path = "../../" },

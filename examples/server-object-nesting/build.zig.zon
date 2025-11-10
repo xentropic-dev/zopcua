@@ -1,7 +1,7 @@
 .{
-    .name = .client_server,
+    .name = .server_object_nesting,
     .version = "0.0.0",
-    .fingerprint = 0xfcb9e4565ba14bc,
+    .fingerprint = 0x2203f81316083b0c,
     .minimum_zig_version = "0.15.0",
 
     .dependencies = .{
