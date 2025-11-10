@@ -36,3 +36,44 @@ pub extern fn UA_Client_newDefaultWithStatus() ClientResult;
 // See vendor/helpers.h and vendor/helpers.c for implementation details.
 pub extern fn helper_variant_setScalarCopy(variant: *c.UA_Variant, data: *const anyopaque, data_type: *const c.UA_DataType) c.UA_StatusCode;
 pub extern fn helper_variant_setArrayCopy(variant: *c.UA_Variant, data: *const anyopaque, arrayLength: usize, data_type: *const c.UA_DataType) c.UA_StatusCode;
+
+// Configuration helpers
+//
+// These extern declarations link to C wrapper functions that configure server and client
+// configurations with security settings.
+
+/// Create a UA_ByteString from a byte array (does not copy data)
+pub extern fn helper_createByteString(data: *const anyopaque, length: usize) c.UA_ByteString;
+
+/// Set up minimal server configuration (no security)
+pub extern fn helper_serverConfigSetMinimal(
+    config: *c.UA_ServerConfig,
+    port: c.UA_UInt16,
+    certificate: ?*const c.UA_ByteString,
+) c.UA_StatusCode;
+
+/// Set up server configuration with full security policies
+pub extern fn helper_serverConfigSetSecure(
+    config: *c.UA_ServerConfig,
+    port: c.UA_UInt16,
+    certificate: *const c.UA_ByteString,
+    privateKey: *const c.UA_ByteString,
+    trustList: ?[*]const c.UA_ByteString,
+    trustListSize: usize,
+    issuerList: ?[*]const c.UA_ByteString,
+    issuerListSize: usize,
+    revocationList: ?[*]const c.UA_ByteString,
+    revocationListSize: usize,
+) c.UA_StatusCode;
+
+/// Set up minimal client configuration
+pub extern fn helper_clientConfigSetMinimal(config: *c.UA_ClientConfig) c.UA_StatusCode;
+
+/// Set up client configuration with security
+pub extern fn helper_clientConfigSetSecure(
+    config: *c.UA_ClientConfig,
+    certificate: ?*const c.UA_ByteString,
+    privateKey: ?*const c.UA_ByteString,
+    securityMode: c.UA_MessageSecurityMode,
+    securityPolicyUri: ?[*:0]const u8,
+) c.UA_StatusCode;

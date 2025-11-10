@@ -10,6 +10,7 @@ const NodeId = @import("types.zig").NodeId;
 const StandardNodeId = @import("types.zig").StandardNodeId;
 const ReferenceType = @import("types.zig").ReferenceType;
 const QualifiedName = @import("types.zig").QualifiedName;
+const ServerConfig = @import("server_config.zig").ServerConfig;
 
 /// Errors that can occur when adding a variable node
 pub const AddNodeError = error{
@@ -48,6 +49,42 @@ pub const AddNodeError = error{
 pub const Server = struct {
     handle: *c.UA_Server,
 
+    /// Create a new server with a custom configuration.
+    ///
+    /// This allows full control over server settings including port, security,
+    /// and other options. The server is created but not started.
+    ///
+    /// Example usage:
+    /// ```zig
+    /// var server = try Server.initWithConfig(.{ .port = 8080 });
+    /// defer server.deinit();
+    /// try server.start();
+    /// // ... do work ...
+    /// try server.stop();
+    /// ```
+    ///
+    /// **Errors:**
+    /// - `BadOutOfMemory` - Memory allocation failed during initialization
+    /// - `BadInternalError` - Server creation or configuration failed
+    pub fn initWithConfig(config: ServerConfig) !Server {
+        // SAFETY: Immediately initialized to zero bytes by @memset on next line
+        var c_config: c.UA_ServerConfig = undefined;
+        @memset(std.mem.asBytes(&c_config), 0);
+
+        // Use arena allocator for temporary C conversions
+        var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+        defer arena.deinit();
+
+        // Apply Zig config to C config
+        try config.applyToC(&c_config, arena.allocator());
+
+        // Create server with the configured settings
+        const server = c.UA_Server_newWithConfig(&c_config);
+        if (server == null) return error.BadInternalError;
+
+        return .{ .handle = server.? };
+    }
+
     /// Create a new server with a default configuration that adds plugins for
     /// networking, security, logging and so on. The default configuration can
     /// be used as the starting point to adjust the server configuration to
@@ -70,17 +107,8 @@ pub const Server = struct {
     /// - `BadInternalError` - Internal error during setup (event loop start failed,
     ///   epoll creation failed, invalid configuration, or server creation failed) pm
     pub fn init() !Server {
-        const result = helpers.UA_Server_newDefaultWithStatus();
-        if (result.status == c.UA_STATUSCODE_BADOUTOFMEMORY) {
-            return error.BadOutOfMemory;
-        }
-
-        if (result.status != c.UA_STATUSCODE_GOOD) {
-            return error.BadInternalError;
-        }
-
-        // Config is already set by UA_Server_newDefaultWithStatus
-        return .{ .handle = result.server.? };
+        // Use default configuration
+        return initWithConfig(.{});
     }
 
     /// Cleans up and deallocates the server.

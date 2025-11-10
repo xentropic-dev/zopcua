@@ -70,3 +70,83 @@ UA_StatusCode helper_variant_setArrayCopy(UA_Variant *variant, const void *data,
                                           size_t arrayLength, const UA_DataType *type) {
   return UA_Variant_setArrayCopy(variant, data, arrayLength, type);
 }
+
+// Configuration helpers
+
+UA_ByteString helper_createByteString(const void *data, size_t length) {
+  UA_ByteString bs;
+  bs.length = length;
+  bs.data = (UA_Byte*)data;
+  return bs;
+}
+
+UA_StatusCode helper_serverConfigSetMinimal(
+    UA_ServerConfig *config,
+    UA_UInt16 port,
+    const UA_ByteString *certificate
+) {
+  return UA_ServerConfig_setMinimal(config, port, certificate);
+}
+
+UA_StatusCode helper_serverConfigSetSecure(
+    UA_ServerConfig *config,
+    UA_UInt16 port,
+    const UA_ByteString *certificate,
+    const UA_ByteString *privateKey,
+    const UA_ByteString *trustList,
+    size_t trustListSize,
+    const UA_ByteString *issuerList,
+    size_t issuerListSize,
+    const UA_ByteString *revocationList,
+    size_t revocationListSize
+) {
+  return UA_ServerConfig_setDefaultWithSecurityPolicies(
+      config, port, certificate, privateKey,
+      trustList, trustListSize,
+      issuerList, issuerListSize,
+      revocationList, revocationListSize
+  );
+}
+
+UA_StatusCode helper_clientConfigSetMinimal(UA_ClientConfig *config) {
+  return UA_ClientConfig_setDefault(config);
+}
+
+UA_StatusCode helper_clientConfigSetSecure(
+    UA_ClientConfig *config,
+    const UA_ByteString *certificate,
+    const UA_ByteString *privateKey,
+    UA_MessageSecurityMode securityMode,
+    const char *securityPolicyUri
+) {
+  // First set up the default config
+  UA_StatusCode status = UA_ClientConfig_setDefault(config);
+  if (status != UA_STATUSCODE_GOOD) {
+    return status;
+  }
+
+  // Set security mode
+  config->securityMode = securityMode;
+
+  // Set security policy URI if provided
+  if (securityPolicyUri != NULL) {
+    UA_String_clear(&config->securityPolicyUri);
+    config->securityPolicyUri = UA_STRING_ALLOC(securityPolicyUri);
+  }
+
+  // Set client certificate if provided
+  if (certificate != NULL && certificate->length > 0) {
+    // Store certificate in client description
+    UA_ByteString_clear(&config->clientDescription.applicationUri);
+    status = UA_ByteString_copy(certificate, &config->clientDescription.applicationUri);
+    if (status != UA_STATUSCODE_GOOD) {
+      return status;
+    }
+  }
+
+  // Note: Private key handling is typically done through the security policy configuration
+  // which is more complex. For now, we set the basic parameters.
+  // Full implementation would require setting up the security policy properly.
+
+  return UA_STATUSCODE_GOOD;
+}

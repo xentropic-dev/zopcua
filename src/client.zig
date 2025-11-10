@@ -4,6 +4,7 @@ const helpers = @import("helpers.zig");
 const ua_error = @import("ua_error.zig");
 const NodeId = @import("types.zig").NodeId;
 const Variant = @import("variant.zig").Variant;
+const ClientConfig = @import("client_config.zig").ClientConfig;
 
 /// Errors that can occur when reading an attribute from a node
 pub const ReadAttributeError = error{
@@ -100,6 +101,42 @@ pub const WriteAttributeError = error{
 pub const Client = struct {
     handle: *c.UA_Client,
 
+    /// Create a new client with a custom configuration.
+    ///
+    /// This allows full control over client settings including timeouts, security,
+    /// and other options. The client is created but not connected.
+    ///
+    /// Example usage:
+    /// ```zig
+    /// var client = try Client.initWithConfig(.{ .timeout = 10000 });
+    /// defer client.deinit();
+    /// try client.connect("opc.tcp://localhost:4840");
+    /// // ... do work ...
+    /// client.disconnect();
+    /// ```
+    ///
+    /// **Errors:**
+    /// - `BadOutOfMemory` - Memory allocation failed during initialization
+    /// - `BadInternalError` - Client creation or configuration failed
+    pub fn initWithConfig(config: ClientConfig) !Client {
+        // SAFETY: Immediately initialized to zero bytes by @memset on next line
+        var c_config: c.UA_ClientConfig = undefined;
+        @memset(std.mem.asBytes(&c_config), 0);
+
+        // Use arena allocator for temporary C conversions
+        var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+        defer arena.deinit();
+
+        // Apply Zig config to C config
+        try config.applyToC(&c_config, arena.allocator());
+
+        // Create client with the configured settings
+        const client = c.UA_Client_newWithConfig(&c_config);
+        if (client == null) return error.BadInternalError;
+
+        return .{ .handle = client.? };
+    }
+
     /// Create a new client with a default configuration that adds plugins for
     /// networking, security, logging and so on. The default configuration can
     /// be used as the starting point to adjust the client configuration to
@@ -121,14 +158,8 @@ pub const Client = struct {
     /// - `BadInternalError` - Internal error during client initialization (config setup
     ///   failed or client creation failed)
     pub fn init() !Client {
-        const result = helpers.UA_Client_newDefaultWithStatus();
-        if (result.status == c.UA_STATUSCODE_BADOUTOFMEMORY) {
-            return error.BadOutOfMemory;
-        }
-        if (result.status != c.UA_STATUSCODE_GOOD) {
-            return error.BadInternalError;
-        }
-        return .{ .handle = result.client.? };
+        // Use default configuration
+        return initWithConfig(.{});
     }
 
     /// Free the client resources.

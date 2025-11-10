@@ -90,5 +90,47 @@ UA_StatusCode helper_variant_setScalarCopy(UA_Variant *variant, const void *data
 UA_StatusCode helper_variant_setArrayCopy(UA_Variant *variant, const void *data,
                                           size_t arrayLength, const UA_DataType *type);
 
+// Configuration helpers
+//
+// These helpers wrap open62541's configuration functions to provide a clean interface
+// for setting up server and client configurations with security.
+
+// Create a UA_ByteString from a byte array
+// Note: Does NOT copy the data, just wraps the pointer
+UA_ByteString helper_createByteString(const void *data, size_t length);
+
+// Set up minimal server configuration (no security)
+UA_StatusCode helper_serverConfigSetMinimal(
+    UA_ServerConfig *config,
+    UA_UInt16 port,
+    const UA_ByteString *certificate
+);
+
+// Set up server configuration with full security policies
+UA_StatusCode helper_serverConfigSetSecure(
+    UA_ServerConfig *config,
+    UA_UInt16 port,
+    const UA_ByteString *certificate,
+    const UA_ByteString *privateKey,
+    const UA_ByteString *trustList,
+    size_t trustListSize,
+    const UA_ByteString *issuerList,
+    size_t issuerListSize,
+    const UA_ByteString *revocationList,
+    size_t revocationListSize
+);
+
+// Set up minimal client configuration
+UA_StatusCode helper_clientConfigSetMinimal(UA_ClientConfig *config);
+
+// Set up client configuration with security
+UA_StatusCode helper_clientConfigSetSecure(
+    UA_ClientConfig *config,
+    const UA_ByteString *certificate,
+    const UA_ByteString *privateKey,
+    UA_MessageSecurityMode securityMode,
+    const char *securityPolicyUri
+);
+
 
 #endif

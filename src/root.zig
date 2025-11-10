@@ -10,9 +10,16 @@ const variable_attributes_module = @import("variable_attributes.zig");
 const localized_text_module = @import("localized_text.zig");
 const server_module = @import("server.zig");
 const client_module = @import("client.zig");
+const server_config_module = @import("server_config.zig");
+const client_config_module = @import("client_config.zig");
 
 pub const Server = server_module.Server;
+pub const ServerConfig = server_config_module.ServerConfig;
+
 pub const Client = client_module.Client;
+pub const ClientConfig = client_config_module.ClientConfig;
+
+pub const SecurityMode = server_config_module.SecurityMode;
 
 pub const NodeId = types_module.NodeId;
 pub const QualifiedName = types_module.QualifiedName;
@@ -41,4 +48,6 @@ test {
     _ = @import("variant.zig");
     _ = @import("variable_attributes.zig");
     _ = @import("types.zig");
+    _ = @import("server_config.zig");
+    _ = @import("client_config.zig");
 }
