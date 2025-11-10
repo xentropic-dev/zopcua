@@ -1,6 +1,7 @@
 const std = @import("std");
 const c = @import("c.zig");
 const types = @import("types.zig");
+const Variant = @import("variant.zig").Variant;
 
 const NodeId = types.NodeId;
 
@@ -59,6 +60,38 @@ pub const MonitoredItemParameters = struct {
     /// Monitoring mode
     monitoring_mode: MonitoringMode = .reporting,
 };
+
+/// Callback function for data change notifications.
+///
+/// This callback is invoked when a monitored item's value changes on the server.
+/// The variant parameter is only valid during the callback - if you need to keep
+/// the data, make a copy using variant.clone().
+///
+/// **Parameters:**
+/// - `userdata`: Optional user context pointer passed during monitored item creation
+/// - `subscription_id`: The subscription that contains this monitored item
+/// - `monitored_item_id`: The monitored item that triggered this notification
+/// - `value`: The new value (valid only during callback)
+///
+/// **Example:**
+/// ```zig
+/// fn myCallback(
+///     userdata: ?*anyopaque,
+///     subscription_id: SubscriptionId,
+///     monitored_item_id: MonitoredItemId,
+///     value: *const Variant,
+/// ) void {
+///     const count = @ptrCast(*u32, @alignCast(@alignOf(u32), userdata.?));
+///     count.* += 1;
+///     std.debug.print("Value changed: {}\n", .{value});
+/// }
+/// ```
+pub const DataChangeCallback = *const fn (
+    userdata: ?*anyopaque,
+    subscription_id: SubscriptionId,
+    monitored_item_id: MonitoredItemId,
+    value: *const Variant,
+) void;
 
 test "SubscriptionParameters defaults" {
     const testing = std.testing;

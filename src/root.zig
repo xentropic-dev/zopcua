@@ -57,6 +57,7 @@ pub const SubscriptionId = subscription_module.SubscriptionId;
 pub const MonitoredItemParameters = subscription_module.MonitoredItemParameters;
 pub const MonitoredItemId = subscription_module.MonitoredItemId;
 pub const MonitoringMode = subscription_module.MonitoringMode;
+pub const DataChangeCallback = subscription_module.DataChangeCallback;
 
 pub const BrowseDescription = browse_module.BrowseDescription;
 pub const BrowseResult = browse_module.BrowseResult;

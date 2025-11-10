@@ -13,6 +13,61 @@ const SubscriptionParameters = subscription.SubscriptionParameters;
 const SubscriptionId = subscription.SubscriptionId;
 const MonitoredItemParameters = subscription.MonitoredItemParameters;
 const MonitoredItemId = subscription.MonitoredItemId;
+const DataChangeCallback = subscription.DataChangeCallback;
+
+/// Internal context structure for monitored item callbacks.
+/// This is heap-allocated and managed by the C library's lifecycle.
+const MonitoredItemContext = struct {
+    callback: DataChangeCallback,
+    userdata: ?*anyopaque,
+};
+
+/// C callback wrapper for data change notifications.
+/// Converts C types to Zig types and calls the user's callback.
+fn dataChangeCallbackWrapper(
+    client: ?*c.UA_Client,
+    sub_id: u32,
+    sub_context: ?*anyopaque,
+    mon_id: u32,
+    mon_context: ?*anyopaque,
+    value: [*c]c.UA_DataValue,
+) callconv(.c) void {
+    _ = client;
+    _ = sub_context;
+
+    // Extract context
+    const ctx = @as(*MonitoredItemContext, @ptrCast(@alignCast(mon_context.?)));
+
+    // Convert UA_DataValue to Variant (temporary, valid only during callback)
+    // Use c_allocator since this is managed by C library lifecycle
+    const variant = Variant.fromC(value.*.value, std.heap.c_allocator) catch {
+        // If conversion fails, skip this notification
+        return;
+    };
+    defer variant.deinit(std.heap.c_allocator);
+
+    // Call user's callback
+    ctx.callback(ctx.userdata, sub_id, mon_id, &variant);
+}
+
+/// C delete callback wrapper - frees the context when monitored item is deleted.
+fn deleteMonitoredItemCallbackWrapper(
+    client: ?*c.UA_Client,
+    sub_id: u32,
+    sub_context: ?*anyopaque,
+    mon_id: u32,
+    mon_context: ?*anyopaque,
+) callconv(.c) void {
+    _ = client;
+    _ = sub_id;
+    _ = sub_context;
+    _ = mon_id;
+
+    if (mon_context) |ctx_ptr| {
+        const ctx = @as(*MonitoredItemContext, @ptrCast(@alignCast(ctx_ptr)));
+        std.heap.c_allocator.destroy(ctx);
+    }
+}
 
 /// Errors that can occur when reading an attribute from a node
 pub const ReadAttributeError = error{
@@ -1106,6 +1161,124 @@ pub const Client = struct {
             else => MonitoredItemError.UnexpectedError,
         };
     }
+
+    /// Create a monitored item with a callback for real-time data change notifications.
+    ///
+    /// This adds a node to be monitored within a subscription. When the node's value
+    /// changes, your callback will be invoked automatically with the new value.
+    ///
+    /// **Memory management:**
+    /// This function allocates an internal context structure that lives until the monitored
+    /// item is deleted (either explicitly or when the subscription/connection is closed).
+    /// The context is automatically freed by the delete callback. No cleanup required by caller.
+    ///
+    /// **Parameters:**
+    /// - `subscription_id`: The subscription to add this monitored item to
+    /// - `params`: Monitored item configuration
+    /// - `callback`: Function to call when value changes
+    /// - `userdata`: Optional user context pointer passed to callback
+    ///
+    /// **Returns:**
+    /// - The monitored item ID on success
+    ///
+    /// **Errors:**
+    /// - See `MonitoredItemError` for possible errors
+    ///
+    /// **Example:**
+    /// ```zig
+    /// fn myCallback(
+    ///     userdata: ?*anyopaque,
+    ///     sub_id: SubscriptionId,
+    ///     mon_id: MonitoredItemId,
+    ///     value: *const Variant,
+    /// ) void {
+    ///     _ = sub_id;
+    ///     _ = mon_id;
+    ///     std.debug.print("Value changed: {}\n", .{value.*});
+    /// }
+    ///
+    /// const mon_id = try client.createMonitoredItemWithCallback(
+    ///     sub_id,
+    ///     .{ .node_id = NodeId.initString(1, "temperature") },
+    ///     myCallback,
+    ///     null,
+    /// );
+    /// ```
+    pub fn createMonitoredItemWithCallback(
+        self: Client,
+        subscription_id: SubscriptionId,
+        params: MonitoredItemParameters,
+        callback: DataChangeCallback,
+        userdata: ?*anyopaque,
+    ) MonitoredItemError!MonitoredItemId {
+        // Allocate context structure to hold callback and userdata
+        const ctx = std.heap.c_allocator.create(MonitoredItemContext) catch {
+            return MonitoredItemError.OutOfMemory;
+        };
+        errdefer std.heap.c_allocator.destroy(ctx);
+
+        ctx.* = .{
+            .callback = callback,
+            .userdata = userdata,
+        };
+
+        // Use internal arena for temporary C conversions
+        var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+        defer arena.deinit();
+
+        // Convert NodeId to C
+        const c_node_id = params.node_id.toC(arena.allocator()) catch {
+            std.heap.c_allocator.destroy(ctx);
+            return MonitoredItemError.OutOfMemory;
+        };
+
+        // Create monitored item request
+        var request = c.UA_MonitoredItemCreateRequest_default(c_node_id);
+        request.itemToMonitor.attributeId = params.attribute_id;
+        request.monitoringMode = params.monitoring_mode.toC();
+        request.requestedParameters.samplingInterval = params.sampling_interval;
+        request.requestedParameters.queueSize = params.queue_size;
+        request.requestedParameters.discardOldest = params.discard_oldest;
+
+        // Create monitored item with callback
+        var monitored_item_id: u32 = 0;
+        const status = c.UA_Client_MonitoredItems_createDataChange(
+            self.handle,
+            subscription_id,
+            c.UA_TIMESTAMPSTORETURN_BOTH,
+            request,
+            ctx, // context will be passed to callbacks
+            dataChangeCallbackWrapper,
+            deleteMonitoredItemCallbackWrapper,
+            &monitored_item_id,
+        );
+
+        // Check status before returning
+        if (status != c.UA_STATUSCODE_GOOD) {
+            // Failed to create - free the context
+            std.heap.c_allocator.destroy(ctx);
+        }
+
+        return switch (status) {
+            c.UA_STATUSCODE_GOOD => monitored_item_id,
+            c.UA_STATUSCODE_BADSERVERNOTCONNECTED => MonitoredItemError.ServerNotConnected,
+            c.UA_STATUSCODE_BADSESSIONCLOSED => MonitoredItemError.SessionClosed,
+            c.UA_STATUSCODE_BADTIMEOUT => MonitoredItemError.Timeout,
+            c.UA_STATUSCODE_BADREQUESTTIMEOUT => MonitoredItemError.Timeout,
+            c.UA_STATUSCODE_BADCOMMUNICATIONERROR => MonitoredItemError.CommunicationError,
+            c.UA_STATUSCODE_BADNODEIDUNKNOWN => MonitoredItemError.NodeIdUnknown,
+            c.UA_STATUSCODE_BADNODEIDINVALID => MonitoredItemError.NodeIdInvalid,
+            c.UA_STATUSCODE_BADINVALIDARGUMENT => MonitoredItemError.InvalidParameters,
+            c.UA_STATUSCODE_BADSUBSCRIPTIONIDINVALID => MonitoredItemError.SubscriptionIdInvalid,
+            c.UA_STATUSCODE_BADATTRIBUTEIDINVALID => MonitoredItemError.AttributeNotSupported,
+            c.UA_STATUSCODE_BADTOOMANYMONITOREDITEMSINDATACHANGEFILTER => MonitoredItemError.TooManyMonitoredItems,
+            c.UA_STATUSCODE_BADOUTOFMEMORY => MonitoredItemError.OutOfMemory,
+            c.UA_STATUSCODE_BADINTERNALERROR => MonitoredItemError.InternalError,
+            c.UA_STATUSCODE_BADSERVICEUNSUPPORTED => MonitoredItemError.ServiceUnsupported,
+            c.UA_STATUSCODE_BADSECURITYCHECKSFAILED => MonitoredItemError.SecurityChecksFailed,
+            else => MonitoredItemError.UnexpectedError,
+        };
+    }
 };
 
 /// Map OPC UA status codes to BrowseError
@@ -1187,4 +1360,258 @@ test "Client.getNamespaceByName integration test" {
     // Test: Non-existent namespace
     const result = client.getNamespaceByName("http://nonexistent.example.com/");
     try testing.expectError(NamespaceError.NamespaceNotFound, result);
+}
+
+test "Client subscription lifecycle integration test" {
+    const testing = std.testing;
+    const server_mod = @import("server.zig");
+
+    // Start a test server with a variable node
+    var server = try server_mod.Server.init();
+    defer server.deinit();
+
+    _ = try server.addVariableNode(
+        NodeId.initString(1, "temperature"),
+        @import("types.zig").StandardNodeId.objects_folder,
+        @import("types.zig").ReferenceType.organizes,
+        @import("types.zig").QualifiedName.init(1, "Temperature"),
+        @import("types.zig").StandardNodeId.base_data_variable_type,
+        .{
+            .value = Variant.scalar(f64, 23.5),
+            .access_level = .{ .read = true, .write = true },
+        },
+    );
+
+    try server.start();
+    defer server.stop() catch {};
+
+    // Give server time to start
+    std.time.sleep(50 * std.time.ns_per_ms);
+
+    // Connect client
+    var client = try Client.init();
+    defer client.deinit();
+
+    try client.connect("opc.tcp://localhost:4840");
+    defer client.disconnect() catch {};
+
+    // Create subscription
+    const sub_id = try client.createSubscription(.{
+        .publishing_interval = 1000.0,
+        .priority = 10,
+    });
+    defer client.deleteSubscription(sub_id) catch {};
+
+    try testing.expect(sub_id > 0);
+
+    // Create monitored item
+    const mon_id = try client.createMonitoredItem(sub_id, .{
+        .node_id = NodeId.initString(1, "temperature"),
+        .sampling_interval = 100.0,
+        .queue_size = 10,
+    });
+    defer client.deleteMonitoredItem(sub_id, mon_id) catch {};
+
+    try testing.expect(mon_id > 0);
+
+    // Delete monitored item explicitly
+    try client.deleteMonitoredItem(sub_id, mon_id);
+
+    // Delete subscription explicitly
+    try client.deleteSubscription(sub_id);
+}
+
+test "Client creates multiple subscriptions" {
+    const testing = std.testing;
+    const server_mod = @import("server.zig");
+
+    // Start a test server
+    var server = try server_mod.Server.init();
+    defer server.deinit();
+
+    try server.start();
+    defer server.stop() catch {};
+
+    std.time.sleep(50 * std.time.ns_per_ms);
+
+    // Connect client
+    var client = try Client.init();
+    defer client.deinit();
+
+    try client.connect("opc.tcp://localhost:4840");
+    defer client.disconnect() catch {};
+
+    // Create multiple subscriptions
+    const sub_id1 = try client.createSubscription(.{});
+    defer client.deleteSubscription(sub_id1) catch {};
+
+    const sub_id2 = try client.createSubscription(.{
+        .publishing_interval = 500.0,
+    });
+    defer client.deleteSubscription(sub_id2) catch {};
+
+    try testing.expect(sub_id1 > 0);
+    try testing.expect(sub_id2 > 0);
+    try testing.expect(sub_id1 != sub_id2);
+}
+
+test "Client creates multiple monitored items in one subscription" {
+    const testing = std.testing;
+    const server_mod = @import("server.zig");
+
+    // Start a test server with multiple variables
+    var server = try server_mod.Server.init();
+    defer server.deinit();
+
+    _ = try server.addVariableNode(
+        NodeId.initString(1, "temperature"),
+        @import("types.zig").StandardNodeId.objects_folder,
+        @import("types.zig").ReferenceType.organizes,
+        @import("types.zig").QualifiedName.init(1, "Temperature"),
+        @import("types.zig").StandardNodeId.base_data_variable_type,
+        .{ .value = Variant.scalar(f64, 23.5) },
+    );
+
+    _ = try server.addVariableNode(
+        NodeId.initString(1, "pressure"),
+        @import("types.zig").StandardNodeId.objects_folder,
+        @import("types.zig").ReferenceType.organizes,
+        @import("types.zig").QualifiedName.init(1, "Pressure"),
+        @import("types.zig").StandardNodeId.base_data_variable_type,
+        .{ .value = Variant.scalar(f64, 101.3) },
+    );
+
+    try server.start();
+    defer server.stop() catch {};
+
+    std.time.sleep(50 * std.time.ns_per_ms);
+
+    // Connect client
+    var client = try Client.init();
+    defer client.deinit();
+
+    try client.connect("opc.tcp://localhost:4840");
+    defer client.disconnect() catch {};
+
+    // Create one subscription
+    const sub_id = try client.createSubscription(.{});
+    defer client.deleteSubscription(sub_id) catch {};
+
+    // Create multiple monitored items
+    const mon_id1 = try client.createMonitoredItem(sub_id, .{
+        .node_id = NodeId.initString(1, "temperature"),
+    });
+    defer client.deleteMonitoredItem(sub_id, mon_id1) catch {};
+
+    const mon_id2 = try client.createMonitoredItem(sub_id, .{
+        .node_id = NodeId.initString(1, "pressure"),
+    });
+    defer client.deleteMonitoredItem(sub_id, mon_id2) catch {};
+
+    try testing.expect(mon_id1 > 0);
+    try testing.expect(mon_id2 > 0);
+    try testing.expect(mon_id1 != mon_id2);
+}
+
+test "Client monitored item with callback integration test" {
+    const testing = std.testing;
+    const server_mod = @import("server.zig");
+
+    // Callback context to track notifications
+    const CallbackContext = struct {
+        call_count: u32 = 0,
+        last_value: f64 = 0.0,
+    };
+
+    // Callback function
+    const callback = struct {
+        fn onDataChange(
+            userdata: ?*anyopaque,
+            sub_id: SubscriptionId,
+            mon_id: MonitoredItemId,
+            value: *const Variant,
+        ) void {
+            _ = sub_id;
+            _ = mon_id;
+            const ctx = @as(*CallbackContext, @ptrCast(@alignCast(userdata.?)));
+            ctx.call_count += 1;
+            if (value.* == .scalar) {
+                if (value.scalar == .f64) {
+                    ctx.last_value = value.scalar.f64;
+                }
+            }
+        }
+    }.onDataChange;
+
+    // Start a test server with a variable node
+    var server = try server_mod.Server.init();
+    defer server.deinit();
+
+    _ = try server.addVariableNode(
+        NodeId.initString(1, "temperature"),
+        @import("types.zig").StandardNodeId.objects_folder,
+        @import("types.zig").ReferenceType.organizes,
+        @import("types.zig").QualifiedName.init(1, "Temperature"),
+        @import("types.zig").StandardNodeId.base_data_variable_type,
+        .{
+            .value = Variant.scalar(f64, 23.5),
+            .access_level = .{ .read = true, .write = true },
+        },
+    );
+
+    try server.start();
+    defer server.stop() catch {};
+
+    std.time.sleep(50 * std.time.ns_per_ms);
+
+    // Connect client
+    var client = try Client.init();
+    defer client.deinit();
+
+    try client.connect("opc.tcp://localhost:4840");
+    defer client.disconnect() catch {};
+
+    // Create subscription
+    const sub_id = try client.createSubscription(.{
+        .publishing_interval = 100.0, // Fast for testing
+        .priority = 10,
+    });
+    defer client.deleteSubscription(sub_id) catch {};
+
+    // Create callback context
+    var ctx = CallbackContext{};
+
+    // Create monitored item with callback
+    const mon_id = try client.createMonitoredItemWithCallback(
+        sub_id,
+        .{
+            .node_id = NodeId.initString(1, "temperature"),
+            .sampling_interval = 50.0,
+            .queue_size = 10,
+        },
+        callback,
+        &ctx,
+    );
+    defer client.deleteMonitoredItem(sub_id, mon_id) catch {};
+
+    try testing.expect(mon_id > 0);
+
+    // Give initial callback time to fire (initial value)
+    _ = c.UA_Client_run_iterate(client.handle, 200);
+    std.time.sleep(50 * std.time.ns_per_ms);
+
+    // Write a new value to trigger callback
+    try client.writeValueAttribute(
+        NodeId.initString(1, "temperature"),
+        Variant.scalar(f64, 42.0),
+    );
+
+    // Process messages to receive callback
+    _ = c.UA_Client_run_iterate(client.handle, 200);
+    std.time.sleep(100 * std.time.ns_per_ms);
+    _ = c.UA_Client_run_iterate(client.handle, 200);
+
+    // Verify callback was called and received the new value
+    try testing.expect(ctx.call_count > 0);
+    try testing.expectEqual(@as(f64, 42.0), ctx.last_value);
 }
