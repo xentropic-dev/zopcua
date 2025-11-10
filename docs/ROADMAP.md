@@ -2,7 +2,7 @@
 
 This document tracks the implementation progress of Zig bindings for open62541, showing feature parity between the C library and the Zig wrapper.
 
-**Overall Progress: 25%** (Core functionality in place, many advanced features pending)
+**Overall Progress: 28%** (Core functionality in place, many advanced features pending)
 
 > **Note:** Percentages are automatically calculated. After updating checkmarks (✅ 🟡 🔴 ❌), run `python3 scripts/update_roadmap.py` to recalculate all percentages.
 
@@ -140,7 +140,7 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 
 ## 2. Client Core Functionality
 
-**Progress: 10%**
+**Progress: 16%**
 
 ### 2.1 Client Lifecycle (100% ✅)
 - ✅ `Client.init()` - Create client with default config
@@ -229,21 +229,22 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 - ❌ `UA_Client_call` - Call server method
 - ❌ `UA_Client_call_async` - Async method call
 
-### 2.8 Client Subscriptions (0% ❌)
-- ❌ `UA_Client_Subscriptions_create` - Create subscription
-- ❌ `UA_Client_Subscriptions_delete` - Delete subscription
-- ❌ `UA_Client_Subscriptions_deleteSingle` - Delete single subscription
+### 2.8 Client Subscriptions (33% 🟡)
+- ✅ `Client.createSubscription()` - Create subscription
+- ✅ `Client.deleteSubscription()` - Delete single subscription
+- ❌ `UA_Client_Subscriptions_delete` - Delete multiple subscriptions
 - ❌ `UA_Client_Subscriptions_modify` - Modify subscription
 - ❌ `UA_Client_Subscriptions_setPublishingMode` - Set publishing mode
 - ❌ All async variants
 
-### 2.9 Client Monitored Items (0% ❌)
-- ❌ `UA_Client_MonitoredItems_createDataChange` - Create data change monitored item
+### 2.9 Client Monitored Items (27% 🔴)
+- ✅ `Client.createMonitoredItem()` - Create data change monitored item (polling)
+- ✅ `Client.createMonitoredItemWithCallback()` - Create with callback support
+- ✅ `Client.deleteMonitoredItem()` - Delete single monitored item
 - ❌ `UA_Client_MonitoredItems_createDataChanges` - Create multiple data change items
 - ❌ `UA_Client_MonitoredItems_createEvent` - Create event monitored item
 - ❌ `UA_Client_MonitoredItems_createEvents` - Create multiple event items
-- ❌ `UA_Client_MonitoredItems_delete` - Delete monitored items
-- ❌ `UA_Client_MonitoredItems_deleteSingle` - Delete single item
+- ❌ `UA_Client_MonitoredItems_delete` - Delete multiple monitored items
 - ❌ `UA_Client_MonitoredItems_modify` - Modify monitored items
 - ❌ `UA_Client_MonitoredItems_setMonitoringMode` - Set monitoring mode
 - ❌ `UA_Client_MonitoredItems_setTriggering` - Set triggering
@@ -399,9 +400,9 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 
 ## 6. Testing & Examples
 
-**Progress: 61%**
+**Progress: 72%**
 
-### 6.1 Examples (75% 🟡)
+### 6.1 Examples (76% 🟡)
 - ✅ `server-minimal` - Minimal server
 - ✅ `server-simple` - Simple server with variables
 - ✅ `server-advanced` - Advanced server features
@@ -414,31 +415,31 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 - ✅ `client-custom-config` - Custom configuration
 - ✅ `client-server` - Combined client-server
 - ✅ `client-namespace` - Namespace discovery
-- ❌ Subscription examples
+- ✅ `client-callback` - Subscription with callback notifications
 - ❌ Method call examples
 - ❌ Event examples
 - ❌ PubSub examples
 - ❌ History examples
 
-### 6.2 Unit Tests (59% 🟡)
+### 6.2 Unit Tests (73% 🟡)
 - ✅ NodeId tests
 - ✅ QualifiedName tests
 - ✅ Variant tests
 - ✅ Browse tests
 - ✅ Server namespace tests
 - ✅ Server node addition tests
-- 🟡 Client tests (basic)
-- ❌ Subscription tests
+- ✅ Client tests (basic)
+- ✅ Subscription unit tests
 - ❌ Method tests
 - ❌ Event tests
 - ❌ Security tests
 
-### 6.3 Integration Tests (50% 🟡)
+### 6.3 Integration Tests (62% 🟡)
 - ✅ Client-server communication
 - ✅ Browse operations
 - ✅ Read/write operations
 - ✅ Variant serialization
-- ❌ Subscription tests
+- ✅ Subscription integration tests
 - ❌ Security tests
 - ❌ PubSub tests
 - ❌ Performance tests
@@ -473,21 +474,21 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 | Category | Progress | Status |
 |----------|----------|--------|
 | Server Core | 12% | 🔴 Minimal |
-| Client Core | 10% | 🔴 Minimal |
+| Client Core | 16% | 🔴 Minimal |
 | Data Types | 49% | 🟡 Partial |
 | Configuration | 21% | 🔴 Minimal |
 | Error Handling | 82% | ✅ Good |
-| Testing | 60% | 🟡 Partial |
+| Testing | 72% | ✅ Good |
 | Documentation | 35% | 🔴 Minimal |
-| **Overall** | **25%** | 🔴 Early |
+| **Overall** | **28%** | 🔴 Early |
 
 ---
 
 ## Contributing
 
 Areas most in need of contribution:
-1. 🔴 Subscriptions & Monitored Items - High priority, complex implementation
-2. 🔴 Method Calls - Medium priority, straightforward
+1. 🟡 Subscriptions & Monitored Items - Basic support complete, async variants and advanced features needed
+2. 🔴 Method Calls - High priority, straightforward
 3. 🔴 Events & Alarms - Medium priority, complex implementation
 4. 🔴 PubSub - Lower priority, very complex
 5. 🟡 Documentation - Always welcome

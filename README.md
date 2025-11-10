@@ -13,10 +13,10 @@
 
 **This library is under active development and NOT ready for production use.**
 
-**Feature Parity:** 25% complete (see [ROADMAP.md](docs/ROADMAP.md))
+**Feature Parity:** 28% complete (see [ROADMAP.md](docs/ROADMAP.md))
 
 ```
-Progress: [█████░░░░░░░░░░░░░░░] 25%
+Progress: [█████░░░░░░░░░░░░░░░] 28%
 ```
 
 - Requires Zig 0.15.2
@@ -240,7 +240,7 @@ The underlying open62541 library is licensed under the Mozilla Public License 2.
 Contributions are welcome! Here's how you can help:
 
 1. **Check [ROADMAP.md](docs/ROADMAP.md)** to see what features need implementation
-2. **Look for missing features** - The library is at 25% parity with open62541, lots to do!
+2. **Look for missing features** - The library is at 28% parity with open62541, lots to do!
 3. **Submit PRs** with new features, bug fixes, or improved documentation
 4. **Open issues** for features you need or bugs you encounter
 5. **Add tests** for new functionality
