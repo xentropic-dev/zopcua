@@ -337,7 +337,7 @@ pub const Client = struct {
             const c_node_id = node_id.toC(arena.allocator()) catch {
                 return WriteAttributeError.OutOfMemory;
             };
-            defer node_id.freeToC(arena.allocator(), c_node_id);
+            // No explicit freeToC needed - arena.deinit() handles cleanup
 
             break :blk c.UA_Client_writeValueAttribute(self.handle, c_node_id, &c_variant);
         };
@@ -440,10 +440,14 @@ pub const Client = struct {
         var c_variant: c.UA_Variant = undefined;
         c.UA_Variant_init(&c_variant);
 
-        const c_node_id = node_id.toC(std.heap.c_allocator) catch {
+        // Use internal arena for temporary NodeId conversion
+        var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+        defer arena.deinit();
+
+        const c_node_id = node_id.toC(arena.allocator()) catch {
             return ReadAttributeError.OutOfMemory;
         };
-        defer node_id.freeToC(std.heap.c_allocator, c_node_id);
+        // No explicit freeToC needed - arena.deinit() handles cleanup
 
         const status = c.UA_Client_readValueAttribute(self.handle, c_node_id, &c_variant);
 
@@ -593,7 +597,7 @@ pub const Client = struct {
         const c_desc = description.toC(arena.allocator()) catch {
             return BrowseError.OutOfMemory;
         };
-        defer description.freeToC(arena.allocator(), c_desc);
+        // No explicit freeToC needed - arena.deinit() handles cleanup
 
         // Create browse request
         // SAFETY: request is immediately initialized by UA_BrowseRequest_init before any use
