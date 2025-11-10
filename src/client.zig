@@ -870,6 +870,242 @@ pub const Client = struct {
             else => NamespaceError.UnexpectedError,
         };
     }
+
+    /// Create a new subscription on the server.
+    ///
+    /// This creates a subscription that can be used to monitor nodes for changes.
+    /// The subscription will send notifications when monitored nodes change.
+    ///
+    /// **Memory management:**
+    /// This function uses internal temporary allocations only. No cleanup required by caller.
+    /// The subscription ID is a scalar value owned by the server.
+    ///
+    /// **Parameters:**
+    /// - `params`: Subscription configuration parameters
+    ///
+    /// **Returns:**
+    /// - The subscription ID on success
+    ///
+    /// **Errors:**
+    /// - See `SubscriptionError` for possible errors
+    ///
+    /// **Example:**
+    /// ```zig
+    /// const sub_id = try client.createSubscription(.{
+    ///     .publishing_interval = 1000.0,  // 1 second
+    ///     .priority = 10,
+    /// });
+    /// defer client.deleteSubscription(sub_id) catch {};
+    /// ```
+    pub fn createSubscription(
+        self: Client,
+        params: SubscriptionParameters,
+    ) SubscriptionError!SubscriptionId {
+        // Create subscription request with default settings
+        var request = c.UA_CreateSubscriptionRequest_default();
+        request.requestedPublishingInterval = params.publishing_interval;
+        request.requestedMaxKeepAliveCount = params.max_keep_alive_count;
+        request.requestedLifetimeCount = params.lifetime_count;
+        request.maxNotificationsPerPublish = params.max_notifications_per_publish;
+        request.publishingEnabled = true;
+        request.priority = params.priority;
+
+        // Create subscription (callback can be null for now)
+        var subscription_id: u32 = 0;
+        const status = c.UA_Client_Subscriptions_create(
+            self.handle,
+            request,
+            null, // context
+            null, // delete callback
+            &subscription_id,
+        );
+
+        return switch (status) {
+            c.UA_STATUSCODE_GOOD => subscription_id,
+            c.UA_STATUSCODE_BADSERVERNOTCONNECTED => SubscriptionError.ServerNotConnected,
+            c.UA_STATUSCODE_BADSESSIONCLOSED => SubscriptionError.SessionClosed,
+            c.UA_STATUSCODE_BADTIMEOUT => SubscriptionError.Timeout,
+            c.UA_STATUSCODE_BADREQUESTTIMEOUT => SubscriptionError.Timeout,
+            c.UA_STATUSCODE_BADCOMMUNICATIONERROR => SubscriptionError.CommunicationError,
+            c.UA_STATUSCODE_BADINVALIDARGUMENT => SubscriptionError.InvalidParameters,
+            c.UA_STATUSCODE_BADTOOMANYSUBSCRIPTIONS => SubscriptionError.TooManySubscriptions,
+            c.UA_STATUSCODE_BADOUTOFMEMORY => SubscriptionError.OutOfMemory,
+            c.UA_STATUSCODE_BADINTERNALERROR => SubscriptionError.InternalError,
+            c.UA_STATUSCODE_BADSERVICEUNSUPPORTED => SubscriptionError.ServiceUnsupported,
+            c.UA_STATUSCODE_BADSECURITYCHECKSFAILED => SubscriptionError.SecurityChecksFailed,
+            else => SubscriptionError.UnexpectedError,
+        };
+    }
+
+    /// Delete an existing subscription from the server.
+    ///
+    /// This removes the subscription and all its monitored items. The server will
+    /// stop sending notifications for this subscription.
+    ///
+    /// **Memory management:**
+    /// This function uses internal temporary allocations only. No cleanup required by caller.
+    ///
+    /// **Parameters:**
+    /// - `subscription_id`: The subscription ID to delete
+    ///
+    /// **Errors:**
+    /// - See `SubscriptionError` for possible errors
+    ///
+    /// **Example:**
+    /// ```zig
+    /// try client.deleteSubscription(sub_id);
+    /// ```
+    pub fn deleteSubscription(
+        self: Client,
+        subscription_id: SubscriptionId,
+    ) SubscriptionError!void {
+        const status = c.UA_Client_Subscriptions_deleteSingle(self.handle, subscription_id);
+
+        return switch (status) {
+            c.UA_STATUSCODE_GOOD => {},
+            c.UA_STATUSCODE_BADSERVERNOTCONNECTED => SubscriptionError.ServerNotConnected,
+            c.UA_STATUSCODE_BADSESSIONCLOSED => SubscriptionError.SessionClosed,
+            c.UA_STATUSCODE_BADTIMEOUT => SubscriptionError.Timeout,
+            c.UA_STATUSCODE_BADREQUESTTIMEOUT => SubscriptionError.Timeout,
+            c.UA_STATUSCODE_BADCOMMUNICATIONERROR => SubscriptionError.CommunicationError,
+            c.UA_STATUSCODE_BADSUBSCRIPTIONIDINVALID => SubscriptionError.SubscriptionNotFound,
+            c.UA_STATUSCODE_BADOUTOFMEMORY => SubscriptionError.OutOfMemory,
+            c.UA_STATUSCODE_BADINTERNALERROR => SubscriptionError.InternalError,
+            c.UA_STATUSCODE_BADSERVICEUNSUPPORTED => SubscriptionError.ServiceUnsupported,
+            c.UA_STATUSCODE_BADSECURITYCHECKSFAILED => SubscriptionError.SecurityChecksFailed,
+            else => SubscriptionError.UnexpectedError,
+        };
+    }
+
+    /// Create a monitored item for data change notifications.
+    ///
+    /// This adds a node to be monitored within a subscription. When the node's value
+    /// changes, the client will receive notifications.
+    ///
+    /// **Memory management:**
+    /// This function uses internal temporary allocations only. No cleanup required by caller.
+    /// The monitored item ID is a scalar value owned by the server.
+    ///
+    /// **Parameters:**
+    /// - `subscription_id`: The subscription to add this monitored item to
+    /// - `params`: Monitored item configuration
+    ///
+    /// **Returns:**
+    /// - The monitored item ID on success
+    ///
+    /// **Errors:**
+    /// - See `MonitoredItemError` for possible errors
+    ///
+    /// **Example:**
+    /// ```zig
+    /// const mon_id = try client.createMonitoredItem(sub_id, .{
+    ///     .node_id = NodeId.initString(1, "temperature"),
+    ///     .sampling_interval = 100.0,  // 100ms
+    ///     .queue_size = 10,
+    /// });
+    /// defer client.deleteMonitoredItem(sub_id, mon_id) catch {};
+    /// ```
+    pub fn createMonitoredItem(
+        self: Client,
+        subscription_id: SubscriptionId,
+        params: MonitoredItemParameters,
+    ) MonitoredItemError!MonitoredItemId {
+        // Use internal arena for temporary C conversions
+        var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+        defer arena.deinit();
+
+        // Convert NodeId to C
+        const c_node_id = params.node_id.toC(arena.allocator()) catch {
+            return MonitoredItemError.OutOfMemory;
+        };
+        // No explicit freeToC needed - arena.deinit() handles cleanup
+
+        // Create monitored item request
+        var request = c.UA_MonitoredItemCreateRequest_default(c_node_id);
+        request.itemToMonitor.attributeId = params.attribute_id;
+        request.monitoringMode = params.monitoring_mode.toC();
+        request.requestedParameters.samplingInterval = params.sampling_interval;
+        request.requestedParameters.queueSize = params.queue_size;
+        request.requestedParameters.discardOldest = params.discard_oldest;
+
+        // Create monitored item (callback can be null for polling)
+        var monitored_item_id: u32 = 0;
+        const status = c.UA_Client_MonitoredItems_createDataChange(
+            self.handle,
+            subscription_id,
+            c.UA_TIMESTAMPSTORETURN_BOTH,
+            request,
+            null, // context
+            null, // callback
+            &monitored_item_id,
+        );
+
+        return switch (status) {
+            c.UA_STATUSCODE_GOOD => monitored_item_id,
+            c.UA_STATUSCODE_BADSERVERNOTCONNECTED => MonitoredItemError.ServerNotConnected,
+            c.UA_STATUSCODE_BADSESSIONCLOSED => MonitoredItemError.SessionClosed,
+            c.UA_STATUSCODE_BADTIMEOUT => MonitoredItemError.Timeout,
+            c.UA_STATUSCODE_BADREQUESTTIMEOUT => MonitoredItemError.Timeout,
+            c.UA_STATUSCODE_BADCOMMUNICATIONERROR => MonitoredItemError.CommunicationError,
+            c.UA_STATUSCODE_BADNODEIDUNKNOWN => MonitoredItemError.NodeIdUnknown,
+            c.UA_STATUSCODE_BADNODEIDINVALID => MonitoredItemError.NodeIdInvalid,
+            c.UA_STATUSCODE_BADINVALIDARGUMENT => MonitoredItemError.InvalidParameters,
+            c.UA_STATUSCODE_BADSUBSCRIPTIONIDINVALID => MonitoredItemError.SubscriptionIdInvalid,
+            c.UA_STATUSCODE_BADATTRIBUTEIDINVALID => MonitoredItemError.AttributeNotSupported,
+            c.UA_STATUSCODE_BADTOOMANYMONITOREDITEMSINDATACHANGEFILTER => MonitoredItemError.TooManyMonitoredItems,
+            c.UA_STATUSCODE_BADOUTOFMEMORY => MonitoredItemError.OutOfMemory,
+            c.UA_STATUSCODE_BADINTERNALERROR => MonitoredItemError.InternalError,
+            c.UA_STATUSCODE_BADSERVICEUNSUPPORTED => MonitoredItemError.ServiceUnsupported,
+            c.UA_STATUSCODE_BADSECURITYCHECKSFAILED => MonitoredItemError.SecurityChecksFailed,
+            else => MonitoredItemError.UnexpectedError,
+        };
+    }
+
+    /// Delete a monitored item from a subscription.
+    ///
+    /// This removes the monitored item and stops receiving notifications for it.
+    ///
+    /// **Memory management:**
+    /// This function uses internal temporary allocations only. No cleanup required by caller.
+    ///
+    /// **Parameters:**
+    /// - `subscription_id`: The subscription containing this monitored item
+    /// - `monitored_item_id`: The monitored item ID to delete
+    ///
+    /// **Errors:**
+    /// - See `MonitoredItemError` for possible errors
+    ///
+    /// **Example:**
+    /// ```zig
+    /// try client.deleteMonitoredItem(sub_id, mon_id);
+    /// ```
+    pub fn deleteMonitoredItem(
+        self: Client,
+        subscription_id: SubscriptionId,
+        monitored_item_id: MonitoredItemId,
+    ) MonitoredItemError!void {
+        const status = c.UA_Client_MonitoredItems_deleteSingle(
+            self.handle,
+            subscription_id,
+            monitored_item_id,
+        );
+
+        return switch (status) {
+            c.UA_STATUSCODE_GOOD => {},
+            c.UA_STATUSCODE_BADSERVERNOTCONNECTED => MonitoredItemError.ServerNotConnected,
+            c.UA_STATUSCODE_BADSESSIONCLOSED => MonitoredItemError.SessionClosed,
+            c.UA_STATUSCODE_BADTIMEOUT => MonitoredItemError.Timeout,
+            c.UA_STATUSCODE_BADREQUESTTIMEOUT => MonitoredItemError.Timeout,
+            c.UA_STATUSCODE_BADCOMMUNICATIONERROR => MonitoredItemError.CommunicationError,
+            c.UA_STATUSCODE_BADSUBSCRIPTIONIDINVALID => MonitoredItemError.SubscriptionIdInvalid,
+            c.UA_STATUSCODE_BADMONITOREDITEMIDINVALID => MonitoredItemError.MonitoredItemNotFound,
+            c.UA_STATUSCODE_BADOUTOFMEMORY => MonitoredItemError.OutOfMemory,
+            c.UA_STATUSCODE_BADINTERNALERROR => MonitoredItemError.InternalError,
+            c.UA_STATUSCODE_BADSERVICEUNSUPPORTED => MonitoredItemError.ServiceUnsupported,
+            c.UA_STATUSCODE_BADSECURITYCHECKSFAILED => MonitoredItemError.SecurityChecksFailed,
+            else => MonitoredItemError.UnexpectedError,
+        };
+    }
 };
 
 /// Map OPC UA status codes to BrowseError
