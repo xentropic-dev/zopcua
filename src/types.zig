@@ -67,7 +67,7 @@ pub const NodeId = union(enum) {
     }
 
     /// Free memory allocated by toC() for string/bytestring NodeIds
-    pub fn freeToC(self: NodeId, c_node_id: c.UA_NodeId, allocator: std.mem.Allocator) void {
+    pub fn freeToC(self: NodeId, allocator: std.mem.Allocator, c_node_id: c.UA_NodeId) void {
         switch (self) {
             .string, .byte_string => {
                 if (c_node_id.identifier.string.data) |data| {
@@ -130,7 +130,7 @@ pub const QualifiedName = struct {
     }
 
     /// Free memory allocated by toC()
-    pub fn freeToC(self: QualifiedName, c_qname: c.UA_QualifiedName, allocator: std.mem.Allocator) void {
+    pub fn freeToC(self: QualifiedName, allocator: std.mem.Allocator, c_qname: c.UA_QualifiedName) void {
         _ = self;
         if (c_qname.name.data) |data| {
             const len = c_qname.name.length;
@@ -271,8 +271,8 @@ pub const ExpandedNodeId = struct {
     }
 
     /// Free memory allocated by toC()
-    pub fn freeToC(self: ExpandedNodeId, c_expanded_node_id: c.UA_ExpandedNodeId, allocator: std.mem.Allocator) void {
-        self.node_id.freeToC(c_expanded_node_id.nodeId, allocator);
+    pub fn freeToC(self: ExpandedNodeId, allocator: std.mem.Allocator, c_expanded_node_id: c.UA_ExpandedNodeId) void {
+        self.node_id.freeToC(allocator, c_expanded_node_id.nodeId);
         if (c_expanded_node_id.namespaceUri.data) |data| {
             const len = c_expanded_node_id.namespaceUri.length;
             allocator.free(data[0 .. len + 1]); // +1 for null terminator
@@ -310,7 +310,7 @@ test "NodeId numeric creation and conversion" {
     try testing.expectEqual(@as(u32, 42), node_id.numeric.identifier);
 
     const c_node_id = try node_id.toC(testing.allocator);
-    defer node_id.freeToC(c_node_id, testing.allocator);
+    defer node_id.freeToC(testing.allocator, c_node_id);
     const roundtrip = NodeId.fromC(c_node_id);
     try testing.expectEqual(node_id.numeric.namespace, roundtrip.numeric.namespace);
     try testing.expectEqual(node_id.numeric.identifier, roundtrip.numeric.identifier);
@@ -324,7 +324,7 @@ test "NodeId string creation and conversion" {
     try testing.expectEqualStrings("test.node", node_id.string.identifier);
 
     const c_node_id = try node_id.toC(testing.allocator);
-    defer node_id.freeToC(c_node_id, testing.allocator);
+    defer node_id.freeToC(testing.allocator, c_node_id);
     const roundtrip = NodeId.fromC(c_node_id);
     try testing.expectEqual(node_id.string.namespace, roundtrip.string.namespace);
     try testing.expectEqualStrings(node_id.string.identifier, roundtrip.string.identifier);
@@ -353,7 +353,7 @@ test "QualifiedName creation and conversion" {
     try testing.expectEqualStrings("MyVariable", qname.name);
 
     const c_qname = try qname.toC(testing.allocator);
-    defer qname.freeToC(c_qname, testing.allocator);
+    defer qname.freeToC(testing.allocator, c_qname);
     const roundtrip = QualifiedName.fromC(c_qname);
     try testing.expectEqual(qname.namespace_index, roundtrip.namespace_index);
     try testing.expectEqualStrings(qname.name, roundtrip.name);
@@ -450,7 +450,7 @@ test "ExpandedNodeId conversion without namespace URI" {
     };
 
     const c_expanded = try expanded.toC(testing.allocator);
-    defer expanded.freeToC(c_expanded, testing.allocator);
+    defer expanded.freeToC(testing.allocator, c_expanded);
 
     try testing.expectEqual(@as(u32, 5), c_expanded.serverIndex);
     try testing.expectEqual(@as(usize, 0), c_expanded.namespaceUri.length);
@@ -472,7 +472,7 @@ test "ExpandedNodeId conversion with namespace URI" {
     };
 
     const c_expanded = try expanded.toC(testing.allocator);
-    defer expanded.freeToC(c_expanded, testing.allocator);
+    defer expanded.freeToC(testing.allocator, c_expanded);
 
     try testing.expectEqual(@as(u32, 10), c_expanded.serverIndex);
     try testing.expect(c_expanded.namespaceUri.length > 0);

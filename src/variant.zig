@@ -194,7 +194,7 @@ pub const Variant = union(enum) {
 
             .node_id => |val| {
                 const c_nodeid = try val.toC(allocator);
-                defer val.freeToC(c_nodeid, allocator);
+                defer val.freeToC(allocator, c_nodeid);
                 const status = helpers.helper_variant_setScalarCopy(&result, &c_nodeid, &c.UA_TYPES[c.UA_TYPES_NODEID]);
                 if (status != c.UA_STATUSCODE_GOOD) return error.VariantInitFailed;
             },
@@ -576,7 +576,7 @@ pub const Variant = union(enum) {
     ///
     /// Since toC() now uses open62541's UA_Variant_setScalarCopy and UA_Variant_setArrayCopy,
     /// we must use open62541's UA_Variant_clear() to properly free the memory.
-    pub fn freeCVariant(variant: c.UA_Variant, allocator: std.mem.Allocator) void {
+    pub fn freeCVariant(allocator: std.mem.Allocator, variant: c.UA_Variant) void {
         _ = allocator; // No longer used - open62541 manages memory
         c.UA_Variant_clear(@constCast(&variant));
     }
@@ -619,7 +619,7 @@ test "Variant scalar i32" {
     try testing.expectEqual(@as(i32, 42), variant.int32);
 
     const c_variant = try variant.toC(allocator);
-    defer Variant.freeCVariant(c_variant, allocator);
+    defer Variant.freeCVariant(allocator, c_variant);
 
     const roundtrip = try Variant.fromC(c_variant, allocator);
     defer roundtrip.deinit(allocator);
@@ -634,7 +634,7 @@ test "Variant scalar f64" {
     try testing.expectEqual(@as(f64, 3.14159), variant.double);
 
     const c_variant = try variant.toC(allocator);
-    defer Variant.freeCVariant(c_variant, allocator);
+    defer Variant.freeCVariant(allocator, c_variant);
 
     const roundtrip = try Variant.fromC(c_variant, allocator);
     defer roundtrip.deinit(allocator);
@@ -649,7 +649,7 @@ test "Variant scalar bool" {
     try testing.expectEqual(true, variant.boolean);
 
     const c_variant = try variant.toC(allocator);
-    defer Variant.freeCVariant(c_variant, allocator);
+    defer Variant.freeCVariant(allocator, c_variant);
 
     const roundtrip = try Variant.fromC(c_variant, allocator);
     defer roundtrip.deinit(allocator);
@@ -664,7 +664,7 @@ test "Variant scalar string" {
     try testing.expectEqualStrings("Hello, OPC UA!", variant.string);
 
     const c_variant = try variant.toC(allocator);
-    defer Variant.freeCVariant(c_variant, allocator);
+    defer Variant.freeCVariant(allocator, c_variant);
 
     const roundtrip = try Variant.fromC(c_variant, allocator);
     defer roundtrip.deinit(allocator);
@@ -680,7 +680,7 @@ test "Variant array i32" {
     try testing.expectEqualSlices(i32, &values, variant.int32_array);
 
     const c_variant = try variant.toC(allocator);
-    defer Variant.freeCVariant(c_variant, allocator);
+    defer Variant.freeCVariant(allocator, c_variant);
 
     const roundtrip = try Variant.fromC(c_variant, allocator);
     defer roundtrip.deinit(allocator);
@@ -696,7 +696,7 @@ test "Variant array f64" {
     try testing.expectEqualSlices(f64, &values, variant.double_array);
 
     const c_variant = try variant.toC(allocator);
-    defer Variant.freeCVariant(c_variant, allocator);
+    defer Variant.freeCVariant(allocator, c_variant);
 
     const roundtrip = try Variant.fromC(c_variant, allocator);
     defer roundtrip.deinit(allocator);
@@ -709,7 +709,7 @@ test "Variant empty" {
 
     const variant = Variant{ .empty = {} };
     const c_variant = try variant.toC(allocator);
-    defer Variant.freeCVariant(c_variant, allocator);
+    defer Variant.freeCVariant(allocator, c_variant);
 
     try testing.expect(c_variant.type == null or c_variant.data == null);
 }

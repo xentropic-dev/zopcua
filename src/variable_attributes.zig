@@ -58,9 +58,9 @@ pub const VariableAttributes = struct {
     }
 
     /// Free memory allocated by toC()
-    pub fn freeToC(self: VariableAttributes, c_attrs: c.UA_VariableAttributes, allocator: std.mem.Allocator) void {
+    pub fn freeToC(self: VariableAttributes, allocator: std.mem.Allocator, c_attrs: c.UA_VariableAttributes) void {
         // Free data_type NodeId if it was a string/bytestring
-        self.data_type.freeToC(c_attrs.dataType, allocator);
+        self.data_type.freeToC(allocator, c_attrs.dataType);
 
         // Free array dimensions if allocated
         if (c_attrs.arrayDimensionsSize > 0 and c_attrs.arrayDimensions != null) {
@@ -182,7 +182,7 @@ test "VariableAttributes with values" {
 
     const c_attrs = try attrs.toC(allocator);
     defer {
-        Variant.freeCVariant(c_attrs.value, allocator);
+        Variant.freeCVariant(allocator, c_attrs.value);
         if (c_attrs.arrayDimensionsSize > 0) {
             allocator.free(c_attrs.arrayDimensions[0..c_attrs.arrayDimensionsSize]);
         }
@@ -202,7 +202,7 @@ test "VariableAttributes auto data type inference" {
 
     const c_attrs = try attrs.toC(allocator);
     defer {
-        Variant.freeCVariant(c_attrs.value, allocator);
+        Variant.freeCVariant(allocator, c_attrs.value);
     }
 
     // Data type should be auto-inferred to UA_TYPES_DOUBLE

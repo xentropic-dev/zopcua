@@ -12,7 +12,7 @@ test "Variant memory: String scalar lifecycle" {
 
     // Create a C variant and convert it
     const c_variant = try ua.Variant.scalar([]const u8, test_string).toC(allocator);
-    defer ua.Variant.freeCVariant(c_variant, allocator);
+    defer ua.Variant.freeCVariant(allocator, c_variant);
 
     // Convert back from C
     const variant = try ua.Variant.fromC(c_variant, allocator);
@@ -31,7 +31,7 @@ test "Variant memory: ByteString scalar lifecycle" {
     // ByteString is created with .byte_string, not .scalar()
     const test_variant = ua.Variant{ .byte_string = test_bytes };
     const c_variant = try test_variant.toC(allocator);
-    defer ua.Variant.freeCVariant(c_variant, allocator);
+    defer ua.Variant.freeCVariant(allocator, c_variant);
 
     const variant = try ua.Variant.fromC(c_variant, allocator);
     defer variant.deinit(allocator);
@@ -47,7 +47,7 @@ test "Variant memory: LocalizedText scalar lifecycle" {
 
     // Convert to C and back (this should allocate)
     const c_variant = try ua.Variant.scalar(ua.LocalizedText, localized_text).toC(allocator);
-    defer ua.Variant.freeCVariant(c_variant, allocator);
+    defer ua.Variant.freeCVariant(allocator, c_variant);
 
     const variant = try ua.Variant.fromC(c_variant, allocator);
     defer variant.deinit(allocator);
@@ -63,7 +63,7 @@ test "Variant memory: LocalizedText with empty strings" {
     const empty_text = ua.LocalizedText.init("", "");
 
     const c_variant = try ua.Variant.scalar(ua.LocalizedText, empty_text).toC(allocator);
-    defer ua.Variant.freeCVariant(c_variant, allocator);
+    defer ua.Variant.freeCVariant(allocator, c_variant);
 
     const variant = try ua.Variant.fromC(c_variant, allocator);
     defer variant.deinit(allocator);
@@ -79,7 +79,7 @@ test "Variant memory: Boolean array lifecycle" {
     defer allocator.free(test_array);
 
     const c_variant = try ua.Variant.array(bool, test_array).toC(allocator);
-    defer ua.Variant.freeCVariant(c_variant, allocator);
+    defer ua.Variant.freeCVariant(allocator, c_variant);
 
     const variant = try ua.Variant.fromC(c_variant, allocator);
     defer variant.deinit(allocator);
@@ -96,7 +96,7 @@ test "Variant memory: Int32 array lifecycle" {
     defer allocator.free(test_array);
 
     const c_variant = try ua.Variant.array(i32, test_array).toC(allocator);
-    defer ua.Variant.freeCVariant(c_variant, allocator);
+    defer ua.Variant.freeCVariant(allocator, c_variant);
 
     const variant = try ua.Variant.fromC(c_variant, allocator);
     defer variant.deinit(allocator);
@@ -145,7 +145,7 @@ test "Variant memory: Multiple scalar types in sequence" {
             defer allocator.free(test_string);
 
             const c_variant = try ua.Variant.scalar([]const u8, test_string).toC(allocator);
-            defer ua.Variant.freeCVariant(c_variant, allocator);
+            defer ua.Variant.freeCVariant(allocator, c_variant);
 
             const variant = try ua.Variant.fromC(c_variant, allocator);
             defer variant.deinit(allocator);
@@ -156,7 +156,7 @@ test "Variant memory: Multiple scalar types in sequence" {
             const localized_text = ua.LocalizedText.init("en", "Text");
 
             const c_variant = try ua.Variant.scalar(ua.LocalizedText, localized_text).toC(allocator);
-            defer ua.Variant.freeCVariant(c_variant, allocator);
+            defer ua.Variant.freeCVariant(allocator, c_variant);
 
             const variant = try ua.Variant.fromC(c_variant, allocator);
             defer variant.deinit(allocator);
@@ -169,7 +169,7 @@ test "Variant memory: Multiple scalar types in sequence" {
 
             const test_variant = ua.Variant{ .byte_string = test_bytes };
             const c_variant = try test_variant.toC(allocator);
-            defer ua.Variant.freeCVariant(c_variant, allocator);
+            defer ua.Variant.freeCVariant(allocator, c_variant);
 
             const variant = try ua.Variant.fromC(c_variant, allocator);
             defer variant.deinit(allocator);
@@ -187,7 +187,7 @@ test "Variant memory: Multiple array types in sequence" {
             defer allocator.free(test_array);
 
             const c_variant = try ua.Variant.array(bool, test_array).toC(allocator);
-            defer ua.Variant.freeCVariant(c_variant, allocator);
+            defer ua.Variant.freeCVariant(allocator, c_variant);
 
             const variant = try ua.Variant.fromC(c_variant, allocator);
             defer variant.deinit(allocator);
@@ -199,7 +199,7 @@ test "Variant memory: Multiple array types in sequence" {
             defer allocator.free(test_array);
 
             const c_variant = try ua.Variant.array(i32, test_array).toC(allocator);
-            defer ua.Variant.freeCVariant(c_variant, allocator);
+            defer ua.Variant.freeCVariant(allocator, c_variant);
 
             const variant = try ua.Variant.fromC(c_variant, allocator);
             defer variant.deinit(allocator);
@@ -211,7 +211,7 @@ test "Variant memory: Multiple array types in sequence" {
             defer allocator.free(test_array);
 
             const c_variant = try ua.Variant.array(f64, test_array).toC(allocator);
-            defer ua.Variant.freeCVariant(c_variant, allocator);
+            defer ua.Variant.freeCVariant(allocator, c_variant);
 
             const variant = try ua.Variant.fromC(c_variant, allocator);
             defer variant.deinit(allocator);
@@ -224,7 +224,7 @@ test "Variant memory: Empty variant lifecycle" {
 
     const empty_variant = ua.Variant{ .empty = {} };
     const c_variant = try empty_variant.toC(allocator);
-    defer ua.Variant.freeCVariant(c_variant, allocator);
+    defer ua.Variant.freeCVariant(allocator, c_variant);
 
     const variant = try ua.Variant.fromC(c_variant, allocator);
     defer variant.deinit(allocator);
@@ -254,7 +254,7 @@ test "Variant memory: Stack-only scalars don't leak" {
 
     inline for (test_cases) |test_variant| {
         const c_variant = try test_variant.toC(allocator);
-        defer ua.Variant.freeCVariant(c_variant, allocator);
+        defer ua.Variant.freeCVariant(allocator, c_variant);
 
         const variant = try ua.Variant.fromC(c_variant, allocator);
         defer variant.deinit(allocator);
@@ -270,7 +270,7 @@ test "Variant memory: NodeId scalar lifecycle" {
     const test_variant = ua.Variant.scalar(ua.NodeId, node_id);
 
     const c_variant = try test_variant.toC(allocator);
-    defer ua.Variant.freeCVariant(c_variant, allocator);
+    defer ua.Variant.freeCVariant(allocator, c_variant);
 
     const variant = try ua.Variant.fromC(c_variant, allocator);
     defer variant.deinit(allocator);
@@ -291,7 +291,7 @@ test "Variant memory: Guid scalar lifecycle" {
     const test_variant = ua.Variant{ .guid = guid };
 
     const c_variant = try test_variant.toC(allocator);
-    defer ua.Variant.freeCVariant(c_variant, allocator);
+    defer ua.Variant.freeCVariant(allocator, c_variant);
 
     const variant = try ua.Variant.fromC(c_variant, allocator);
     defer variant.deinit(allocator);
@@ -314,7 +314,7 @@ test "Variant memory: Large string lifecycle" {
     }
 
     const c_variant = try ua.Variant.scalar([]const u8, large_string).toC(allocator);
-    defer ua.Variant.freeCVariant(c_variant, allocator);
+    defer ua.Variant.freeCVariant(allocator, c_variant);
 
     const variant = try ua.Variant.fromC(c_variant, allocator);
     defer variant.deinit(allocator);
@@ -337,7 +337,7 @@ test "Variant memory: Large array lifecycle" {
     }
 
     const c_variant = try ua.Variant.array(i32, large_array).toC(allocator);
-    defer ua.Variant.freeCVariant(c_variant, allocator);
+    defer ua.Variant.freeCVariant(allocator, c_variant);
 
     const variant = try ua.Variant.fromC(c_variant, allocator);
     defer variant.deinit(allocator);
@@ -362,7 +362,7 @@ test "Variant memory: LocalizedText with long strings" {
     const localized_text = ua.LocalizedText.init(long_locale, long_text);
 
     const c_variant = try ua.Variant.scalar(ua.LocalizedText, localized_text).toC(allocator);
-    defer ua.Variant.freeCVariant(c_variant, allocator);
+    defer ua.Variant.freeCVariant(allocator, c_variant);
 
     const variant = try ua.Variant.fromC(c_variant, allocator);
     defer variant.deinit(allocator);

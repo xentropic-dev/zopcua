@@ -56,7 +56,7 @@ pub const ClientConfig = struct {
     /// **Errors:**
     /// - `BadInternalError` - Configuration setup failed
     /// - `OutOfMemory` - Allocation failed
-    pub fn applyToC(self: ClientConfig, c_config: *c.UA_ClientConfig, allocator: std.mem.Allocator) !void {
+    pub fn applyToC(self: ClientConfig, allocator: std.mem.Allocator, c_config: *c.UA_ClientConfig) !void {
         _ = allocator; // Not needed for basic config, but kept for API consistency
 
         if (self.security) |sec| {

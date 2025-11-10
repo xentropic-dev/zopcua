@@ -42,9 +42,9 @@ pub const BrowseDescription = struct {
     }
 
     /// Free memory allocated by toC()
-    pub fn freeToC(self: BrowseDescription, c_desc: c.UA_BrowseDescription, allocator: std.mem.Allocator) void {
-        self.node_id.freeToC(c_desc.nodeId, allocator);
-        self.reference_type_id.freeToC(c_desc.referenceTypeId, allocator);
+    pub fn freeToC(self: BrowseDescription, allocator: std.mem.Allocator, c_desc: c.UA_BrowseDescription) void {
+        self.node_id.freeToC(allocator, c_desc.nodeId);
+        self.reference_type_id.freeToC(allocator, c_desc.referenceTypeId);
     }
 };
 
@@ -277,7 +277,7 @@ test "BrowseDescription toC/freeToC" {
     };
 
     const c_desc = try desc.toC(testing.allocator);
-    defer desc.freeToC(c_desc, testing.allocator);
+    defer desc.freeToC(testing.allocator, c_desc);
 
     try testing.expectEqual(@as(u32, c.UA_BROWSEDIRECTION_BOTH), c_desc.browseDirection);
     try testing.expectEqual(false, c_desc.includeSubtypes);

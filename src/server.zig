@@ -90,7 +90,7 @@ pub const Server = struct {
         defer arena.deinit();
 
         // Apply Zig config to C config
-        try config.applyToC(&c_config, arena.allocator());
+        try config.applyToC(arena.allocator(), &c_config);
 
         // Create server with the configured settings
         const server = c.UA_Server_newWithConfig(&c_config);
@@ -344,8 +344,8 @@ pub const Server = struct {
         // Convert to C types
         const c_attrs = attrs.toC(allocator) catch return AddNodeError.OutOfMemory;
         defer {
-            Variant.freeCVariant(c_attrs.value, allocator);
-            attrs.freeToC(c_attrs, allocator);
+            Variant.freeCVariant(allocator, c_attrs.value);
+            attrs.freeToC(allocator, c_attrs);
         }
 
         // SAFETY: out_node_id is written to by UA_Server_addVariableNode before being read
@@ -353,15 +353,15 @@ pub const Server = struct {
 
         // Convert NodeIds and QualifiedName to C representation
         const c_node_id = try node_id.toC(allocator);
-        defer node_id.freeToC(c_node_id, allocator);
+        defer node_id.freeToC(allocator, c_node_id);
         const c_parent_node_id = try parent_node_id.toC(allocator);
-        defer parent_node_id.freeToC(c_parent_node_id, allocator);
+        defer parent_node_id.freeToC(allocator, c_parent_node_id);
         const c_parent_ref_node_id = try parent_ref_node_id.toC(allocator);
-        defer parent_ref_node_id.freeToC(c_parent_ref_node_id, allocator);
+        defer parent_ref_node_id.freeToC(allocator, c_parent_ref_node_id);
         const c_name = try name.toC(allocator);
-        defer name.freeToC(c_name, allocator);
+        defer name.freeToC(allocator, c_name);
         const c_type_definition = try type_definition.toC(allocator);
-        defer type_definition.freeToC(c_type_definition, allocator);
+        defer type_definition.freeToC(allocator, c_type_definition);
 
         const status = c.UA_Server_addVariableNode(
             self.handle,

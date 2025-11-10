@@ -171,7 +171,7 @@ pub const Client = struct {
         defer arena.deinit();
 
         // Apply Zig config to C config
-        try config.applyToC(&c_config, arena.allocator());
+        try config.applyToC(arena.allocator(), &c_config);
 
         // Create client with the configured settings
         const client = c.UA_Client_newWithConfig(&c_config);
@@ -337,7 +337,7 @@ pub const Client = struct {
             const c_node_id = node_id.toC(arena.allocator()) catch {
                 return WriteAttributeError.OutOfMemory;
             };
-            defer node_id.freeToC(c_node_id, arena.allocator());
+            defer node_id.freeToC(arena.allocator(), c_node_id);
 
             break :blk c.UA_Client_writeValueAttribute(self.handle, c_node_id, &c_variant);
         };
@@ -443,7 +443,7 @@ pub const Client = struct {
         const c_node_id = node_id.toC(std.heap.c_allocator) catch {
             return ReadAttributeError.OutOfMemory;
         };
-        defer node_id.freeToC(c_node_id, std.heap.c_allocator);
+        defer node_id.freeToC(std.heap.c_allocator, c_node_id);
 
         const status = c.UA_Client_readValueAttribute(self.handle, c_node_id, &c_variant);
 
@@ -593,7 +593,7 @@ pub const Client = struct {
         const c_desc = description.toC(arena.allocator()) catch {
             return BrowseError.OutOfMemory;
         };
-        defer description.freeToC(c_desc, arena.allocator());
+        defer description.freeToC(arena.allocator(), c_desc);
 
         // Create browse request
         // SAFETY: request is immediately initialized by UA_BrowseRequest_init before any use
