@@ -5,6 +5,9 @@ const ua_error = @import("ua_error.zig");
 const NodeId = @import("types.zig").NodeId;
 const Variant = @import("variant.zig").Variant;
 const ClientConfig = @import("client_config.zig").ClientConfig;
+const browse = @import("browse.zig");
+const BrowseDescription = browse.BrowseDescription;
+const BrowseResult = browse.BrowseResult;
 
 /// Errors that can occur when reading an attribute from a node
 pub const ReadAttributeError = error{
@@ -44,6 +47,46 @@ pub const ReadAttributeError = error{
     OutOfMemory,
     /// An internal server error occurred
     InternalError,
+    /// The security checks failed
+    SecurityChecksFailed,
+    /// An unexpected error occurred (catch-all for unknown status codes)
+    UnexpectedError,
+};
+
+/// Errors that can occur when browsing nodes
+pub const BrowseError = error{
+    /// The client is not connected to a server
+    ServerNotConnected,
+    /// The session has been closed
+    SessionClosed,
+    /// The browse operation timed out
+    Timeout,
+    /// Network communication error occurred
+    CommunicationError,
+    /// The specified node does not exist on the server
+    NodeIdUnknown,
+    /// The node ID format is invalid
+    NodeIdInvalid,
+    /// The browse direction is invalid
+    BrowseDirectionInvalid,
+    /// The reference type ID is invalid
+    ReferenceTypeIdInvalid,
+    /// The current user does not have permission to browse this node
+    UserAccessDenied,
+    /// The node has been deleted
+    ObjectDeleted,
+    /// The requested node was not found
+    NotFound,
+    /// The continuation point is invalid or expired
+    ContinuationPointInvalid,
+    /// No continuation point available
+    NoContinuationPoint,
+    /// Insufficient memory to complete the operation
+    OutOfMemory,
+    /// An internal server error occurred
+    InternalError,
+    /// The service is not supported
+    ServiceUnsupported,
     /// The security checks failed
     SecurityChecksFailed,
     /// An unexpected error occurred (catch-all for unknown status codes)
@@ -456,4 +499,225 @@ pub const Client = struct {
             else => ReadAttributeError.UnexpectedError,
         };
     }
+
+    /// Browse nodes starting from the specified node with a simple interface.
+    ///
+    /// This is a convenience wrapper around `browseWithDescription()` that uses default
+    /// browse parameters (forward direction, all reference types, all node classes).
+    ///
+    /// **Memory management:**
+    /// The returned BrowseResult deep-copies all data from the C library using the provided allocator.
+    /// The caller MUST call `result.deinit(allocator)` when done to free the allocated memory.
+    ///
+    /// Example usage:
+    /// ```zig
+    /// const result = try client.browse(StandardNodeId.objects_folder, allocator);
+    /// defer result.deinit(allocator);
+    /// for (result.references) |ref| {
+    ///     std.log.info("Found: {s}", .{ref.browse_name.name});
+    /// }
+    /// ```
+    ///
+    /// **Errors:**
+    /// See `BrowseError` for the complete list of possible errors.
+    pub fn browse(self: Client, node_id: NodeId, allocator: std.mem.Allocator) BrowseError!BrowseResult {
+        const desc = BrowseDescription{
+            .node_id = node_id,
+        };
+        return self.browseWithDescription(desc, 0, allocator);
+    }
+
+    /// Browse nodes with full control over browse parameters.
+    ///
+    /// This function provides complete control over the browse operation, allowing you to
+    /// specify the browse direction, reference types, node class filters, and more.
+    ///
+    /// **Memory management:**
+    /// The returned BrowseResult deep-copies all data from the C library using the provided allocator.
+    /// The caller MUST call `result.deinit(allocator)` when done to free the allocated memory.
+    ///
+    /// **Parameters:**
+    /// - `description`: Browse parameters including node, direction, and filters
+    /// - `max_references`: Maximum number of references to return (0 = no limit)
+    /// - `allocator`: Memory allocator for result data
+    ///
+    /// Example usage:
+    /// ```zig
+    /// const desc = BrowseDescription{
+    ///     .node_id = StandardNodeId.objects_folder,
+    ///     .browse_direction = .forward,
+    ///     .reference_type_id = ReferenceType.organizes,
+    ///     .include_subtypes = true,
+    ///     .node_class_mask = @intFromEnum(NodeClass.object),
+    /// };
+    /// const result = try client.browseWithDescription(desc, 100, allocator);
+    /// defer result.deinit(allocator);
+    /// ```
+    ///
+    /// **Errors:**
+    /// Based on the underlying C implementation (`UA_Client_Service_browse`), this function
+    /// can return the following errors:
+    ///
+    /// **Connection/Session Errors:**
+    /// - `ServerNotConnected` - The client is not connected to a server
+    /// - `SessionClosed` - The session has been closed
+    /// - `Timeout` - The browse operation timed out
+    /// - `CommunicationError` - Network communication error occurred
+    ///
+    /// **Node/Browse Errors:**
+    /// - `NodeIdUnknown` - The specified node does not exist on the server
+    /// - `NodeIdInvalid` - The node ID format is invalid
+    /// - `BrowseDirectionInvalid` - The browse direction is invalid
+    /// - `ReferenceTypeIdInvalid` - The reference type ID is invalid
+    /// - `UserAccessDenied` - The current user does not have permission to browse
+    /// - `ObjectDeleted` - The node has been deleted
+    /// - `NotFound` - The requested node was not found
+    ///
+    /// **System Errors:**
+    /// - `OutOfMemory` - Insufficient memory to complete the operation
+    /// - `InternalError` - An internal server error occurred
+    /// - `ServiceUnsupported` - The service is not supported
+    /// - `SecurityChecksFailed` - Security checks failed
+    /// - `UnexpectedError` - An unexpected error occurred
+    pub fn browseWithDescription(
+        self: Client,
+        description: BrowseDescription,
+        max_references: u32,
+        allocator: std.mem.Allocator,
+    ) BrowseError!BrowseResult {
+        // Use arena allocator for temporary C conversions
+        var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+        defer arena.deinit();
+
+        // Convert BrowseDescription to C
+        const c_desc = description.toC(arena.allocator()) catch {
+            return BrowseError.OutOfMemory;
+        };
+        defer description.freeToC(c_desc, arena.allocator());
+
+        // Create browse request
+        var request: c.UA_BrowseRequest = undefined;
+        c.UA_BrowseRequest_init(&request);
+        request.requestedMaxReferencesPerNode = max_references;
+        request.nodesToBrowseSize = 1;
+        request.nodesToBrowse = @constCast(&c_desc);
+
+        // Execute browse
+        const response = c.UA_Client_Service_browse(self.handle, request);
+        defer c.UA_BrowseResponse_clear(@constCast(&response));
+
+        // Check service-level status
+        if (response.responseHeader.serviceResult != c.UA_STATUSCODE_GOOD) {
+            return mapBrowseError(response.responseHeader.serviceResult);
+        }
+
+        // Check that we got exactly one result
+        if (response.resultsSize != 1) {
+            return BrowseError.UnexpectedError;
+        }
+
+        // Convert result from C (deep-copies all data)
+        return BrowseResult.fromC(response.results[0], allocator) catch {
+            return BrowseError.OutOfMemory;
+        };
+    }
+
+    /// Continue a browse operation using a continuation point.
+    ///
+    /// When a browse operation returns more results than can fit in a single response,
+    /// the server provides a continuation point. Use this method to retrieve the remaining results.
+    ///
+    /// **Memory management:**
+    /// The returned BrowseResult deep-copies all data from the C library using the provided allocator.
+    /// The caller MUST call `result.deinit(allocator)` when done to free the allocated memory.
+    ///
+    /// **Parameters:**
+    /// - `continuation_point`: The continuation point from a previous browse result
+    /// - `allocator`: Memory allocator for result data
+    ///
+    /// Example usage:
+    /// ```zig
+    /// var result = try client.browse(node_id, allocator);
+    /// defer result.deinit(allocator);
+    ///
+    /// while (result.continuation_point) |cp| {
+    ///     const next = try client.browseNext(cp, allocator);
+    ///     result.deinit(allocator);
+    ///     result = next;
+    /// }
+    /// ```
+    ///
+    /// **Errors:**
+    /// See `BrowseError` for the complete list of possible errors.
+    pub fn browseNext(
+        self: Client,
+        continuation_point: []const u8,
+        allocator: std.mem.Allocator,
+    ) BrowseError!BrowseResult {
+        // Create browse next request
+        var request: c.UA_BrowseNextRequest = undefined;
+        c.UA_BrowseNextRequest_init(&request);
+        request.releaseContinuationPoints = false;
+        request.continuationPointsSize = 1;
+
+        // Create C ByteString for continuation point
+        var c_cp: c.UA_ByteString = .{
+            .length = continuation_point.len,
+            .data = @constCast(continuation_point.ptr),
+        };
+        request.continuationPoints = &c_cp;
+
+        // Execute browse next
+        const response = c.UA_Client_Service_browseNext(self.handle, request);
+        defer c.UA_BrowseNextResponse_clear(@constCast(&response));
+
+        // Check service-level status
+        if (response.responseHeader.serviceResult != c.UA_STATUSCODE_GOOD) {
+            return mapBrowseError(response.responseHeader.serviceResult);
+        }
+
+        // Check that we got exactly one result
+        if (response.resultsSize != 1) {
+            return BrowseError.UnexpectedError;
+        }
+
+        // Convert result from C (deep-copies all data)
+        return BrowseResult.fromC(response.results[0], allocator) catch {
+            return BrowseError.OutOfMemory;
+        };
+    }
 };
+
+/// Map OPC UA status codes to BrowseError
+fn mapBrowseError(status: c.UA_StatusCode) BrowseError {
+    return switch (status) {
+        c.UA_STATUSCODE_GOOD => BrowseError.UnexpectedError, // Should not be called with GOOD
+
+        // Connection/Session errors
+        c.UA_STATUSCODE_BADSERVERNOTCONNECTED => BrowseError.ServerNotConnected,
+        c.UA_STATUSCODE_BADSESSIONCLOSED => BrowseError.SessionClosed,
+        c.UA_STATUSCODE_BADTIMEOUT => BrowseError.Timeout,
+        c.UA_STATUSCODE_BADREQUESTTIMEOUT => BrowseError.Timeout,
+        c.UA_STATUSCODE_BADCOMMUNICATIONERROR => BrowseError.CommunicationError,
+
+        // Node/Browse errors
+        c.UA_STATUSCODE_BADNODEIDUNKNOWN => BrowseError.NodeIdUnknown,
+        c.UA_STATUSCODE_BADNODEIDINVALID => BrowseError.NodeIdInvalid,
+        c.UA_STATUSCODE_BADBROWSEDIRECTIONINVALID => BrowseError.BrowseDirectionInvalid,
+        c.UA_STATUSCODE_BADREFERENCETYPEIDINVALID => BrowseError.ReferenceTypeIdInvalid,
+        c.UA_STATUSCODE_BADUSERACCESSDENIED => BrowseError.UserAccessDenied,
+        c.UA_STATUSCODE_BADOBJECTDELETED => BrowseError.ObjectDeleted,
+        c.UA_STATUSCODE_BADNOTFOUND => BrowseError.NotFound,
+        c.UA_STATUSCODE_BADCONTINUATIONPOINTINVALID => BrowseError.ContinuationPointInvalid,
+        c.UA_STATUSCODE_BADNOCONTINUATIONPOINTS => BrowseError.NoContinuationPoint,
+
+        // System errors
+        c.UA_STATUSCODE_BADOUTOFMEMORY => BrowseError.OutOfMemory,
+        c.UA_STATUSCODE_BADINTERNALERROR => BrowseError.InternalError,
+        c.UA_STATUSCODE_BADSERVICEUNSUPPORTED => BrowseError.ServiceUnsupported,
+        c.UA_STATUSCODE_BADSECURITYCHECKSFAILED => BrowseError.SecurityChecksFailed,
+
+        // Catch-all
+        else => BrowseError.UnexpectedError,
+    };
+}

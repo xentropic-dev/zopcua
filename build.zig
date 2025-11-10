@@ -261,17 +261,33 @@ pub fn build(b: *std.Build) void {
     const concurrent_step = b.step("test-concurrent", "Run concurrent access integration tests");
     concurrent_step.dependOn(&run_concurrent.step);
 
+    const browse_test = createIntegrationTest(
+        b,
+        "browse_test",
+        "tests/integration/browse_test.zig",
+        target,
+        optimize,
+        module,
+        test_helpers_module,
+        mbedtls_link,
+    );
+    const run_browse = b.addRunArtifact(browse_test);
+    const browse_step = b.step("test-browse", "Run browse integration tests");
+    browse_step.dependOn(&run_browse.step);
+
     // Comprehensive integration test suite
     const integration_all_step = b.step("test-integration-all", "Run all integration tests");
     integration_all_step.dependOn(&run_integration_test.step);
     integration_all_step.dependOn(&run_variant_scalar.step);
     integration_all_step.dependOn(&run_variant_array.step);
     integration_all_step.dependOn(&run_concurrent.step);
+    integration_all_step.dependOn(&run_browse.step);
 
     // Quick integration tests (non-concurrent for faster CI)
     const integration_quick_step = b.step("test-integration-quick", "Run quick integration tests (no concurrent)");
     integration_quick_step.dependOn(&run_variant_scalar.step);
     integration_quick_step.dependOn(&run_variant_array.step);
+    integration_quick_step.dependOn(&run_browse.step);
 
     const docs_lib = b.addLibrary(.{
         .name = "ua",
