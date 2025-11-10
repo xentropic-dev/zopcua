@@ -8,6 +8,11 @@ const ClientConfig = @import("client_config.zig").ClientConfig;
 const browse = @import("browse.zig");
 const BrowseDescription = browse.BrowseDescription;
 const BrowseResult = browse.BrowseResult;
+const subscription = @import("subscription.zig");
+const SubscriptionParameters = subscription.SubscriptionParameters;
+const SubscriptionId = subscription.SubscriptionId;
+const MonitoredItemParameters = subscription.MonitoredItemParameters;
+const MonitoredItemId = subscription.MonitoredItemId;
 
 /// Errors that can occur when reading an attribute from a node
 pub const ReadAttributeError = error{
@@ -161,6 +166,70 @@ pub const NamespaceError = error{
     InternalError,
     /// The service is not supported
     ServiceUnsupported,
+    /// An unexpected error occurred
+    UnexpectedError,
+};
+
+/// Errors that can occur during subscription operations
+pub const SubscriptionError = error{
+    /// The client is not connected to a server
+    ServerNotConnected,
+    /// The session has been closed
+    SessionClosed,
+    /// The operation timed out
+    Timeout,
+    /// Network communication error occurred
+    CommunicationError,
+    /// Invalid subscription parameters
+    InvalidParameters,
+    /// Subscription not found
+    SubscriptionNotFound,
+    /// Too many subscriptions
+    TooManySubscriptions,
+    /// Insufficient memory to complete the operation
+    OutOfMemory,
+    /// An internal server error occurred
+    InternalError,
+    /// The service is not supported
+    ServiceUnsupported,
+    /// The security checks failed
+    SecurityChecksFailed,
+    /// An unexpected error occurred
+    UnexpectedError,
+};
+
+/// Errors that can occur during monitored item operations
+pub const MonitoredItemError = error{
+    /// The client is not connected to a server
+    ServerNotConnected,
+    /// The session has been closed
+    SessionClosed,
+    /// The operation timed out
+    Timeout,
+    /// Network communication error occurred
+    CommunicationError,
+    /// The specified node does not exist on the server
+    NodeIdUnknown,
+    /// The node ID format is invalid
+    NodeIdInvalid,
+    /// Invalid monitored item parameters
+    InvalidParameters,
+    /// Monitored item not found
+    MonitoredItemNotFound,
+    /// Subscription ID is invalid
+    SubscriptionIdInvalid,
+    /// Attribute is not supported for monitoring
+    AttributeNotSupported,
+    /// Too many monitored items
+    TooManyMonitoredItems,
+    /// Insufficient memory to complete the operation
+    OutOfMemory,
+    /// An internal server error occurred
+    InternalError,
+    /// The service is not supported
+    ServiceUnsupported,
+    /// The security checks failed
+    SecurityChecksFailed,
     /// An unexpected error occurred
     UnexpectedError,
 };
