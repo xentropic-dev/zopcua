@@ -16,20 +16,67 @@
 - Requires Zig 0.15.2
 - See branch/tag history for previous Zig versions
 - APIs are unstable and subject to change
-- Limited feature coverage of the underlying open62541 library
+- Currently at ~15% feature parity with open62541 (see [ROADMAP.md](docs/ROADMAP.md))
 
 ### Project Goals
 
 This wrapper aims to make working with open62541 feel native to Zig by:
 
-1. **Adopting Zig idioms** - Using error return types, tagged unions, and other Zig patterns instead of C conventions
-2. **Abstracting C complexities** - open62541 uses bitfields extensively in some structs, requiring C wrapper functions for safe access
+1. **Memory Safety** - Proper allocator usage, clear ownership semantics, no manual memory management
+2. **Zig Idioms** - Error return types, tagged unions, comptime features instead of C conventions
+3. **Type Safety** - Strongly-typed wrappers eliminating void pointers and C-style type erasure
+4. **Abstraction** - Hide C complexities like bitfields, null-terminated strings, and manual struct initialization
 
 This library will not reach full feature parity with open62541 for some time. If you need functionality that isn't yet wrapped, please open an issue!
+
+## Features
+
+### ✅ Currently Implemented
+
+**Server:**
+- Server lifecycle (init, start, stop, iterate, runUntilInterrupt)
+- Variable nodes (add with full attribute control)
+- Object nodes (add with attributes)
+- Namespace management (add, lookup by name/index)
+- Custom server configuration (port, security mode)
+
+**Client:**
+- Client lifecycle (init, connect, disconnect)
+- Read operations (readValueAttribute)
+- Write operations (writeValueAttribute)
+- Browse operations (browse, browseNext with full control)
+- Custom client configuration (timeout, security mode)
+
+**Data Types:**
+- NodeId (numeric, string, GUID, bytestring)
+- Variant (scalars and arrays for all basic types)
+- QualifiedName, LocalizedText, ExpandedNodeId
+- VariableAttributes, ObjectAttributes
+- Browse types and masks
+- Comprehensive error types
+
+### 🚧 Planned/In Progress
+
+- Subscriptions & monitored items (high priority)
+- Method calls (medium priority)
+- Events & alarms (medium priority)
+- Server-side read/write operations
+- Client node management
+- History access
+- PubSub
+- Security & certificates
+- Discovery services
+
+See [ROADMAP.md](docs/ROADMAP.md) for detailed progress tracking.
 
 ## Documentation
 
 📚 **[View the full API documentation](https://xentropic-dev.github.io/zopcua/)**
+
+**Guides:**
+- [Examples Guide](docs/EXAMPLES.md) - Complete examples for common operations
+- [Memory Policy](docs/MEMORY_POLICY.md) - Understanding memory management
+- [Roadmap](docs/ROADMAP.md) - Feature parity tracking
 
 ## Installation
 
@@ -90,7 +137,9 @@ When using system mbedTLS, ensure the libraries are installed:
 - **Ubuntu/Debian**: `sudo apt install libmbedtls-dev`
 - **Other Linux**: Use your distribution's package manager
 
-## Usage
+## Quick Start
+
+### Minimal Server
 
 ```zig
 const std = @import("std");
@@ -100,9 +149,63 @@ pub fn main() !void {
     var server = try ua.Server.init();
     defer server.deinit();
 
-    try server.runUntilInterrupt(); // Blocks here until Ctrl-C
+    try server.runUntilInterrupt(); // Blocks until Ctrl-C
 }
 ```
+
+### Server with Variable
+
+```zig
+const std = @import("std");
+const ua = @import("ua");
+
+pub fn main() !void {
+    var server = try ua.Server.init();
+    defer server.deinit();
+
+    _ = try server.addVariableNode(
+        ua.NodeId.initString(1, "temperature"),
+        ua.StandardNodeId.objects_folder,
+        ua.ReferenceType.organizes,
+        ua.QualifiedName.init(1, "Temperature"),
+        ua.StandardNodeId.base_data_variable_type,
+        .{
+            .value = ua.Variant.scalar(f64, 23.5),
+            .display_name = ua.LocalizedText.init("en-US", "Temperature"),
+            .access_level = .{ .read = true, .write = true },
+        },
+    );
+
+    try server.runUntilInterrupt();
+}
+```
+
+### Client Reading Values
+
+```zig
+const std = @import("std");
+const ua = @import("ua");
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    var client = try ua.Client.init();
+    defer client.deinit();
+
+    try client.connect("opc.tcp://localhost:4840");
+    defer client.disconnect() catch {};
+
+    const node_id = ua.NodeId.initString(1, "temperature");
+    const variant = try client.readValueAttribute(allocator, node_id);
+    defer variant.deinit(allocator);
+
+    std.debug.print("Temperature: {d}\n", .{variant.double});
+}
+```
+
+**See [docs/EXAMPLES.md](docs/EXAMPLES.md) for more examples including writing values, browsing, arrays, objects, namespaces, and error handling.**
 
 ## Building
 
@@ -120,6 +223,7 @@ zig build test
 zig build docs
 ```
 
+
 ## License
 
 This wrapper library is licensed under the MIT License. See [LICENSE](LICENSE) for details.
@@ -128,4 +232,20 @@ The underlying open62541 library is licensed under the Mozilla Public License 2.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Here's how you can help:
+
+1. **Check [ROADMAP.md](docs/ROADMAP.md)** to see what features need implementation
+2. **Look for missing features** - The library is at ~15% parity with open62541, lots to do!
+3. **Submit PRs** with new features, bug fixes, or improved documentation
+4. **Open issues** for features you need or bugs you encounter
+5. **Add tests** for new functionality
+
+### High Priority Areas
+
+- Subscriptions & monitored items
+- Method calls
+- Server-side read/write operations
+- Client node management
+- Additional attribute operations
+
+See the roadmap for a complete breakdown of missing features.
