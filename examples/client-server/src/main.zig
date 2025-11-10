@@ -26,6 +26,7 @@ fn serverThread(allocator: std.mem.Allocator) !void {
 
     // Add a counter variable that we'll modify
     _ = try server.addVariableNode(
+        allocator,
         ua.NodeId.initString(1, "counter"),
         ua.StandardNodeId.objects_folder,
         ua.ReferenceType.organizes,
@@ -60,7 +61,7 @@ fn clientOperations(allocator: std.mem.Allocator) !void {
 
     // Read initial value
     std.log.info("\n1. Reading initial counter value...", .{});
-    const initial_value = try client.readValueAttribute(node_id, allocator);
+    const initial_value = try client.readValueAttribute(allocator, node_id);
     defer initial_value.deinit(allocator);
     std.log.info("   Counter = {}", .{initial_value});
 
@@ -72,7 +73,7 @@ fn clientOperations(allocator: std.mem.Allocator) !void {
 
     // Read it back
     std.log.info("\n3. Reading updated counter value...", .{});
-    const updated_value = try client.readValueAttribute(node_id, allocator);
+    const updated_value = try client.readValueAttribute(allocator, node_id);
     defer updated_value.deinit(allocator);
     std.log.info("   Counter = {}", .{updated_value});
 
@@ -84,7 +85,7 @@ fn clientOperations(allocator: std.mem.Allocator) !void {
 
     // Final read
     std.log.info("\n5. Reading final counter value...", .{});
-    const final_value = try client.readValueAttribute(node_id, allocator);
+    const final_value = try client.readValueAttribute(allocator, node_id);
     defer final_value.deinit(allocator);
     std.log.info("   Counter = {}", .{final_value});
 

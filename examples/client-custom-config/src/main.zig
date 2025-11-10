@@ -56,7 +56,7 @@ pub fn main() !void {
     const server_status_node = ua.NodeId.initNumeric(0, 2256); // ServerStatus node
     std.log.info("Reading ServerStatus node (ns=0;i=2256)...", .{});
 
-    const server_status_result = client.readValueAttribute(server_status_node, allocator) catch |err| {
+    const server_status_result = client.readValueAttribute(allocator, server_status_node) catch |err| {
         std.log.warn("Could not read ServerStatus node: {}", .{err});
         std.log.info("This is normal if the server doesn't expose this node", .{});
         return;
@@ -72,7 +72,7 @@ pub fn main() !void {
 
     // Try "the answer" from server-simple
     const answer_node = ua.NodeId.initString(1, "the.answer");
-    if (client.readValueAttribute(answer_node, allocator)) |answer_value| {
+    if (client.readValueAttribute(allocator, answer_node)) |answer_value| {
         defer answer_value.deinit(allocator);
         std.log.info("✓ Read 'the.answer': {}", .{answer_value.int32});
     } else |_| {
@@ -81,7 +81,7 @@ pub fn main() !void {
 
     // Try "temperature" from server-custom-config
     const temp_node = ua.NodeId.initString(1, "temperature");
-    if (client.readValueAttribute(temp_node, allocator)) |temp_value| {
+    if (client.readValueAttribute(allocator, temp_node)) |temp_value| {
         defer temp_value.deinit(allocator);
         std.log.info("✓ Read 'temperature': {d} °C", .{temp_value.double});
     } else |_| {
@@ -90,7 +90,7 @@ pub fn main() !void {
 
     // Try "counter" from server-custom-config
     const counter_node = ua.NodeId.initString(1, "counter");
-    if (client.readValueAttribute(counter_node, allocator)) |counter_value| {
+    if (client.readValueAttribute(allocator, counter_node)) |counter_value| {
         defer counter_value.deinit(allocator);
         std.log.info("✓ Read 'counter': {}", .{counter_value.uint32});
     } else |_| {

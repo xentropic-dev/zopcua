@@ -11,12 +11,12 @@ pub fn main() !void {
 
     // Add custom namespaces
     const sensor_ns = try server.addNamespace(
-        "http://example.com/sensors",
         allocator,
+        "http://example.com/sensors",
     );
     const actuator_ns = try server.addNamespace(
-        "http://example.com/actuators",
         allocator,
+        "http://example.com/actuators",
     );
 
     std.log.info("Created sensor namespace at index {d}", .{sensor_ns});
@@ -24,13 +24,14 @@ pub fn main() !void {
 
     // Verify namespace lookup
     const found_ns = try server.getNamespaceByName(
-        "http://example.com/sensors",
         allocator,
+        "http://example.com/sensors",
     );
     std.log.info("Verified sensor namespace lookup: index {d}", .{found_ns});
 
     // Add nodes in different namespaces
     _ = try server.addVariableNode(
+        allocator,
         ua.NodeId.initString(sensor_ns, "temperature"),
         ua.StandardNodeId.objects_folder,
         ua.ReferenceType.organizes,
@@ -46,6 +47,7 @@ pub fn main() !void {
     );
 
     _ = try server.addVariableNode(
+        allocator,
         ua.NodeId.initString(sensor_ns, "humidity"),
         ua.StandardNodeId.objects_folder,
         ua.ReferenceType.organizes,
@@ -61,6 +63,7 @@ pub fn main() !void {
     );
 
     _ = try server.addVariableNode(
+        allocator,
         ua.NodeId.initString(actuator_ns, "valve"),
         ua.StandardNodeId.objects_folder,
         ua.ReferenceType.organizes,

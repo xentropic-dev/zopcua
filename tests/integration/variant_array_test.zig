@@ -49,7 +49,7 @@ pub fn main() !void {
 }
 
 fn testBooleanArray(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-    const initial = try client.readValueAttribute(node_id, allocator);
+    const initial = try client.readValueAttribute(allocator, node_id);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant.array(bool, &fixtures.TestArrayData.boolean_array), initial);
 
@@ -57,13 +57,13 @@ fn testBooleanArray(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.A
     const new_value = ua.Variant.array(bool, &new_data);
     try client.writeValueAttribute(node_id, new_value);
 
-    const read_back = try client.readValueAttribute(node_id, allocator);
+    const read_back = try client.readValueAttribute(allocator, node_id);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
 }
 
 fn testSByteArray(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-    const initial = try client.readValueAttribute(node_id, allocator);
+    const initial = try client.readValueAttribute(allocator, node_id);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant.array(i8, &fixtures.TestArrayData.sbyte_array), initial);
 
@@ -72,13 +72,13 @@ fn testSByteArray(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.All
     const new_value = ua.Variant.array(i8, &new_data);
     try client.writeValueAttribute(node_id, new_value);
 
-    const read_back = try client.readValueAttribute(node_id, allocator);
+    const read_back = try client.readValueAttribute(allocator, node_id);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
 }
 
 fn testByteArray(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-    const initial = try client.readValueAttribute(node_id, allocator);
+    const initial = try client.readValueAttribute(allocator, node_id);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant.array(u8, &fixtures.TestArrayData.byte_array), initial);
 
@@ -86,13 +86,13 @@ fn testByteArray(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allo
     const new_value = ua.Variant.array(u8, &new_data);
     try client.writeValueAttribute(node_id, new_value);
 
-    const read_back = try client.readValueAttribute(node_id, allocator);
+    const read_back = try client.readValueAttribute(allocator, node_id);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
 }
 
 fn testInt16Array(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-    const initial = try client.readValueAttribute(node_id, allocator);
+    const initial = try client.readValueAttribute(allocator, node_id);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant.array(i16, &fixtures.TestArrayData.int16_array), initial);
 
@@ -100,13 +100,13 @@ fn testInt16Array(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.All
     const new_value = ua.Variant.array(i16, &new_data);
     try client.writeValueAttribute(node_id, new_value);
 
-    const read_back = try client.readValueAttribute(node_id, allocator);
+    const read_back = try client.readValueAttribute(allocator, node_id);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
 }
 
 fn testUInt16Array(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-    const initial = try client.readValueAttribute(node_id, allocator);
+    const initial = try client.readValueAttribute(allocator, node_id);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant.array(u16, &fixtures.TestArrayData.uint16_array), initial);
 
@@ -114,13 +114,13 @@ fn testUInt16Array(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Al
     const new_value = ua.Variant.array(u16, &new_data);
     try client.writeValueAttribute(node_id, new_value);
 
-    const read_back = try client.readValueAttribute(node_id, allocator);
+    const read_back = try client.readValueAttribute(allocator, node_id);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
 }
 
 fn testInt32Array(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-    const initial = try client.readValueAttribute(node_id, allocator);
+    const initial = try client.readValueAttribute(allocator, node_id);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant.array(i32, &fixtures.TestArrayData.int32_array), initial);
 
@@ -128,13 +128,13 @@ fn testInt32Array(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.All
     const new_value = ua.Variant.array(i32, &new_data);
     try client.writeValueAttribute(node_id, new_value);
 
-    const read_back = try client.readValueAttribute(node_id, allocator);
+    const read_back = try client.readValueAttribute(allocator, node_id);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
 }
 
 fn testUInt32Array(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-    const initial = try client.readValueAttribute(node_id, allocator);
+    const initial = try client.readValueAttribute(allocator, node_id);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant.array(u32, &fixtures.TestArrayData.uint32_array), initial);
 
@@ -142,13 +142,13 @@ fn testUInt32Array(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Al
     const new_value = ua.Variant.array(u32, &new_data);
     try client.writeValueAttribute(node_id, new_value);
 
-    const read_back = try client.readValueAttribute(node_id, allocator);
+    const read_back = try client.readValueAttribute(allocator, node_id);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
 }
 
 fn testInt64Array(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-    const initial = try client.readValueAttribute(node_id, allocator);
+    const initial = try client.readValueAttribute(allocator, node_id);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant.array(i64, &fixtures.TestArrayData.int64_array), initial);
 
@@ -156,13 +156,13 @@ fn testInt64Array(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.All
     const new_value = ua.Variant.array(i64, &new_data);
     try client.writeValueAttribute(node_id, new_value);
 
-    const read_back = try client.readValueAttribute(node_id, allocator);
+    const read_back = try client.readValueAttribute(allocator, node_id);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
 }
 
 fn testUInt64Array(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-    const initial = try client.readValueAttribute(node_id, allocator);
+    const initial = try client.readValueAttribute(allocator, node_id);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant.array(u64, &fixtures.TestArrayData.uint64_array), initial);
 
@@ -170,13 +170,13 @@ fn testUInt64Array(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Al
     const new_value = ua.Variant.array(u64, &new_data);
     try client.writeValueAttribute(node_id, new_value);
 
-    const read_back = try client.readValueAttribute(node_id, allocator);
+    const read_back = try client.readValueAttribute(allocator, node_id);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
 }
 
 fn testFloatArray(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-    const initial = try client.readValueAttribute(node_id, allocator);
+    const initial = try client.readValueAttribute(allocator, node_id);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant.array(f32, &fixtures.TestArrayData.float_array), initial);
 
@@ -184,13 +184,13 @@ fn testFloatArray(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.All
     const new_value = ua.Variant.array(f32, &new_data);
     try client.writeValueAttribute(node_id, new_value);
 
-    const read_back = try client.readValueAttribute(node_id, allocator);
+    const read_back = try client.readValueAttribute(allocator, node_id);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
 }
 
 fn testDoubleArray(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-    const initial = try client.readValueAttribute(node_id, allocator);
+    const initial = try client.readValueAttribute(allocator, node_id);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant.array(f64, &fixtures.TestArrayData.double_array), initial);
 
@@ -198,13 +198,13 @@ fn testDoubleArray(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Al
     const new_value = ua.Variant.array(f64, &new_data);
     try client.writeValueAttribute(node_id, new_value);
 
-    const read_back = try client.readValueAttribute(node_id, allocator);
+    const read_back = try client.readValueAttribute(allocator, node_id);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
 }
 
 fn testDateTimeArray(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-    const initial = try client.readValueAttribute(node_id, allocator);
+    const initial = try client.readValueAttribute(allocator, node_id);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(
         ua.Variant{ .date_time_array = &fixtures.TestArrayData.date_time_array },
@@ -215,13 +215,13 @@ fn testDateTimeArray(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.
     const new_value = ua.Variant{ .date_time_array = &new_data };
     try client.writeValueAttribute(node_id, new_value);
 
-    const read_back = try client.readValueAttribute(node_id, allocator);
+    const read_back = try client.readValueAttribute(allocator, node_id);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
 }
 
 fn testStatusCodeArray(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-    const initial = try client.readValueAttribute(node_id, allocator);
+    const initial = try client.readValueAttribute(allocator, node_id);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(
         ua.Variant{ .status_code_array = &fixtures.TestArrayData.status_code_array },
@@ -232,7 +232,7 @@ fn testStatusCodeArray(client: *ua.Client, node_id: ua.NodeId, allocator: std.me
     const new_value = ua.Variant{ .status_code_array = &new_data };
     try client.writeValueAttribute(node_id, new_value);
 
-    const read_back = try client.readValueAttribute(node_id, allocator);
+    const read_back = try client.readValueAttribute(allocator, node_id);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
 }
@@ -244,6 +244,7 @@ fn testEmptyArrays(_: *ua.Client, allocator: std.mem.Allocator) !void {
     defer test_server.deinit();
 
     const empty_node = try test_server.server.addVariableNode(
+        allocator,
         ua.NodeId.initString(1, "test.empty_array"),
         ua.StandardNodeId.objects_folder,
         ua.ReferenceType.organizes,
@@ -256,7 +257,6 @@ fn testEmptyArrays(_: *ua.Client, allocator: std.mem.Allocator) !void {
             .value_rank = 1,
             .array_dimensions = &[_]u32{0},
         },
-        allocator,
     );
 
     try test_server.startAsync();
@@ -273,7 +273,7 @@ fn testEmptyArrays(_: *ua.Client, allocator: std.mem.Allocator) !void {
         std.debug.print("Failed to disconnect test client: {}\n", .{err});
     };
 
-    const empty_result = try test_client.readValueAttribute(empty_node, allocator);
+    const empty_result = try test_client.readValueAttribute(allocator, empty_node);
     defer empty_result.deinit(allocator);
     if (empty_result.int32_array.len != 0) {
         return error.ExpectedEmptyArray;

@@ -398,7 +398,7 @@ pub const Client = struct {
     ///
     /// Example usage:
     /// ```zig
-    /// const variant = try client.readValueAttribute(node_id, allocator);
+    /// const variant = try client.readValueAttribute(allocator, node_id);
     /// defer variant.deinit(allocator);
     /// // Use variant...
     /// ```
@@ -435,7 +435,7 @@ pub const Client = struct {
     /// - `SecurityChecksFailed` - Security checks failed
     /// - `UnexpectedError` - An unexpected error occurred (returned by the C code for
     ///   internal errors like wrong resultsSize or missing value when one was expected)
-    pub fn readValueAttribute(self: Client, node_id: NodeId, allocator: std.mem.Allocator) ReadAttributeError!Variant {
+    pub fn readValueAttribute(self: Client, allocator: std.mem.Allocator, node_id: NodeId) ReadAttributeError!Variant {
         // SAFETY: c_variant is initialized immediately by UA_Variant_init before any use
         var c_variant: c.UA_Variant = undefined;
         c.UA_Variant_init(&c_variant);
@@ -511,7 +511,7 @@ pub const Client = struct {
     ///
     /// Example usage:
     /// ```zig
-    /// const result = try client.browse(StandardNodeId.objects_folder, allocator);
+    /// const result = try client.browse(allocator, StandardNodeId.objects_folder);
     /// defer result.deinit(allocator);
     /// for (result.references) |ref| {
     ///     std.log.info("Found: {s}", .{ref.browse_name.name});
@@ -520,11 +520,11 @@ pub const Client = struct {
     ///
     /// **Errors:**
     /// See `BrowseError` for the complete list of possible errors.
-    pub fn browse(self: Client, node_id: NodeId, allocator: std.mem.Allocator) BrowseError!BrowseResult {
+    pub fn browse(self: Client, allocator: std.mem.Allocator, node_id: NodeId) BrowseError!BrowseResult {
         const desc = BrowseDescription{
             .node_id = node_id,
         };
-        return self.browseWithDescription(desc, 0, allocator);
+        return self.browseWithDescription(allocator, desc, 0);
     }
 
     /// Browse nodes with full control over browse parameters.
@@ -537,9 +537,9 @@ pub const Client = struct {
     /// The caller MUST call `result.deinit(allocator)` when done to free the allocated memory.
     ///
     /// **Parameters:**
+    /// - `allocator`: Memory allocator for result data
     /// - `description`: Browse parameters including node, direction, and filters
     /// - `max_references`: Maximum number of references to return (0 = no limit)
-    /// - `allocator`: Memory allocator for result data
     ///
     /// Example usage:
     /// ```zig
@@ -550,7 +550,7 @@ pub const Client = struct {
     ///     .include_subtypes = true,
     ///     .node_class_mask = .objects_only,
     /// };
-    /// const result = try client.browseWithDescription(desc, 100, allocator);
+    /// const result = try client.browseWithDescription(allocator, desc, 100);
     /// defer result.deinit(allocator);
     /// ```
     ///
@@ -581,9 +581,9 @@ pub const Client = struct {
     /// - `UnexpectedError` - An unexpected error occurred
     pub fn browseWithDescription(
         self: Client,
+        allocator: std.mem.Allocator,
         description: BrowseDescription,
         max_references: u32,
-        allocator: std.mem.Allocator,
     ) BrowseError!BrowseResult {
         // Use arena allocator for temporary C conversions
         var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
@@ -633,16 +633,16 @@ pub const Client = struct {
     /// The caller MUST call `result.deinit(allocator)` when done to free the allocated memory.
     ///
     /// **Parameters:**
-    /// - `continuation_point`: The continuation point from a previous browse result
     /// - `allocator`: Memory allocator for result data
+    /// - `continuation_point`: The continuation point from a previous browse result
     ///
     /// Example usage:
     /// ```zig
-    /// var result = try client.browse(node_id, allocator);
+    /// var result = try client.browse(allocator, node_id);
     /// defer result.deinit(allocator);
     ///
     /// while (result.continuation_point) |cp| {
-    ///     const next = try client.browseNext(cp, allocator);
+    ///     const next = try client.browseNext(allocator, cp);
     ///     result.deinit(allocator);
     ///     result = next;
     /// }
@@ -652,8 +652,8 @@ pub const Client = struct {
     /// See `BrowseError` for the complete list of possible errors.
     pub fn browseNext(
         self: Client,
-        continuation_point: []const u8,
         allocator: std.mem.Allocator,
+        continuation_point: []const u8,
     ) BrowseError!BrowseResult {
         // Create browse next request
         // SAFETY: request is immediately initialized by UA_BrowseNextRequest_init before any use

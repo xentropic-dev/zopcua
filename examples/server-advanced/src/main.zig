@@ -15,6 +15,7 @@ fn addDemoVariables(server: *ua.Server, allocator: std.mem.Allocator) !void {
 
     // Integer variable - "the answer"
     _ = try server.addVariableNode(
+        allocator,
         ua.NodeId.initString(1, "the.answer"),
         parent,
         ua.ReferenceType.organizes,
@@ -31,6 +32,7 @@ fn addDemoVariables(server: *ua.Server, allocator: std.mem.Allocator) !void {
 
     // Temperature sensor (double)
     _ = try server.addVariableNode(
+        allocator,
         ua.NodeId.initString(1, "temperature"),
         parent,
         ua.ReferenceType.organizes,
@@ -47,6 +49,7 @@ fn addDemoVariables(server: *ua.Server, allocator: std.mem.Allocator) !void {
 
     // Status string
     _ = try server.addVariableNode(
+        allocator,
         ua.NodeId.initString(1, "status"),
         parent,
         ua.ReferenceType.organizes,
@@ -63,6 +66,7 @@ fn addDemoVariables(server: *ua.Server, allocator: std.mem.Allocator) !void {
 
     // Boolean flag
     _ = try server.addVariableNode(
+        allocator,
         ua.NodeId.initString(1, "enabled"),
         parent,
         ua.ReferenceType.organizes,
@@ -81,6 +85,7 @@ fn addDemoVariables(server: *ua.Server, allocator: std.mem.Allocator) !void {
     const measurements = [_]f64{ 10.1, 20.2, 30.3, 40.4, 50.5 };
     const array_dims = [_]u32{5}; // Specify the array dimension size
     _ = try server.addVariableNode(
+        allocator,
         ua.NodeId.initString(1, "measurements"),
         parent,
         ua.ReferenceType.organizes,
@@ -94,11 +99,11 @@ fn addDemoVariables(server: *ua.Server, allocator: std.mem.Allocator) !void {
             .value_rank = 1, // One-dimensional array
             .array_dimensions = &array_dims, // Must match value_rank
         },
-        allocator,
     );
 
     // Counter (unsigned int)
     _ = try server.addVariableNode(
+        allocator,
         ua.NodeId.initString(1, "counter"),
         parent,
         ua.ReferenceType.organizes,
@@ -115,6 +120,7 @@ fn addDemoVariables(server: *ua.Server, allocator: std.mem.Allocator) !void {
 
     // Pressure reading (float)
     _ = try server.addVariableNode(
+        allocator,
         ua.NodeId.initString(1, "pressure"),
         parent,
         ua.ReferenceType.organizes,
@@ -131,6 +137,7 @@ fn addDemoVariables(server: *ua.Server, allocator: std.mem.Allocator) !void {
 
     // Byte value
     _ = try server.addVariableNode(
+        allocator,
         ua.NodeId.initString(1, "byte_value"),
         parent,
         ua.ReferenceType.organizes,

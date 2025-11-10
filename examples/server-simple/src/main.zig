@@ -11,6 +11,7 @@ pub fn main() !void {
 
     // Add a simple integer variable "the answer" = 42
     _ = try server.addVariableNode(
+        allocator,
         ua.NodeId.initString(1, "the.answer"),
         ua.StandardNodeId.objects_folder,
         ua.ReferenceType.organizes,

@@ -9,12 +9,12 @@ test "namespace management end-to-end" {
 
     // Add custom namespaces
     const sensor_ns = try server.addNamespace(
-        "http://example.com/sensors",
         testing.allocator,
+        "http://example.com/sensors",
     );
     const control_ns = try server.addNamespace(
-        "http://example.com/controls",
         testing.allocator,
+        "http://example.com/controls",
     );
 
     // Verify indices are sequential
@@ -23,18 +23,19 @@ test "namespace management end-to-end" {
 
     // Lookup by name
     const found_sensor = try server.getNamespaceByName(
-        "http://example.com/sensors",
         testing.allocator,
+        "http://example.com/sensors",
     );
     try testing.expectEqual(sensor_ns, found_sensor);
 
     // Lookup by index
-    const sensor_uri = try server.getNamespaceByIndex(sensor_ns, testing.allocator);
+    const sensor_uri = try server.getNamespaceByIndex(testing.allocator, sensor_ns);
     defer testing.allocator.free(sensor_uri);
     try testing.expectEqualStrings("http://example.com/sensors", sensor_uri);
 
     // Use namespace in node creation
     _ = try server.addVariableNode(
+        testing.allocator,
         ua.NodeId.initString(sensor_ns, "temperature"),
         ua.StandardNodeId.objects_folder,
         ua.ReferenceType.organizes,
@@ -45,7 +46,6 @@ test "namespace management end-to-end" {
             .display_name = ua.LocalizedText.init("en-US", "Temperature Sensor"),
             .access_level = .{ .read = true },
         },
-        testing.allocator,
     );
 }
 
@@ -55,8 +55,8 @@ test "namespace persistence across server lifecycle" {
     var server = try ua.Server.init();
 
     const ns_idx = try server.addNamespace(
-        "http://example.com/persistent",
         testing.allocator,
+        "http://example.com/persistent",
     );
 
     // Start and stop server (namespace should survive)
@@ -64,8 +64,8 @@ test "namespace persistence across server lifecycle" {
 
     // Verify namespace still accessible
     const found = try server.getNamespaceByName(
-        "http://example.com/persistent",
         testing.allocator,
+        "http://example.com/persistent",
     );
     try testing.expectEqual(ns_idx, found);
 

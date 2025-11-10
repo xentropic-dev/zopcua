@@ -34,7 +34,7 @@ pub fn main() !void {
 
     // Read the current value
     std.log.info("Reading current value of: ns=1;s=the.answer", .{});
-    const current_value = try client.readValueAttribute(node_id, allocator);
+    const current_value = try client.readValueAttribute(allocator, node_id);
     defer current_value.deinit(allocator);
     std.log.info("Current value: {}", .{current_value});
 
@@ -44,7 +44,7 @@ pub fn main() !void {
     try client.writeValueAttribute(node_id, new_value);
 
     // Read it back to confirm
-    const confirmed_value = try client.readValueAttribute(node_id, allocator);
+    const confirmed_value = try client.readValueAttribute(allocator, node_id);
     defer confirmed_value.deinit(allocator);
     std.log.info("Confirmed value: {}", .{confirmed_value});
 }

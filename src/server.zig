@@ -270,6 +270,7 @@ pub const Server = struct {
     /// attributes and relationships.
     ///
     /// Parameters:
+    ///   - allocator: Memory allocator for temporary C conversions
     ///   - node_id: The desired NodeId for the new variable. Use NodeId.initNumeric()
     ///              or NodeId.initString() to create. The server may assign a different
     ///              ID if this one is already in use.
@@ -278,7 +279,6 @@ pub const Server = struct {
     ///   - name: The qualified name (browse name) for the variable
     ///   - type_definition: The type definition NodeId (e.g., StandardNodeId.base_data_variable_type)
     ///   - attrs: Variable attributes including value, display name, description, etc.
-    ///   - allocator: Memory allocator for temporary C conversions
     ///
     /// Returns:
     ///   - The actual NodeId assigned by the server (may differ from requested node_id)
@@ -295,6 +295,7 @@ pub const Server = struct {
     /// Scalar variable:
     /// ```zig
     /// const temp_node = try server.addVariableNode(
+    ///     allocator,
     ///     NodeId.initString(1, "temperature"),
     ///     StandardNodeId.objects_folder,
     ///     ReferenceType.organizes,
@@ -307,7 +308,6 @@ pub const Server = struct {
     ///         .access_level = .{ .read = true, .write = true },
     ///         // value_rank defaults to -1 (scalar), data_type is auto-inferred
     ///     },
-    ///     allocator,
     /// );
     /// ```
     ///
@@ -316,6 +316,7 @@ pub const Server = struct {
     /// const measurements = [_]f64{ 10.1, 20.2, 30.3, 40.4, 50.5 };
     /// const array_dims = [_]u32{5};
     /// const array_node = try server.addVariableNode(
+    ///     allocator,
     ///     NodeId.initString(1, "measurements"),
     ///     StandardNodeId.objects_folder,
     ///     ReferenceType.organizes,
@@ -328,18 +329,17 @@ pub const Server = struct {
     ///         .value_rank = 1, // One-dimensional array
     ///         .array_dimensions = &array_dims, // Must match value_rank
     ///     },
-    ///     allocator,
     /// );
     /// ```
     pub fn addVariableNode(
         self: *Server,
+        allocator: std.mem.Allocator,
         node_id: NodeId,
         parent_node_id: NodeId,
         parent_ref_node_id: NodeId,
         name: QualifiedName,
         type_definition: NodeId,
         attrs: VariableAttributes,
-        allocator: std.mem.Allocator,
     ) AddNodeError!NodeId {
         // Convert to C types
         const c_attrs = attrs.toC(allocator) catch return AddNodeError.OutOfMemory;
@@ -408,8 +408,8 @@ pub const Server = struct {
     /// after startup may cause undefined behavior.
     ///
     /// Parameters:
-    ///   - namespace_uri: URI string identifying the namespace (e.g., "http://example.com/myapp")
     ///   - allocator: Memory allocator for temporary C string conversion
+    ///   - namespace_uri: URI string identifying the namespace (e.g., "http://example.com/myapp")
     ///
     /// Returns:
     ///   - The assigned namespace index (u16), typically 2 or higher
@@ -424,7 +424,7 @@ pub const Server = struct {
     /// var server = try Server.init();
     /// defer server.deinit();
     ///
-    /// const ns_idx = try server.addNamespace("http://example.com/sensors", allocator);
+    /// const ns_idx = try server.addNamespace(allocator, "http://example.com/sensors");
     /// // ns_idx will be 2 (first custom namespace)
     ///
     /// // Now use ns_idx when creating nodes:
@@ -435,8 +435,8 @@ pub const Server = struct {
     /// ```
     pub fn addNamespace(
         self: *Server,
-        namespace_uri: []const u8,
         allocator: std.mem.Allocator,
+        namespace_uri: []const u8,
     ) NamespaceError!u16 {
         // Validation
         if (namespace_uri.len == 0) return NamespaceError.InvalidNamespaceUri;
@@ -463,8 +463,8 @@ pub const Server = struct {
     /// Searches the server's namespace table for a matching URI and returns its index.
     ///
     /// Parameters:
-    ///   - namespace_uri: URI string to search for
     ///   - allocator: Memory allocator for temporary C string conversion
+    ///   - namespace_uri: URI string to search for
     ///
     /// Returns:
     ///   - The namespace index if found
@@ -477,15 +477,15 @@ pub const Server = struct {
     /// Example:
     /// ```zig
     /// const idx = try server.getNamespaceByName(
+    ///     allocator,
     ///     "http://opcfoundation.org/UA/",
-    ///     allocator
     /// );
     /// // idx will be 0 (standard namespace)
     /// ```
     pub fn getNamespaceByName(
         self: *Server,
-        namespace_uri: []const u8,
         allocator: std.mem.Allocator,
+        namespace_uri: []const u8,
     ) NamespaceError!u16 {
         _ = allocator;
         if (namespace_uri.len == 0) return NamespaceError.InvalidNamespaceUri;
@@ -517,8 +517,8 @@ pub const Server = struct {
     /// string is owned by the caller and must be freed using the provided allocator.
     ///
     /// Parameters:
-    ///   - namespace_index: Index to look up (0 = standard OPC UA namespace)
     ///   - allocator: Memory allocator for the returned string
+    ///   - namespace_index: Index to look up (0 = standard OPC UA namespace)
     ///
     /// Returns:
     ///   - Owned string containing the namespace URI (caller must free)
@@ -529,14 +529,14 @@ pub const Server = struct {
     ///
     /// Example:
     /// ```zig
-    /// const uri = try server.getNamespaceByIndex(0, allocator);
+    /// const uri = try server.getNamespaceByIndex(allocator, 0);
     /// defer allocator.free(uri);
     /// // uri will be "http://opcfoundation.org/UA/"
     /// ```
     pub fn getNamespaceByIndex(
         self: *Server,
-        namespace_index: u16,
         allocator: std.mem.Allocator,
+        namespace_index: u16,
     ) NamespaceError![]const u8 {
         // SAFETY: foundUri is initialized by UA_Server_getNamespaceByIndex
         var found_uri: c.UA_String = undefined;
@@ -572,11 +572,11 @@ test "Server.addNamespace basic functionality" {
     defer server.deinit();
 
     // First custom namespace should be index 2
-    const idx1 = try server.addNamespace("http://example.com/test", testing.allocator);
+    const idx1 = try server.addNamespace(testing.allocator, "http://example.com/test");
     try testing.expectEqual(@as(u16, 2), idx1);
 
     // Second should be index 3
-    const idx2 = try server.addNamespace("http://example.com/other", testing.allocator);
+    const idx2 = try server.addNamespace(testing.allocator, "http://example.com/other");
     try testing.expectEqual(@as(u16, 3), idx2);
 }
 
@@ -586,7 +586,7 @@ test "Server.addNamespace rejects empty URI" {
     var server = try Server.init();
     defer server.deinit();
 
-    const result = server.addNamespace("", testing.allocator);
+    const result = server.addNamespace(testing.allocator, "");
     try testing.expectError(NamespaceError.InvalidNamespaceUri, result);
 }
 
@@ -597,8 +597,8 @@ test "Server.getNamespaceByName finds standard namespace" {
     defer server.deinit();
 
     const idx = try server.getNamespaceByName(
-        "http://opcfoundation.org/UA/",
         testing.allocator,
+        "http://opcfoundation.org/UA/",
     );
     try testing.expectEqual(@as(u16, 0), idx);
 }
@@ -609,8 +609,8 @@ test "Server.getNamespaceByName finds custom namespace" {
     var server = try Server.init();
     defer server.deinit();
 
-    const added_idx = try server.addNamespace("http://example.com/test", testing.allocator);
-    const found_idx = try server.getNamespaceByName("http://example.com/test", testing.allocator);
+    const added_idx = try server.addNamespace(testing.allocator, "http://example.com/test");
+    const found_idx = try server.getNamespaceByName(testing.allocator, "http://example.com/test");
     try testing.expectEqual(added_idx, found_idx);
 }
 
@@ -620,7 +620,7 @@ test "Server.getNamespaceByName returns error for unknown namespace" {
     var server = try Server.init();
     defer server.deinit();
 
-    const result = server.getNamespaceByName("http://nonexistent.com/", testing.allocator);
+    const result = server.getNamespaceByName(testing.allocator, "http://nonexistent.com/");
     try testing.expectError(NamespaceError.NamespaceNotFound, result);
 }
 
@@ -630,7 +630,7 @@ test "Server.getNamespaceByIndex retrieves standard namespace" {
     var server = try Server.init();
     defer server.deinit();
 
-    const uri = try server.getNamespaceByIndex(0, testing.allocator);
+    const uri = try server.getNamespaceByIndex(testing.allocator, 0);
     defer testing.allocator.free(uri);
 
     try testing.expectEqualStrings("http://opcfoundation.org/UA/", uri);
@@ -643,9 +643,9 @@ test "Server.getNamespaceByIndex retrieves custom namespace" {
     defer server.deinit();
 
     const test_uri = "http://example.com/custom";
-    const idx = try server.addNamespace(test_uri, testing.allocator);
+    const idx = try server.addNamespace(testing.allocator, test_uri);
 
-    const retrieved_uri = try server.getNamespaceByIndex(idx, testing.allocator);
+    const retrieved_uri = try server.getNamespaceByIndex(testing.allocator, idx);
     defer testing.allocator.free(retrieved_uri);
 
     try testing.expectEqualStrings(test_uri, retrieved_uri);
@@ -657,6 +657,6 @@ test "Server.getNamespaceByIndex returns error for invalid index" {
     var server = try Server.init();
     defer server.deinit();
 
-    const result = server.getNamespaceByIndex(999, testing.allocator);
+    const result = server.getNamespaceByIndex(testing.allocator, 999);
     try testing.expectError(NamespaceError.NamespaceNotFound, result);
 }

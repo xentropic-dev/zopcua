@@ -96,7 +96,7 @@ pub fn expectNodeIdEqual(expected: ua.NodeId, actual: ua.NodeId) !void {
 
 /// Assert that a node exists by attempting to read it
 pub fn expectNodeExists(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-    const variant = client.readValueAttribute(node_id, allocator) catch |err| {
+    const variant = client.readValueAttribute(allocator, node_id) catch |err| {
         std.debug.print("Node does not exist or cannot be read: {}\n", .{err});
         return error.NodeDoesNotExist;
     };
@@ -110,7 +110,7 @@ pub fn expectReadError(
     expected_error: ua.client.ReadAttributeError,
     allocator: std.mem.Allocator,
 ) !void {
-    const result = client.readValueAttribute(node_id, allocator);
+    const result = client.readValueAttribute(allocator, node_id);
     if (result) |variant| {
         variant.deinit(allocator);
         std.debug.print("Expected error {}, but read succeeded\n", .{expected_error});

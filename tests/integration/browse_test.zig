@@ -30,7 +30,7 @@ pub fn main() !void {
 
     // Test 1: Browse Objects folder
     std.debug.print("  Test 1: Browse Objects folder...\n", .{});
-    var result = try client.browse(ua.StandardNodeId.objects_folder, allocator);
+    var result = try client.browse(allocator, ua.StandardNodeId.objects_folder);
     defer result.deinit(allocator);
 
     // The Objects folder should have at least one child

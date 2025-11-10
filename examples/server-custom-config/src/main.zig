@@ -20,6 +20,7 @@ pub fn main() !void {
 
     // Add a simple temperature variable to demonstrate the server works
     _ = try server.addVariableNode(
+        allocator,
         ua.NodeId.initString(1, "temperature"),
         ua.StandardNodeId.objects_folder,
         ua.ReferenceType.organizes,
@@ -31,11 +32,11 @@ pub fn main() !void {
             .description = ua.LocalizedText.init("en-US", "Current room temperature in Celsius"),
             .access_level = .{ .read = true, .write = true },
         },
-        allocator,
     );
 
     // Add a counter variable
     _ = try server.addVariableNode(
+        allocator,
         ua.NodeId.initString(1, "counter"),
         ua.StandardNodeId.objects_folder,
         ua.ReferenceType.organizes,
@@ -47,7 +48,6 @@ pub fn main() !void {
             .description = ua.LocalizedText.init("en-US", "A simple counter variable"),
             .access_level = .{ .read = true, .write = true },
         },
-        allocator,
     );
 
     std.log.info("=== Custom Configuration Server ===", .{});

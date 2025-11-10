@@ -21,7 +21,7 @@ pub fn main() !void {
     const node_id = ua.NodeId.initString(1, "the.answer");
     std.log.info("Reading node: ns=1;s=the.answer", .{});
 
-    const value = try client.readValueAttribute(node_id, allocator);
+    const value = try client.readValueAttribute(allocator, node_id);
     defer value.deinit(allocator);
 
     // Print the result
