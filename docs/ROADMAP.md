@@ -2,13 +2,15 @@
 
 This document tracks the implementation progress of Zig bindings for open62541, showing feature parity between the C library and the Zig wrapper.
 
-**Overall Progress: ~15%** (Core functionality in place, many advanced features pending)
+**Overall Progress: 25%** (Core functionality in place, many advanced features pending)
+
+> **Note:** Percentages are automatically calculated. After updating checkmarks (✅ 🟡 🔴 ❌), run `python3 scripts/update_roadmap.py` to recalculate all percentages.
 
 ---
 
 ## 1. Server Core Functionality
 
-**Progress: 25%** - Basic server lifecycle and fundamental node operations implemented
+**Progress: 12%**
 
 ### 1.1 Server Lifecycle (100% ✅)
 - ✅ `Server.init()` - Create server with default config
@@ -19,7 +21,7 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 - ✅ `Server.iterate()` - Process one event loop iteration
 - ✅ `Server.runUntilInterrupt()` - Run until SIGINT
 
-### 1.2 Node Management - Variables (40% 🟡)
+### 1.2 Node Management - Variables (17% 🔴)
 - ✅ `Server.addVariableNode()` - Add variable node to address space
 - ❌ `UA_Server_addVariableTypeNode` - Add variable type node
 - ❌ `UA_Server_addDataSourceVariableNode` - Add variable with custom read/write callbacks
@@ -27,7 +29,7 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 - ❌ `UA_Server_addReference` - Add reference between nodes
 - ❌ `UA_Server_deleteReference` - Delete reference between nodes
 
-### 1.3 Node Management - Objects (40% 🟡)
+### 1.3 Node Management - Objects (20% 🔴)
 - ✅ `Server.addObjectNode()` - Add object node to address space
 - ❌ `UA_Server_addObjectTypeNode` - Add object type node
 - ❌ `UA_Server_addViewNode` - Add view node
@@ -40,7 +42,7 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 - ❌ `UA_Server_setMethodNodeCallback` - Set method callback
 - ❌ `UA_Server_call` - Call a method
 
-### 1.5 Server Read/Write Operations (10% 🔴)
+### 1.5 Server Read/Write Operations (0% ❌)
 - ❌ `UA_Server_read` - Generic read operation
 - ❌ `UA_Server_readValue` - Read value attribute
 - ❌ `UA_Server_readNodeId` - Read NodeId attribute
@@ -138,7 +140,7 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 
 ## 2. Client Core Functionality
 
-**Progress: 20%** - Basic client operations and browsing implemented
+**Progress: 10%**
 
 ### 2.1 Client Lifecycle (100% ✅)
 - ✅ `Client.init()` - Create client with default config
@@ -147,7 +149,7 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 - ✅ `Client.connect()` - Connect to server
 - ✅ `Client.disconnect()` - Disconnect from server
 
-### 2.2 Client Connection Management (10% 🔴)
+### 2.2 Client Connection Management (9% 🔴)
 - ✅ `UA_Client_connect` - Basic connection
 - ❌ `UA_Client_connectUsername` - Connect with username/password
 - ❌ `UA_Client_connectSecureChannel` - Connect secure channel only
@@ -160,7 +162,7 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 - ❌ `UA_Client_getState` - Get client state
 - ❌ `UA_Client_run_iterate` - Iterate event loop
 
-### 2.3 Client Read Operations (10% 🔴)
+### 2.3 Client Read Operations (5% 🔴)
 - ✅ `Client.readValueAttribute()` - Read value attribute
 - ❌ `UA_Client_readAttribute` - Generic read attribute
 - ❌ `UA_Client_readNodeIdAttribute` - Read NodeId attribute
@@ -182,7 +184,7 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 - ❌ `UA_Client_readNodeClassAttribute` - Read node class
 - ❌ All async variants (`_async` suffix)
 
-### 2.4 Client Write Operations (10% 🔴)
+### 2.4 Client Write Operations (5% 🔴)
 - ✅ `Client.writeValueAttribute()` - Write value attribute
 - ❌ `UA_Client_writeAttribute` - Generic write attribute
 - ❌ `UA_Client_writeNodeIdAttribute` - Write NodeId
@@ -276,7 +278,7 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 
 ## 3. Data Types & Structures
 
-**Progress: 60%** - Core types well implemented, some advanced types missing
+**Progress: 49%**
 
 ### 3.1 Core Types (100% ✅)
 - ✅ `NodeId` - Node identifier (numeric, string, GUID, bytestring)
@@ -288,7 +290,7 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 - ✅ `BrowseDirection` - Browse direction enum
 - ✅ `NodeClass` - Node class enum
 
-### 3.2 Variant Types (90% 🟡)
+### 3.2 Variant Types (38% 🟡)
 - ✅ All scalar types (boolean, integers, floats, string, datetime, guid, bytestring, nodeid, statuscode, localizedtext)
 - ✅ Most array types (boolean, integers, floats, datetime, statuscode)
 - 🟡 String arrays (partial - marked as not yet supported in toC)
@@ -298,7 +300,7 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 - ❌ Multi-dimensional arrays
 - ❌ Matrix support
 
-### 3.3 Attribute Types (50% 🟡)
+### 3.3 Attribute Types (45% 🟡)
 - ✅ `VariableAttributes` - Variable node attributes
 - ✅ `ObjectAttributes` - Object node attributes
 - ✅ `AccessLevel` - Access level flags
@@ -335,9 +337,9 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 
 ## 4. Configuration & Security
 
-**Progress: 30%** - Basic config exists, many security features missing
+**Progress: 21%**
 
-### 4.1 Server Configuration (40% 🟡)
+### 4.1 Server Configuration (23% 🔴)
 - ✅ `ServerConfig` struct
 - ✅ Port configuration
 - ✅ Security mode (None, Sign, SignAndEncrypt)
@@ -352,7 +354,7 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 - ❌ Server description
 - ❌ Application URI
 
-### 4.2 Client Configuration (40% 🟡)
+### 4.2 Client Configuration (27% 🔴)
 - ✅ `ClientConfig` struct
 - ✅ Timeout configuration
 - ✅ Security mode
@@ -376,7 +378,7 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 
 ## 5. Error Handling
 
-**Progress: 80%** - Comprehensive error types defined
+**Progress: 86%**
 
 ### 5.1 Error Types (100% ✅)
 - ✅ `AddNodeError` - Node addition errors
@@ -386,7 +388,7 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 - ✅ `BrowseError` - Browse operation errors
 - ✅ `OpcUaError` - Generic OPC UA status code errors
 
-### 5.2 Error Mapping (80% 🟡)
+### 5.2 Error Mapping (70% 🟡)
 - ✅ Server errors mapped to specific types
 - ✅ Client errors mapped to specific types
 - ✅ Browse errors mapped
@@ -397,9 +399,9 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 
 ## 6. Testing & Examples
 
-**Progress: 40%** - Good example coverage, tests need expansion
+**Progress: 61%**
 
-### 6.1 Examples (80% 🟡)
+### 6.1 Examples (69% 🟡)
 - ✅ `server-minimal` - Minimal server
 - ✅ `server-simple` - Simple server with variables
 - ✅ `server-advanced` - Advanced server features
@@ -417,7 +419,7 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 - ❌ PubSub examples
 - ❌ History examples
 
-### 6.2 Unit Tests (60% 🟡)
+### 6.2 Unit Tests (59% 🟡)
 - ✅ NodeId tests
 - ✅ QualifiedName tests
 - ✅ Variant tests
@@ -430,7 +432,7 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 - ❌ Event tests
 - ❌ Security tests
 
-### 6.3 Integration Tests (40% 🟡)
+### 6.3 Integration Tests (50% 🟡)
 - ✅ Client-server communication
 - ✅ Browse operations
 - ✅ Read/write operations
@@ -444,9 +446,9 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 
 ## 7. Documentation
 
-**Progress: 50%** - Good inline docs, missing guides
+**Progress: 38%**
 
-### 7.1 API Documentation (70% 🟡)
+### 7.1 API Documentation (75% 🟡)
 - ✅ Comprehensive inline documentation for Server
 - ✅ Comprehensive inline documentation for Client
 - ✅ Comprehensive inline documentation for types
@@ -454,7 +456,7 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 - 🟡 Some advanced features lack docs
 - ❌ API reference generation
 
-### 7.2 Guides & Tutorials (20% 🔴)
+### 7.2 Guides & Tutorials (7% 🔴)
 - 🟡 README.md with basic info
 - ❌ Getting started guide
 - ❌ Architecture overview
@@ -469,14 +471,14 @@ This document tracks the implementation progress of Zig bindings for open62541, 
 
 | Category | Progress | Status |
 |----------|----------|--------|
-| Server Core | 25% | 🟡 Partial |
-| Client Core | 20% | 🟡 Partial |
-| Data Types | 60% | 🟡 Good |
-| Configuration | 30% | 🟡 Partial |
-| Error Handling | 80% | ✅ Good |
-| Testing | 40% | 🟡 Partial |
-| Documentation | 50% | 🟡 Partial |
-| **Overall** | **~15%** | 🔴 Early |
+| Server Core | 12% | 🔴 Minimal |
+| Client Core | 10% | 🔴 Minimal |
+| Data Types | 49% | 🟡 Partial |
+| Configuration | 21% | 🔴 Minimal |
+| Error Handling | 82% | ✅ Good |
+| Testing | 60% | 🟡 Partial |
+| Documentation | 35% | 🔴 Minimal |
+| **Overall** | **25%** | 🔴 Early |
 
 ---
 
@@ -500,4 +502,4 @@ Areas most in need of contribution:
 
 Percentages are estimates based on function count and complexity. Some functions are more critical than others, so lower percentages don't necessarily mean less usability for common use cases.
 
-The current implementation (~15% overall) provides a solid foundation for basic OPC UA client-server applications with read/write/browse capabilities. The focus has been on correctness and memory safety over feature completeness.
+The current implementation (25% overall) provides a solid foundation for basic OPC UA client-server applications with read/write/browse capabilities. The focus has been on correctness and memory safety over feature completeness.

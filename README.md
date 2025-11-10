@@ -16,7 +16,7 @@
 - Requires Zig 0.15.2
 - See branch/tag history for previous Zig versions
 - APIs are unstable and subject to change
-- Currently at ~15% feature parity with open62541 (see [ROADMAP.md](docs/ROADMAP.md))
+- Currently at 25% feature parity with open62541 (see [ROADMAP.md](docs/ROADMAP.md))
 
 ### Project Goals
 
@@ -235,7 +235,7 @@ The underlying open62541 library is licensed under the Mozilla Public License 2.
 Contributions are welcome! Here's how you can help:
 
 1. **Check [ROADMAP.md](docs/ROADMAP.md)** to see what features need implementation
-2. **Look for missing features** - The library is at ~15% parity with open62541, lots to do!
+2. **Look for missing features** - The library is at 25% parity with open62541, lots to do!
 3. **Submit PRs** with new features, bug fixes, or improved documentation
 4. **Open issues** for features you need or bugs you encounter
 5. **Add tests** for new functionality
