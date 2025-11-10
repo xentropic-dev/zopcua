@@ -7,7 +7,6 @@ const fixtures = test_helpers.fixtures;
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
 
-
     // Create and setup server
     var test_server = try TestServer.init(allocator, 4840);
     defer test_server.deinit();
@@ -32,7 +31,6 @@ pub fn main() !void {
 
     // Test 4: Multiple clients on different nodes
     try testConcurrentClientsMultipleNodes(endpoint_url, nodes, allocator);
-
 }
 
 const ReaderResult = struct {
@@ -46,7 +44,6 @@ fn testConcurrentReaders(
     node_id: ua.NodeId,
     allocator: std.mem.Allocator,
 ) !void {
-
     const num_clients = 10;
     const num_reads_per_client = 20;
     var threads: [num_clients]std.Thread = undefined;
@@ -75,15 +72,13 @@ fn testConcurrentReaders(
         if (maybe_result) |result| {
             if (result.success) {
                 successful_reads += 1;
-            } else {
-            }
+            } else {}
         }
     }
 
     if (successful_reads != num_clients) {
         return error.SomeReadersFailed;
     }
-
 }
 
 const ReaderContext = struct {
@@ -137,7 +132,6 @@ fn testConcurrentWriters(
     node_id: ua.NodeId,
     allocator: std.mem.Allocator,
 ) !void {
-
     const num_writers = 5;
     var threads: [num_writers]std.Thread = undefined;
     var results = [_]?bool{null} ** num_writers;
@@ -180,7 +174,6 @@ fn testConcurrentWriters(
 
     const final_value = try verify_client.readValueAttribute(node_id, allocator);
     defer final_value.deinit(allocator);
-
 }
 
 const WriterContext = struct {
@@ -232,7 +225,6 @@ fn testMixedConcurrentAccess(
     nodes: fixtures.TestNodeIds,
     allocator: std.mem.Allocator,
 ) !void {
-
     const num_readers = 10;
     const num_writers = 5;
     const total_clients = num_readers + num_writers;
@@ -286,11 +278,9 @@ fn testMixedConcurrentAccess(
         }
     }
 
-
     if (successful_readers != num_readers or successful_writers != num_writers) {
         return error.MixedAccessFailed;
     }
-
 }
 
 fn testConcurrentClientsMultipleNodes(
@@ -298,7 +288,6 @@ fn testConcurrentClientsMultipleNodes(
     nodes: fixtures.TestNodeIds,
     allocator: std.mem.Allocator,
 ) !void {
-
     const node_list = [_]ua.NodeId{
         nodes.boolean,
         nodes.int16,
@@ -342,7 +331,6 @@ fn testConcurrentClientsMultipleNodes(
     if (successful != node_list.len) {
         return error.MultiNodeAccessFailed;
     }
-
 }
 
 const MultiNodeContext = struct {

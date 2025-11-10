@@ -164,7 +164,7 @@ test "Variant memory: Multiple scalar types in sequence" {
 
         // ByteString variant
         {
-            const test_bytes = try allocator.dupe(u8, &[_]u8{1, 2, 3});
+            const test_bytes = try allocator.dupe(u8, &[_]u8{ 1, 2, 3 });
             defer allocator.free(test_bytes);
 
             const test_variant = ua.Variant{ .byte_string = test_bytes };
@@ -183,7 +183,7 @@ test "Variant memory: Multiple array types in sequence" {
     for (0..10) |_| {
         // Boolean array
         {
-            const test_array = try allocator.dupe(bool, &[_]bool{true, false});
+            const test_array = try allocator.dupe(bool, &[_]bool{ true, false });
             defer allocator.free(test_array);
 
             const c_variant = try ua.Variant.array(bool, test_array).toC(allocator);
@@ -195,7 +195,7 @@ test "Variant memory: Multiple array types in sequence" {
 
         // Int32 array
         {
-            const test_array = try allocator.dupe(i32, &[_]i32{1, 2, 3});
+            const test_array = try allocator.dupe(i32, &[_]i32{ 1, 2, 3 });
             defer allocator.free(test_array);
 
             const c_variant = try ua.Variant.array(i32, test_array).toC(allocator);

@@ -19258,7 +19258,7 @@ pub const UA_MethodNode = extern struct {
     head: UA_NodeHead = @import("std").mem.zeroes(UA_NodeHead),
     executable: UA_Boolean = @import("std").mem.zeroes(UA_Boolean),
     method: UA_MethodCallback = @import("std").mem.zeroes(UA_MethodCallback),
-    @"async": UA_Boolean = @import("std").mem.zeroes(UA_Boolean),
+    async: UA_Boolean = @import("std").mem.zeroes(UA_Boolean),
 };
 pub const UA_ObjectNode = extern struct {
     head: UA_NodeHead = @import("std").mem.zeroes(UA_NodeHead),
@@ -19635,7 +19635,7 @@ pub extern fn UA_Client_delete(client: ?*UA_Client) void;
 pub extern fn UA_Client_getConnectionAttribute(client: ?*UA_Client, key: UA_QualifiedName, outValue: [*c]UA_Variant) UA_StatusCode;
 pub extern fn UA_Client_getConnectionAttributeCopy(client: ?*UA_Client, key: UA_QualifiedName, outValue: [*c]UA_Variant) UA_StatusCode;
 pub extern fn UA_Client_getConnectionAttribute_scalar(client: ?*UA_Client, key: UA_QualifiedName, @"type": [*c]const UA_DataType, outValue: ?*anyopaque) UA_StatusCode;
-pub extern fn __UA_Client_connect(client: ?*UA_Client, @"async": UA_Boolean) UA_StatusCode;
+pub extern fn __UA_Client_connect(client: ?*UA_Client, async: UA_Boolean) UA_StatusCode;
 pub fn UA_Client_connect(arg_client: ?*UA_Client, arg_endpointUrl: [*c]const u8) callconv(.c) UA_StatusCode {
     var client = arg_client;
     _ = &client;

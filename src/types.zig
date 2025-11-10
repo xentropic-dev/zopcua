@@ -72,7 +72,7 @@ pub const NodeId = union(enum) {
             .string, .byte_string => {
                 if (c_node_id.identifier.string.data) |data| {
                     const len = c_node_id.identifier.string.length;
-                    allocator.free(data[0..len + 1]); // +1 for null terminator
+                    allocator.free(data[0 .. len + 1]); // +1 for null terminator
                 }
             },
             .numeric, .guid => {}, // No cleanup needed
@@ -134,7 +134,7 @@ pub const QualifiedName = struct {
         _ = self;
         if (c_qname.name.data) |data| {
             const len = c_qname.name.length;
-            allocator.free(data[0..len + 1]); // +1 for null terminator
+            allocator.free(data[0 .. len + 1]); // +1 for null terminator
         }
     }
 

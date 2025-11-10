@@ -8,7 +8,6 @@ const assertions = test_helpers.assertions;
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
 
-
     // Create and setup server
     var test_server = try TestServer.init(allocator, 4840);
     defer test_server.deinit();
@@ -48,7 +47,6 @@ pub fn main() !void {
     try testNodeId(&client, nodes.node_id, allocator);
     try testStatusCode(&client, nodes.status_code, allocator);
     try testLocalizedText(&client, nodes.localized_text, allocator);
-
 }
 
 fn testBoolean(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
@@ -66,11 +64,9 @@ fn testBoolean(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Alloca
     const read_back = try client.readValueAttribute(node_id, allocator);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
-
 }
 
 fn testSByte(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-
     const initial = try client.readValueAttribute(node_id, allocator);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant.scalar(i8, fixtures.TestScalarData.sbyte_value), initial);
@@ -81,11 +77,9 @@ fn testSByte(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocato
     const read_back = try client.readValueAttribute(node_id, allocator);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
-
 }
 
 fn testByte(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-
     const initial = try client.readValueAttribute(node_id, allocator);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant.scalar(u8, fixtures.TestScalarData.byte_value), initial);
@@ -96,11 +90,9 @@ fn testByte(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator
     const read_back = try client.readValueAttribute(node_id, allocator);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
-
 }
 
 fn testInt16(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-
     const initial = try client.readValueAttribute(node_id, allocator);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant.scalar(i16, fixtures.TestScalarData.int16_value), initial);
@@ -111,11 +103,9 @@ fn testInt16(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocato
     const read_back = try client.readValueAttribute(node_id, allocator);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
-
 }
 
 fn testUInt16(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-
     const initial = try client.readValueAttribute(node_id, allocator);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant.scalar(u16, fixtures.TestScalarData.uint16_value), initial);
@@ -126,11 +116,9 @@ fn testUInt16(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocat
     const read_back = try client.readValueAttribute(node_id, allocator);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
-
 }
 
 fn testInt32(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-
     const initial = try client.readValueAttribute(node_id, allocator);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant.scalar(i32, fixtures.TestScalarData.int32_value), initial);
@@ -141,11 +129,9 @@ fn testInt32(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocato
     const read_back = try client.readValueAttribute(node_id, allocator);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
-
 }
 
 fn testUInt32(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-
     const initial = try client.readValueAttribute(node_id, allocator);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant.scalar(u32, fixtures.TestScalarData.uint32_value), initial);
@@ -156,11 +142,9 @@ fn testUInt32(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocat
     const read_back = try client.readValueAttribute(node_id, allocator);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
-
 }
 
 fn testInt64(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-
     const initial = try client.readValueAttribute(node_id, allocator);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant.scalar(i64, fixtures.TestScalarData.int64_value), initial);
@@ -171,11 +155,9 @@ fn testInt64(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocato
     const read_back = try client.readValueAttribute(node_id, allocator);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
-
 }
 
 fn testUInt64(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-
     const initial = try client.readValueAttribute(node_id, allocator);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant.scalar(u64, fixtures.TestScalarData.uint64_value), initial);
@@ -186,11 +168,9 @@ fn testUInt64(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocat
     const read_back = try client.readValueAttribute(node_id, allocator);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
-
 }
 
 fn testFloat(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-
     const initial = try client.readValueAttribute(node_id, allocator);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant.scalar(f32, fixtures.TestScalarData.float_value), initial);
@@ -201,11 +181,9 @@ fn testFloat(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocato
     const read_back = try client.readValueAttribute(node_id, allocator);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
-
 }
 
 fn testDouble(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-
     const initial = try client.readValueAttribute(node_id, allocator);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant.scalar(f64, fixtures.TestScalarData.double_value), initial);
@@ -216,11 +194,9 @@ fn testDouble(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocat
     const read_back = try client.readValueAttribute(node_id, allocator);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
-
 }
 
 fn testString(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-
     const initial = try client.readValueAttribute(node_id, allocator);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant.scalar([]const u8, fixtures.TestScalarData.string_value), initial);
@@ -231,11 +207,9 @@ fn testString(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocat
     const read_back = try client.readValueAttribute(node_id, allocator);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
-
 }
 
 fn testDateTime(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-
     const initial = try client.readValueAttribute(node_id, allocator);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant{ .date_time = fixtures.TestScalarData.date_time_value }, initial);
@@ -246,11 +220,9 @@ fn testDateTime(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Alloc
     const read_back = try client.readValueAttribute(node_id, allocator);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
-
 }
 
 fn testGuid(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-
     const initial = try client.readValueAttribute(node_id, allocator);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant{ .guid = fixtures.TestScalarData.guidValue() }, initial);
@@ -267,11 +239,9 @@ fn testGuid(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator
     const read_back = try client.readValueAttribute(node_id, allocator);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
-
 }
 
 fn testByteString(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-
     const initial = try client.readValueAttribute(node_id, allocator);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant{ .byte_string = fixtures.TestScalarData.byte_string_value }, initial);
@@ -282,11 +252,9 @@ fn testByteString(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.All
     const read_back = try client.readValueAttribute(node_id, allocator);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
-
 }
 
 fn testNodeId(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-
     const initial = try client.readValueAttribute(node_id, allocator);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant.scalar(ua.NodeId, fixtures.TestScalarData.nodeIdValue()), initial);
@@ -298,11 +266,9 @@ fn testNodeId(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocat
     const read_back = try client.readValueAttribute(node_id, allocator);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
-
 }
 
 fn testStatusCode(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-
     const initial = try client.readValueAttribute(node_id, allocator);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(ua.Variant{ .status_code = fixtures.TestScalarData.status_code_value }, initial);
@@ -313,11 +279,9 @@ fn testStatusCode(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.All
     const read_back = try client.readValueAttribute(node_id, allocator);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
-
 }
 
 fn testLocalizedText(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.Allocator) !void {
-
     const initial = try client.readValueAttribute(node_id, allocator);
     defer initial.deinit(allocator);
     try assertions.expectVariantEqual(
@@ -332,5 +296,4 @@ fn testLocalizedText(client: *ua.Client, node_id: ua.NodeId, allocator: std.mem.
     const read_back = try client.readValueAttribute(node_id, allocator);
     defer read_back.deinit(allocator);
     try assertions.expectVariantEqual(new_value, read_back);
-
 }

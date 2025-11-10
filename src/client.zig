@@ -321,25 +321,25 @@ pub const Client = struct {
     pub fn writeValueAttribute(self: Client, node_id: NodeId, variant: Variant) WriteAttributeError!void {
         // Convert the Variant to open62541's C representation and write it
         const status = blk: {
-                var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-                defer arena.deinit();
+            var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+            defer arena.deinit();
 
-                // Create C variant using open62541's initialization functions
-                var c_variant = variant.toC(arena.allocator()) catch {
-                    return WriteAttributeError.OutOfMemory;
-                };
-                // IMPORTANT: Must call UA_Variant_clear to free memory allocated by
-                // open62541's UA_Variant_setScalarCopy/UA_Variant_setArrayCopy.
-                // UA_Client_writeValueAttribute makes its own copy, so we're responsible
-                // for cleaning up our temporary variant.
-                defer c.UA_Variant_clear(&c_variant);
+            // Create C variant using open62541's initialization functions
+            var c_variant = variant.toC(arena.allocator()) catch {
+                return WriteAttributeError.OutOfMemory;
+            };
+            // IMPORTANT: Must call UA_Variant_clear to free memory allocated by
+            // open62541's UA_Variant_setScalarCopy/UA_Variant_setArrayCopy.
+            // UA_Client_writeValueAttribute makes its own copy, so we're responsible
+            // for cleaning up our temporary variant.
+            defer c.UA_Variant_clear(&c_variant);
 
-                const c_node_id = node_id.toC(arena.allocator()) catch {
-                    return WriteAttributeError.OutOfMemory;
-                };
-                defer node_id.freeToC(c_node_id, arena.allocator());
+            const c_node_id = node_id.toC(arena.allocator()) catch {
+                return WriteAttributeError.OutOfMemory;
+            };
+            defer node_id.freeToC(c_node_id, arena.allocator());
 
-                break :blk c.UA_Client_writeValueAttribute(self.handle, c_node_id, &c_variant);
+            break :blk c.UA_Client_writeValueAttribute(self.handle, c_node_id, &c_variant);
         };
 
         // Map status codes to specific errors based on the C implementation

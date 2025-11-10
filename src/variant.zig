@@ -553,9 +553,7 @@ pub const Variant = union(enum) {
             .node_id_array => |a| allocator.free(a),
 
             // Scalars that don't own heap memory (stack values)
-            .boolean, .sbyte, .byte, .int16, .uint16, .int32, .uint32,
-            .int64, .uint64, .float, .double, .date_time, .guid,
-            .node_id, .status_code => {},
+            .boolean, .sbyte, .byte, .int16, .uint16, .int32, .uint32, .int64, .uint64, .float, .double, .date_time, .guid, .node_id, .status_code => {},
         }
     }
 

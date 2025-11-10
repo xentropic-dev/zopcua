@@ -20,7 +20,6 @@ pub fn main() !void {
     }
     _ = gpa.allocator(); // Not used in this simple test
 
-
     // Test 1: Client lifecycle
     var client = try ua.Client.init();
     client.deinit();
@@ -123,6 +122,4 @@ pub fn main() !void {
     rw_thread.join();
     try rw_server.stop();
     rw_server.deinit();
-
-
 }

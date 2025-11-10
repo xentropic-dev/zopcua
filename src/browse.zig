@@ -288,8 +288,8 @@ test "ReferenceDescription fromC and deinit" {
     c_ref.nodeId.nodeId = c.UA_NODEID_NUMERIC(1, 100);
     c_ref.nodeId.serverIndex = 0;
     c_ref.nodeId.namespaceUri = .{ .length = 0, .data = null };
-    c_ref.browseName = c.UA_QUALIFIEDNAME(1, @constCast(@ptrCast("TestNode")));
-    c_ref.displayName = c.UA_LOCALIZEDTEXT(@constCast(@ptrCast("en")), @constCast(@ptrCast("Test Node")));
+    c_ref.browseName = c.UA_QUALIFIEDNAME(1, @ptrCast(@constCast("TestNode")));
+    c_ref.displayName = c.UA_LOCALIZEDTEXT(@ptrCast(@constCast("en")), @ptrCast(@constCast("Test Node")));
     c_ref.nodeClass = c.UA_NODECLASS_VARIABLE;
     c_ref.typeDefinition.nodeId = c.UA_NODEID_NUMERIC(0, c.UA_NS0ID_BASEDATAVARIABLETYPE);
     c_ref.typeDefinition.serverIndex = 0;
@@ -333,7 +333,7 @@ test "BrowseResult fromC with continuation point" {
     c_result.statusCode = c.UA_STATUSCODE_GOOD;
     const cp_data = "continuation123";
     c_result.continuationPoint.length = cp_data.len;
-    c_result.continuationPoint.data = @constCast(@ptrCast(cp_data.ptr));
+    c_result.continuationPoint.data = @ptrCast(@constCast(cp_data.ptr));
     c_result.referencesSize = 0;
     c_result.references = null;
 
