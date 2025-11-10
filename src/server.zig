@@ -510,6 +510,59 @@ pub const Server = struct {
             else => NamespaceError.InternalError,
         };
     }
+
+    /// Get the namespace URI for a given index.
+    ///
+    /// Retrieves the URI string associated with a namespace index. The returned
+    /// string is owned by the caller and must be freed using the provided allocator.
+    ///
+    /// Parameters:
+    ///   - namespace_index: Index to look up (0 = standard OPC UA namespace)
+    ///   - allocator: Memory allocator for the returned string
+    ///
+    /// Returns:
+    ///   - Owned string containing the namespace URI (caller must free)
+    ///
+    /// Errors:
+    ///   - `NamespaceNotFound`: Index out of range or doesn't exist
+    ///   - `OutOfMemory`: Allocation failed
+    ///
+    /// Example:
+    /// ```zig
+    /// const uri = try server.getNamespaceByIndex(0, allocator);
+    /// defer allocator.free(uri);
+    /// // uri will be "http://opcfoundation.org/UA/"
+    /// ```
+    pub fn getNamespaceByIndex(
+        self: *Server,
+        namespace_index: u16,
+        allocator: std.mem.Allocator,
+    ) NamespaceError![]const u8 {
+        // SAFETY: foundUri is initialized by UA_Server_getNamespaceByIndex
+        var found_uri: c.UA_String = undefined;
+
+        const status = c.UA_Server_getNamespaceByIndex(
+            self.handle,
+            @intCast(namespace_index),
+            &found_uri,
+        );
+
+        if (status != c.UA_STATUSCODE_GOOD) {
+            return switch (status) {
+                c.UA_STATUSCODE_BADNOTFOUND => NamespaceError.NamespaceNotFound,
+                c.UA_STATUSCODE_BADOUTOFMEMORY => NamespaceError.OutOfMemory,
+                else => NamespaceError.InternalError,
+            };
+        }
+
+        // Copy the string data (C API owns the original)
+        const slice = if (found_uri.data) |data|
+            data[0..found_uri.length]
+        else
+            return NamespaceError.InternalError;
+
+        return allocator.dupe(u8, slice);
+    }
 };
 
 test "Server.addNamespace basic functionality" {
@@ -568,5 +621,42 @@ test "Server.getNamespaceByName returns error for unknown namespace" {
     defer server.deinit();
 
     const result = server.getNamespaceByName("http://nonexistent.com/", testing.allocator);
+    try testing.expectError(NamespaceError.NamespaceNotFound, result);
+}
+
+test "Server.getNamespaceByIndex retrieves standard namespace" {
+    const testing = std.testing;
+
+    var server = try Server.init();
+    defer server.deinit();
+
+    const uri = try server.getNamespaceByIndex(0, testing.allocator);
+    defer testing.allocator.free(uri);
+
+    try testing.expectEqualStrings("http://opcfoundation.org/UA/", uri);
+}
+
+test "Server.getNamespaceByIndex retrieves custom namespace" {
+    const testing = std.testing;
+
+    var server = try Server.init();
+    defer server.deinit();
+
+    const test_uri = "http://example.com/custom";
+    const idx = try server.addNamespace(test_uri, testing.allocator);
+
+    const retrieved_uri = try server.getNamespaceByIndex(idx, testing.allocator);
+    defer testing.allocator.free(retrieved_uri);
+
+    try testing.expectEqualStrings(test_uri, retrieved_uri);
+}
+
+test "Server.getNamespaceByIndex returns error for invalid index" {
+    const testing = std.testing;
+
+    var server = try Server.init();
+    defer server.deinit();
+
+    const result = server.getNamespaceByIndex(999, testing.allocator);
     try testing.expectError(NamespaceError.NamespaceNotFound, result);
 }
