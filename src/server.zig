@@ -672,6 +672,7 @@ pub const Server = struct {
 
 test "Server.addNamespace basic functionality" {
     const testing = std.testing;
+    std.testing.refAllDecls(@This());
 
     var server = try Server.init();
     defer server.deinit();

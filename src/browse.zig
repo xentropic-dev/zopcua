@@ -243,6 +243,7 @@ pub const BrowseResult = struct {
 
 test "BrowseDescription default values" {
     const testing = std.testing;
+    std.testing.refAllDecls(@This());
 
     const node_id = NodeId.initNumeric(0, 85); // Objects folder
     const desc = BrowseDescription{

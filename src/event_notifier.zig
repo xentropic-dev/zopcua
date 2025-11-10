@@ -35,6 +35,7 @@ pub const EventNotifier = packed struct {
 
 test "EventNotifier none" {
     const testing = std.testing;
+    std.testing.refAllDecls(@This());
 
     const notifier = EventNotifier.none;
     try testing.expectEqual(false, notifier.subscribe_to_events);

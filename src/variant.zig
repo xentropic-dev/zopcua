@@ -613,6 +613,7 @@ pub const Variant = union(enum) {
 
 test "Variant scalar i32" {
     const testing = std.testing;
+    std.testing.refAllDecls(@This());
     const allocator = testing.allocator;
 
     const variant = Variant.scalar(i32, 42);

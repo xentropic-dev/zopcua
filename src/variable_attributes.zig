@@ -93,6 +93,7 @@ pub const VariableAttributes = struct {
 
 test "AccessLevel none" {
     const testing = std.testing;
+    std.testing.refAllDecls(@This());
 
     const access = AccessLevel.none;
     try testing.expectEqual(false, access.read);

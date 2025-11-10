@@ -65,6 +65,7 @@ const std = @import("std");
 
 test "BrowseResultMask bitfield conversion roundtrip" {
     const testing = std.testing;
+    std.testing.refAllDecls(@This());
 
     const mask = BrowseResultMask{
         .node_class = true,

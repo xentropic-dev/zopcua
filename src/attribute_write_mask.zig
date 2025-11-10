@@ -115,6 +115,7 @@ const std = @import("std");
 
 test "AttributeWriteMask bitfield conversion roundtrip" {
     const testing = std.testing;
+    std.testing.refAllDecls(@This());
 
     const mask = AttributeWriteMask{
         .display_name = true,

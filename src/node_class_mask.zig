@@ -71,6 +71,7 @@ const std = @import("std");
 
 test "NodeClassMask bitfield conversion roundtrip" {
     const testing = std.testing;
+    std.testing.refAllDecls(@This());
 
     const mask = NodeClassMask{
         .object = true,

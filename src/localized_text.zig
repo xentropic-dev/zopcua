@@ -52,6 +52,7 @@ const std = @import("std");
 
 test "LocalizedText with locale and text" {
     const testing = std.testing;
+    std.testing.refAllDecls(@This());
 
     const text = LocalizedText.init("en-US", "Hello World");
     try testing.expectEqualStrings("en-US", text.locale);

@@ -50,6 +50,7 @@ const std = @import("std");
 
 test "AccessLevel bitfield conversion roundtrip" {
     const testing = std.testing;
+    std.testing.refAllDecls(@This());
 
     const level = AccessLevel{ .read = true, .write = true };
     const c_level = level.toC();

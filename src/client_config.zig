@@ -118,6 +118,7 @@ pub const ClientConfig = struct {
 
 test "SecurityConfig default values" {
     const testing = std.testing;
+    std.testing.refAllDecls(@This());
 
     const config = SecurityConfig{};
 

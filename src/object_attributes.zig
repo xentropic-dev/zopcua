@@ -44,6 +44,7 @@ pub const ObjectAttributes = struct {
 
 test "ObjectAttributes default values" {
     const testing = std.testing;
+    std.testing.refAllDecls(@This());
 
     const attrs = ObjectAttributes{};
     try testing.expectEqual(@as(u32, 0), attrs.specified_attributes);

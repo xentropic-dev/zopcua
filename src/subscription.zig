@@ -95,6 +95,7 @@ pub const DataChangeCallback = *const fn (
 
 test "SubscriptionParameters defaults" {
     const testing = std.testing;
+    std.testing.refAllDecls(@This());
 
     const params = SubscriptionParameters{};
     try testing.expectEqual(@as(f64, 500.0), params.publishing_interval);

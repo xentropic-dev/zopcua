@@ -304,6 +304,7 @@ pub const StandardNodeId = struct {
 
 test "NodeId numeric creation and conversion" {
     const testing = std.testing;
+    std.testing.refAllDecls(@This());
 
     const node_id = NodeId.initNumeric(1, 42);
     try testing.expectEqual(@as(u16, 1), node_id.numeric.namespace);

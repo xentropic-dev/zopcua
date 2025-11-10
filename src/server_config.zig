@@ -160,6 +160,7 @@ pub const ServerConfig = struct {
 
 test "SecurityMode enum values" {
     const testing = std.testing;
+    std.testing.refAllDecls(@This());
 
     try testing.expectEqual(SecurityMode.none, .none);
     try testing.expectEqual(SecurityMode.sign, .sign);
