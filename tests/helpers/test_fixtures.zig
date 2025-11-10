@@ -119,7 +119,7 @@ pub const TestArrayData = struct {
 };
 
 /// Setup all standard test nodes on a server
-pub fn setupStandardNodes(server: *ua.Server, allocator: std.mem.Allocator) !TestNodeIds {
+pub fn setupStandardNodes(server: *ua.Server) !TestNodeIds {
     const parent = ua.StandardNodeId.objects_folder;
     const ref_type = ua.ReferenceType.organizes;
     const base_type = ua.StandardNodeId.base_data_variable_type;

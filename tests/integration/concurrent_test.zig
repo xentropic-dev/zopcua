@@ -11,7 +11,7 @@ pub fn main() !void {
     var test_server = try TestServer.init(allocator, 4840);
     defer test_server.deinit();
 
-    const nodes = try fixtures.setupStandardNodes(&test_server.server, allocator);
+    const nodes = try fixtures.setupStandardNodes(&test_server.server);
     try test_server.startAsync();
     defer test_server.stop() catch |err| {
         std.debug.print("Failed to stop test server: {}\n", .{err});
