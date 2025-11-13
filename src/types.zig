@@ -46,6 +46,15 @@ pub const NodeId = union(enum) {
     /// Null/empty NodeId
     pub const null_id = NodeId{ .numeric = .{ .namespace = 0, .identifier = 0 } };
 
+    /// Free allocated memory for string and bytestring NodeIds
+    pub fn deinit(self: NodeId, allocator: std.mem.Allocator) void {
+        switch (self) {
+            .string => |s| allocator.free(s.identifier),
+            .byte_string => |b| allocator.free(b.identifier),
+            .numeric, .guid => {}, // No cleanup needed
+        }
+    }
+
     /// Convert to C API representation
     /// For string/bytestring variants, allocates temporary null-terminated strings.
     /// Caller must call freeToC() with the same allocator to clean up.

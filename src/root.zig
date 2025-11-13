@@ -9,6 +9,9 @@ const variant_module = @import("variant.zig");
 const variable_attributes_module = @import("variable_attributes.zig");
 const object_attributes_module = @import("object_attributes.zig");
 const localized_text_module = @import("localized_text.zig");
+const data_value_module = @import("data_value.zig");
+const attributes_module = @import("attributes.zig");
+const standard_data_types_module = @import("standard_data_types.zig");
 const server_module = @import("server.zig");
 const client_module = @import("client.zig");
 const server_config_module = @import("server_config.zig");
@@ -36,6 +39,7 @@ pub const StandardNodeId = types_module.StandardNodeId;
 pub const ReferenceType = types_module.ReferenceType;
 
 pub const Variant = variant_module.Variant;
+pub const DataValue = data_value_module.DataValue;
 
 pub const VariableAttributes = variable_attributes_module.VariableAttributes;
 pub const AccessLevel = variable_attributes_module.AccessLevel;
@@ -45,6 +49,12 @@ pub const ObjectAttributes = object_attributes_module.ObjectAttributes;
 pub const EventNotifier = object_attributes_module.EventNotifier;
 
 pub const LocalizedText = localized_text_module.LocalizedText;
+
+pub const AttributeId = attributes_module.AttributeId;
+pub const AttributeValue = attributes_module.AttributeValue;
+
+pub const StandardDataType = standard_data_types_module.StandardDataType;
+pub const getDataTypeName = standard_data_types_module.getDataTypeName;
 
 pub const AddNodeError = server_module.AddNodeError;
 pub const NamespaceError = server_module.NamespaceError;
@@ -71,6 +81,8 @@ pub const server = server_module;
 pub const client = client_module;
 pub const browse = browse_module;
 pub const subscription = subscription_module;
+pub const attributes = attributes_module;
+pub const standard_data_types = standard_data_types_module;
 
 test {
     _ = @import("ua_error.zig");
@@ -83,4 +95,7 @@ test {
     _ = @import("client_config.zig");
     _ = @import("browse.zig");
     _ = @import("subscription.zig");
+    _ = @import("data_value.zig");
+    _ = @import("attributes.zig");
+    _ = @import("standard_data_types.zig");
 }

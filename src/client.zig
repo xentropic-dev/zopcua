@@ -3,7 +3,12 @@ const c = @import("c.zig");
 const helpers = @import("helpers.zig");
 const ua_error = @import("ua_error.zig");
 const NodeId = @import("types.zig").NodeId;
+const QualifiedName = @import("types.zig").QualifiedName;
+const NodeClass = @import("types.zig").NodeClass;
 const Variant = @import("variant.zig").Variant;
+const DataValue = @import("data_value.zig").DataValue;
+const LocalizedText = @import("localized_text.zig").LocalizedText;
+const String = @import("localized_text.zig").String;
 const ClientConfig = @import("client_config.zig").ClientConfig;
 const browse = @import("browse.zig");
 const BrowseDescription = browse.BrowseDescription;
@@ -14,6 +19,9 @@ const SubscriptionId = subscription.SubscriptionId;
 const MonitoredItemParameters = subscription.MonitoredItemParameters;
 const MonitoredItemId = subscription.MonitoredItemId;
 const DataChangeCallback = subscription.DataChangeCallback;
+const attributes = @import("attributes.zig");
+const AttributeId = attributes.AttributeId;
+const AttributeValue = attributes.AttributeValue;
 
 /// Internal context structure for monitored item callbacks.
 /// This is heap-allocated and managed by the C library's lifecycle.
@@ -532,6 +540,528 @@ pub const Client = struct {
             // Catch-all for unexpected errors (including BADUNEXPECTEDERROR from C code)
             c.UA_STATUSCODE_BADUNEXPECTEDERROR => WriteAttributeError.UnexpectedError,
             else => WriteAttributeError.UnexpectedError,
+        };
+    }
+
+    /// Read a node's value with full DataValue metadata including timestamps.
+    ///
+    /// This function retrieves the current value of a variable node along with its
+    /// source timestamp, server timestamp, and status code. This is useful when you need
+    /// to know when the value was acquired or last updated.
+    ///
+    /// **Memory management:**
+    /// The returned DataValue deep-copies all data from the C library using the provided allocator.
+    /// The caller MUST call `data_value.deinit(allocator)` when done to free the allocated memory.
+    ///
+    /// Example usage:
+    /// ```zig
+    /// const data_value = try client.readDataValue(allocator, node_id);
+    /// defer data_value.deinit(allocator);
+    /// if (data_value.source_timestamp) |ts| {
+    ///     std.debug.print("Value acquired at: {d}\n", .{ts});
+    /// }
+    /// ```
+    ///
+    /// **Errors:**
+    /// See `ReadAttributeError` for the complete list of possible errors.
+    pub fn readDataValue(self: Client, allocator: std.mem.Allocator, node_id: NodeId) ReadAttributeError!DataValue {
+        // SAFETY: c_variant and read_value_id are immediately initialized before any use
+        var read_value_id: c.UA_ReadValueId = undefined;
+        c.UA_ReadValueId_init(&read_value_id);
+        defer c.UA_ReadValueId_clear(&read_value_id);
+
+        // Use internal arena for temporary NodeId conversion
+        var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+        defer arena.deinit();
+
+        const c_node_id = node_id.toC(arena.allocator()) catch {
+            return ReadAttributeError.OutOfMemory;
+        };
+
+        // Copy NodeId to read_value_id
+        _ = c.UA_NodeId_copy(&c_node_id, &read_value_id.nodeId);
+        read_value_id.attributeId = c.UA_ATTRIBUTEID_VALUE;
+
+        // Create read request
+        var read_request: c.UA_ReadRequest = undefined;
+        c.UA_ReadRequest_init(&read_request);
+        defer c.UA_ReadRequest_clear(&read_request);
+        read_request.nodesToReadSize = 1;
+        read_request.nodesToRead = &read_value_id;
+        read_request.timestampsToReturn = c.UA_TIMESTAMPSTORETURN_BOTH;
+
+        // Execute read
+        var read_response = c.UA_Client_Service_read(self.handle, read_request);
+        defer c.UA_ReadResponse_clear(&read_response);
+
+        // Check service-level status
+        if (read_response.responseHeader.serviceResult != c.UA_STATUSCODE_GOOD) {
+            return mapReadError(read_response.responseHeader.serviceResult);
+        }
+
+        // Check that we got exactly one result
+        if (read_response.resultsSize != 1) {
+            return ReadAttributeError.UnexpectedError;
+        }
+
+        // Check the status of the read result
+        const result = read_response.results[0];
+        if (result.status != c.UA_STATUSCODE_GOOD) {
+            return mapReadError(result.status);
+        }
+
+        // Check that we have a value
+        if (!result.hasValue) {
+            return ReadAttributeError.UnexpectedError;
+        }
+
+        // Convert to Zig DataValue (deep-copies all data)
+        return DataValue.fromC(result, allocator) catch {
+            return ReadAttributeError.OutOfMemory;
+        };
+    }
+
+    /// Read multiple node values with timestamps in a single request.
+    ///
+    /// This is more efficient than calling readDataValue() multiple times as it
+    /// batches all reads into a single network request.
+    ///
+    /// **Memory management:**
+    /// The returned slice and all DataValues within it deep-copy data from the C library.
+    /// The caller MUST:
+    /// 1. Call `data_value.deinit(allocator)` on each DataValue in the slice
+    /// 2. Free the slice itself with `allocator.free(slice)`
+    ///
+    /// Example usage:
+    /// ```zig
+    /// const node_ids = [_]NodeId{ node1, node2, node3 };
+    /// const data_values = try client.readDataValues(allocator, &node_ids);
+    /// defer allocator.free(data_values);
+    /// defer for (data_values) |dv| dv.deinit(allocator);
+    /// ```
+    ///
+    /// **Errors:**
+    /// See `ReadAttributeError` for the complete list of possible errors.
+    pub fn readDataValues(
+        self: Client,
+        allocator: std.mem.Allocator,
+        node_ids: []const NodeId,
+    ) ReadAttributeError![]DataValue {
+        if (node_ids.len == 0) {
+            return &[_]DataValue{};
+        }
+
+        // Use internal arena for temporary C conversions
+        var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+        defer arena.deinit();
+
+        // Allocate array of UA_ReadValueId
+        const read_value_ids = arena.allocator().alloc(c.UA_ReadValueId, node_ids.len) catch {
+            return ReadAttributeError.OutOfMemory;
+        };
+
+        // Initialize all read value IDs
+        for (read_value_ids, 0..) |*rvid, i| {
+            c.UA_ReadValueId_init(rvid);
+            const c_node_id = node_ids[i].toC(arena.allocator()) catch {
+                return ReadAttributeError.OutOfMemory;
+            };
+            _ = c.UA_NodeId_copy(&c_node_id, &rvid.nodeId);
+            rvid.attributeId = c.UA_ATTRIBUTEID_VALUE;
+        }
+
+        // Cleanup read value IDs (arena handles NodeId memory)
+        defer for (read_value_ids) |*rvid| {
+            c.UA_ReadValueId_clear(rvid);
+        };
+
+        // Create read request
+        var read_request: c.UA_ReadRequest = undefined;
+        c.UA_ReadRequest_init(&read_request);
+        defer c.UA_ReadRequest_clear(&read_request);
+        read_request.nodesToReadSize = node_ids.len;
+        read_request.nodesToRead = read_value_ids.ptr;
+        read_request.timestampsToReturn = c.UA_TIMESTAMPSTORETURN_BOTH;
+
+        // Execute read
+        var read_response = c.UA_Client_Service_read(self.handle, read_request);
+        defer c.UA_ReadResponse_clear(&read_response);
+
+        // Check service-level status
+        if (read_response.responseHeader.serviceResult != c.UA_STATUSCODE_GOOD) {
+            return mapReadError(read_response.responseHeader.serviceResult);
+        }
+
+        // Check that we got the expected number of results
+        if (read_response.resultsSize != node_ids.len) {
+            return ReadAttributeError.UnexpectedError;
+        }
+
+        // Allocate result slice
+        const results = allocator.alloc(DataValue, node_ids.len) catch {
+            return ReadAttributeError.OutOfMemory;
+        };
+        errdefer allocator.free(results);
+
+        // Convert each result
+        var converted_count: usize = 0;
+        errdefer {
+            // Clean up any successfully converted results if we fail partway through
+            for (results[0..converted_count]) |*dv| {
+                dv.deinit(allocator);
+            }
+        }
+
+        for (read_response.results[0..read_response.resultsSize], 0..) |result, i| {
+            // If individual read failed, propagate the error
+            if (result.status != c.UA_STATUSCODE_GOOD) {
+                allocator.free(results);
+                return mapReadError(result.status);
+            }
+
+            // Check that we have a value
+            if (!result.hasValue) {
+                allocator.free(results);
+                return ReadAttributeError.UnexpectedError;
+            }
+
+            // Convert to Zig DataValue
+            results[i] = DataValue.fromC(result, allocator) catch {
+                allocator.free(results);
+                return ReadAttributeError.OutOfMemory;
+            };
+            converted_count += 1;
+        }
+
+        return results;
+    }
+
+    /// Read multiple attributes from a single node in one request.
+    ///
+    /// This is more efficient than calling individual attribute readers as it
+    /// batches all reads into a single network request.
+    ///
+    /// **Memory management:**
+    /// The returned slice and all AttributeValues within it allocate memory.
+    /// The caller MUST:
+    /// 1. Call `attr_value.deinit(allocator)` on each AttributeValue in the slice
+    /// 2. Free the slice itself with `allocator.free(slice)`
+    ///
+    /// Example usage:
+    /// ```zig
+    /// const attrs = [_]AttributeId{ .node_class, .browse_name, .display_name };
+    /// const values = try client.readAttributes(allocator, node_id, &attrs);
+    /// defer allocator.free(values);
+    /// defer for (values) |v| v.deinit(allocator);
+    /// ```
+    ///
+    /// **Errors:**
+    /// See `ReadAttributeError` for the complete list of possible errors.
+    pub fn readAttributes(
+        self: Client,
+        allocator: std.mem.Allocator,
+        node_id: NodeId,
+        attribute_ids: []const AttributeId,
+    ) ReadAttributeError![]AttributeValue {
+        if (attribute_ids.len == 0) {
+            return &[_]AttributeValue{};
+        }
+
+        // Use internal arena for temporary C conversions
+        var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+        defer arena.deinit();
+
+        // Allocate array of UA_ReadValueId
+        const read_value_ids = arena.allocator().alloc(c.UA_ReadValueId, attribute_ids.len) catch {
+            return ReadAttributeError.OutOfMemory;
+        };
+
+        const c_node_id = node_id.toC(arena.allocator()) catch {
+            return ReadAttributeError.OutOfMemory;
+        };
+
+        // Initialize all read value IDs
+        for (read_value_ids, 0..) |*rvid, i| {
+            c.UA_ReadValueId_init(rvid);
+            _ = c.UA_NodeId_copy(&c_node_id, &rvid.nodeId);
+            rvid.attributeId = attribute_ids[i].toC();
+        }
+
+        // Cleanup read value IDs
+        defer for (read_value_ids) |*rvid| {
+            c.UA_ReadValueId_clear(rvid);
+        };
+
+        // Create read request
+        var read_request: c.UA_ReadRequest = undefined;
+        c.UA_ReadRequest_init(&read_request);
+        defer c.UA_ReadRequest_clear(&read_request);
+        read_request.nodesToReadSize = attribute_ids.len;
+        read_request.nodesToRead = read_value_ids.ptr;
+        read_request.timestampsToReturn = c.UA_TIMESTAMPSTORETURN_NEITHER;
+
+        // Execute read
+        var read_response = c.UA_Client_Service_read(self.handle, read_request);
+        defer c.UA_ReadResponse_clear(&read_response);
+
+        // Check service-level status
+        if (read_response.responseHeader.serviceResult != c.UA_STATUSCODE_GOOD) {
+            return mapReadError(read_response.responseHeader.serviceResult);
+        }
+
+        // Check that we got the expected number of results
+        if (read_response.resultsSize != attribute_ids.len) {
+            return ReadAttributeError.UnexpectedError;
+        }
+
+        // Allocate result slice
+        const results = allocator.alloc(AttributeValue, attribute_ids.len) catch {
+            return ReadAttributeError.OutOfMemory;
+        };
+        errdefer allocator.free(results);
+
+        // Convert each result
+        var converted_count: usize = 0;
+        errdefer {
+            for (results[0..converted_count]) |*av| {
+                av.deinit(allocator);
+            }
+        }
+
+        for (read_response.results[0..read_response.resultsSize], 0..) |result, i| {
+            // If individual read failed, store error status
+            if (result.status != c.UA_STATUSCODE_GOOD) {
+                results[i] = .{ .status_error = result.status };
+                converted_count += 1;
+                continue;
+            }
+
+            // Check that we have a value
+            if (!result.hasValue) {
+                results[i] = .{ .status_error = c.UA_STATUSCODE_BADUNEXPECTEDERROR };
+                converted_count += 1;
+                continue;
+            }
+
+            // Convert based on attribute type
+            results[i] = convertAttributeValue(attribute_ids[i], result.value, allocator) catch {
+                allocator.free(results);
+                return ReadAttributeError.OutOfMemory;
+            };
+            converted_count += 1;
+        }
+
+        return results;
+    }
+
+    /// Read node's NodeClass attribute
+    pub fn readNodeClass(self: Client, node_id: NodeId) ReadAttributeError!NodeClass {
+        var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+        defer arena.deinit();
+
+        const c_node_id = node_id.toC(arena.allocator()) catch {
+            return ReadAttributeError.OutOfMemory;
+        };
+
+        var node_class: c.UA_NodeClass = 0;
+        const status = c.UA_Client_readNodeClassAttribute(self.handle, c_node_id, &node_class);
+
+        return switch (status) {
+            c.UA_STATUSCODE_GOOD => NodeClass.fromC(node_class),
+            else => mapReadError(status),
+        };
+    }
+
+    /// Read node's browse name
+    pub fn readBrowseName(
+        self: Client,
+        allocator: std.mem.Allocator,
+        node_id: NodeId,
+    ) ReadAttributeError!QualifiedName {
+        var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+        defer arena.deinit();
+
+        const c_node_id = node_id.toC(arena.allocator()) catch {
+            return ReadAttributeError.OutOfMemory;
+        };
+
+        var browse_name_c: c.UA_QualifiedName = undefined;
+        c.UA_QualifiedName_init(&browse_name_c);
+        defer c.UA_QualifiedName_clear(&browse_name_c);
+
+        const status = c.UA_Client_readBrowseNameAttribute(self.handle, c_node_id, &browse_name_c);
+
+        return switch (status) {
+            c.UA_STATUSCODE_GOOD => blk: {
+                const qn = QualifiedName.fromC(browse_name_c);
+                const name_copy = allocator.dupe(u8, qn.name) catch {
+                    return ReadAttributeError.OutOfMemory;
+                };
+                break :blk QualifiedName{
+                    .namespace_index = qn.namespace_index,
+                    .name = name_copy,
+                };
+            },
+            else => mapReadError(status),
+        };
+    }
+
+    /// Read node's display name
+    pub fn readDisplayName(
+        self: Client,
+        allocator: std.mem.Allocator,
+        node_id: NodeId,
+    ) ReadAttributeError!LocalizedText {
+        var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+        defer arena.deinit();
+
+        const c_node_id = node_id.toC(arena.allocator()) catch {
+            return ReadAttributeError.OutOfMemory;
+        };
+
+        var display_name_c: c.UA_LocalizedText = undefined;
+        c.UA_LocalizedText_init(&display_name_c);
+        defer c.UA_LocalizedText_clear(&display_name_c);
+
+        const status = c.UA_Client_readDisplayNameAttribute(self.handle, c_node_id, &display_name_c);
+
+        return switch (status) {
+            c.UA_STATUSCODE_GOOD => blk: {
+                const lt = LocalizedText.fromC(display_name_c);
+                const locale_copy = allocator.dupe(u8, lt.locale) catch {
+                    return ReadAttributeError.OutOfMemory;
+                };
+                errdefer allocator.free(locale_copy);
+                const text_copy = allocator.dupe(u8, lt.text) catch {
+                    return ReadAttributeError.OutOfMemory;
+                };
+                break :blk LocalizedText{
+                    .locale = locale_copy,
+                    .text = text_copy,
+                };
+            },
+            else => mapReadError(status),
+        };
+    }
+
+    /// Read node's description (may be null)
+    pub fn readDescription(
+        self: Client,
+        allocator: std.mem.Allocator,
+        node_id: NodeId,
+    ) ReadAttributeError!?LocalizedText {
+        var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+        defer arena.deinit();
+
+        const c_node_id = node_id.toC(arena.allocator()) catch {
+            return ReadAttributeError.OutOfMemory;
+        };
+
+        var description_c: c.UA_LocalizedText = undefined;
+        c.UA_LocalizedText_init(&description_c);
+        defer c.UA_LocalizedText_clear(&description_c);
+
+        const status = c.UA_Client_readDescriptionAttribute(self.handle, c_node_id, &description_c);
+
+        return switch (status) {
+            c.UA_STATUSCODE_GOOD => blk: {
+                const lt = LocalizedText.fromC(description_c);
+                if (lt.text.len == 0) break :blk null;
+                const locale_copy = allocator.dupe(u8, lt.locale) catch {
+                    return ReadAttributeError.OutOfMemory;
+                };
+                errdefer allocator.free(locale_copy);
+                const text_copy = allocator.dupe(u8, lt.text) catch {
+                    return ReadAttributeError.OutOfMemory;
+                };
+                break :blk LocalizedText{
+                    .locale = locale_copy,
+                    .text = text_copy,
+                };
+            },
+            c.UA_STATUSCODE_BADATTRIBUTEIDINVALID => null,
+            else => mapReadError(status),
+        };
+    }
+
+    /// Read variable's data type NodeId
+    pub fn readDataType(
+        self: Client,
+        allocator: std.mem.Allocator,
+        node_id: NodeId,
+    ) ReadAttributeError!NodeId {
+        var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+        defer arena.deinit();
+
+        const c_node_id = node_id.toC(arena.allocator()) catch {
+            return ReadAttributeError.OutOfMemory;
+        };
+
+        var data_type_c: c.UA_NodeId = undefined;
+        c.UA_NodeId_init(&data_type_c);
+        defer c.UA_NodeId_clear(&data_type_c);
+
+        const status = c.UA_Client_readDataTypeAttribute(self.handle, c_node_id, &data_type_c);
+
+        return switch (status) {
+            c.UA_STATUSCODE_GOOD => blk: {
+                const dt = NodeId.fromC(data_type_c);
+                // Deep copy the NodeId
+                const result = switch (dt) {
+                    .numeric => |n| NodeId.initNumeric(n.namespace, n.identifier),
+                    .string => |s| blk2: {
+                        const id_copy = allocator.dupe(u8, s.identifier) catch {
+                            return ReadAttributeError.OutOfMemory;
+                        };
+                        break :blk2 NodeId.initString(s.namespace, id_copy);
+                    },
+                    .guid => |g| NodeId.initGuid(g.namespace, g.identifier),
+                    .byte_string => |b| blk2: {
+                        const id_copy = allocator.dupe(u8, b.identifier) catch {
+                            return ReadAttributeError.OutOfMemory;
+                        };
+                        break :blk2 NodeId.initByteString(b.namespace, id_copy);
+                    },
+                };
+                break :blk result;
+            },
+            else => mapReadError(status),
+        };
+    }
+
+    /// Read variable's value rank
+    pub fn readValueRank(self: Client, node_id: NodeId) ReadAttributeError!i32 {
+        var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+        defer arena.deinit();
+
+        const c_node_id = node_id.toC(arena.allocator()) catch {
+            return ReadAttributeError.OutOfMemory;
+        };
+
+        var value_rank: i32 = 0;
+        const status = c.UA_Client_readValueRankAttribute(self.handle, c_node_id, &value_rank);
+
+        return switch (status) {
+            c.UA_STATUSCODE_GOOD => value_rank,
+            else => mapReadError(status),
+        };
+    }
+
+    /// Read variable's access level
+    pub fn readAccessLevel(self: Client, node_id: NodeId) ReadAttributeError!u8 {
+        var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+        defer arena.deinit();
+
+        const c_node_id = node_id.toC(arena.allocator()) catch {
+            return ReadAttributeError.OutOfMemory;
+        };
+
+        var access_level: u8 = 0;
+        const status = c.UA_Client_readAccessLevelAttribute(self.handle, c_node_id, &access_level);
+
+        return switch (status) {
+            c.UA_STATUSCODE_GOOD => access_level,
+            else => mapReadError(status),
         };
     }
 
@@ -1160,6 +1690,38 @@ pub const Client = struct {
         };
     }
 
+    /// Process pending messages and callbacks (for subscriptions).
+    ///
+    /// This should be called periodically when using subscriptions to:
+    /// - Process data change notifications
+    /// - Handle subscription keepalive
+    /// - Invoke registered callbacks
+    ///
+    /// **Parameters:**
+    /// - `timeout_ms`: Maximum time to wait for messages (0 = don't wait)
+    ///
+    /// **Errors:**
+    /// - `BadTimeout` - The operation timed out (not an error if timeout_ms is 0)
+    /// - `BadDisconnect` - The connection was closed
+    /// - `BadConnectionClosed` - The connection is closed
+    /// - `BadInvalidState` - The client is in an invalid state
+    ///
+    /// **Example:**
+    /// ```zig
+    /// // In a loop, process subscription messages
+    /// while (running) {
+    ///     try client.runIterate(100); // Wait up to 100ms
+    /// }
+    /// ```
+    pub fn runIterate(self: Client, timeout_ms: u32) !void {
+        const status = c.UA_Client_run_iterate(self.handle, timeout_ms);
+        return switch (status) {
+            c.UA_STATUSCODE_GOOD => {},
+            c.UA_STATUSCODE_BADTIMEOUT => {}, // Not an error - just no messages
+            else => ua_error.checkStatus(status),
+        };
+    }
+
     /// Create a monitored item with a callback for real-time data change notifications.
     ///
     /// This adds a node to be monitored within a subscription. When the node's value
@@ -1276,6 +1838,184 @@ pub const Client = struct {
         };
     }
 };
+
+/// Convert a UA_Variant to an AttributeValue based on the attribute type
+fn convertAttributeValue(attr_id: AttributeId, variant: c.UA_Variant, allocator: std.mem.Allocator) !AttributeValue {
+    return switch (attr_id) {
+        .node_id => blk: {
+            if (variant.type != &c.UA_TYPES[c.UA_TYPES_NODEID]) {
+                break :blk AttributeValue{ .status_error = c.UA_STATUSCODE_BADTYPEMISMATCH };
+            }
+            const node_id_ptr: *const c.UA_NodeId = @ptrCast(@alignCast(variant.data));
+            const nid = NodeId.fromC(node_id_ptr.*);
+            // Deep copy the NodeId
+            const result = switch (nid) {
+                .numeric => |n| NodeId.initNumeric(n.namespace, n.identifier),
+                .string => |s| blk2: {
+                    const id_copy = try allocator.dupe(u8, s.identifier);
+                    break :blk2 NodeId.initString(s.namespace, id_copy);
+                },
+                .guid => |g| NodeId.initGuid(g.namespace, g.identifier),
+                .byte_string => |b| blk2: {
+                    const id_copy = try allocator.dupe(u8, b.identifier);
+                    break :blk2 NodeId.initByteString(b.namespace, id_copy);
+                },
+            };
+            break :blk AttributeValue{ .node_id = result };
+        },
+        .node_class => blk: {
+            if (variant.type != &c.UA_TYPES[c.UA_TYPES_INT32]) {
+                break :blk AttributeValue{ .status_error = c.UA_STATUSCODE_BADTYPEMISMATCH };
+            }
+            const value_ptr: *const i32 = @ptrCast(@alignCast(variant.data));
+            const node_class = NodeClass.fromC(@intCast(value_ptr.*));
+            break :blk AttributeValue{ .node_class = node_class };
+        },
+        .browse_name => blk: {
+            if (variant.type != &c.UA_TYPES[c.UA_TYPES_QUALIFIEDNAME]) {
+                break :blk AttributeValue{ .status_error = c.UA_STATUSCODE_BADTYPEMISMATCH };
+            }
+            const qn_ptr: *const c.UA_QualifiedName = @ptrCast(@alignCast(variant.data));
+            const qn = QualifiedName.fromC(qn_ptr.*);
+            const name_copy = try allocator.dupe(u8, qn.name);
+            break :blk AttributeValue{
+                .qualified_name = QualifiedName{
+                    .namespace_index = qn.namespace_index,
+                    .name = name_copy,
+                },
+            };
+        },
+        .display_name, .description, .inverse_name => blk: {
+            if (variant.type != &c.UA_TYPES[c.UA_TYPES_LOCALIZEDTEXT]) {
+                break :blk AttributeValue{ .status_error = c.UA_STATUSCODE_BADTYPEMISMATCH };
+            }
+            const lt_ptr: *const c.UA_LocalizedText = @ptrCast(@alignCast(variant.data));
+            const lt = LocalizedText.fromC(lt_ptr.*);
+            const locale_copy = try allocator.dupe(u8, lt.locale);
+            errdefer allocator.free(locale_copy);
+            const text_copy = try allocator.dupe(u8, lt.text);
+            break :blk AttributeValue{
+                .localized_text = LocalizedText{
+                    .locale = locale_copy,
+                    .text = text_copy,
+                },
+            };
+        },
+        .write_mask, .user_write_mask, .event_notifier => blk: {
+            if (variant.type != &c.UA_TYPES[c.UA_TYPES_UINT32] and variant.type != &c.UA_TYPES[c.UA_TYPES_BYTE]) {
+                break :blk AttributeValue{ .status_error = c.UA_STATUSCODE_BADTYPEMISMATCH };
+            }
+            if (variant.type == &c.UA_TYPES[c.UA_TYPES_UINT32]) {
+                const value_ptr: *const u32 = @ptrCast(@alignCast(variant.data));
+                break :blk AttributeValue{ .uint32 = value_ptr.* };
+            } else {
+                const value_ptr: *const u8 = @ptrCast(@alignCast(variant.data));
+                break :blk AttributeValue{ .uint8 = value_ptr.* };
+            }
+        },
+        .access_level, .user_access_level => blk: {
+            if (variant.type != &c.UA_TYPES[c.UA_TYPES_BYTE]) {
+                break :blk AttributeValue{ .status_error = c.UA_STATUSCODE_BADTYPEMISMATCH };
+            }
+            const value_ptr: *const u8 = @ptrCast(@alignCast(variant.data));
+            break :blk AttributeValue{ .uint8 = value_ptr.* };
+        },
+        .value_rank => blk: {
+            if (variant.type != &c.UA_TYPES[c.UA_TYPES_INT32]) {
+                break :blk AttributeValue{ .status_error = c.UA_STATUSCODE_BADTYPEMISMATCH };
+            }
+            const value_ptr: *const i32 = @ptrCast(@alignCast(variant.data));
+            break :blk AttributeValue{ .int32 = value_ptr.* };
+        },
+        .minimum_sampling_interval => blk: {
+            if (variant.type != &c.UA_TYPES[c.UA_TYPES_DOUBLE]) {
+                break :blk AttributeValue{ .status_error = c.UA_STATUSCODE_BADTYPEMISMATCH };
+            }
+            const value_ptr: *const f64 = @ptrCast(@alignCast(variant.data));
+            break :blk AttributeValue{ .double = value_ptr.* };
+        },
+        .is_abstract, .symmetric, .contains_no_loops, .historizing, .executable, .user_executable => blk: {
+            if (variant.type != &c.UA_TYPES[c.UA_TYPES_BOOLEAN]) {
+                break :blk AttributeValue{ .status_error = c.UA_STATUSCODE_BADTYPEMISMATCH };
+            }
+            const value_ptr: *const bool = @ptrCast(@alignCast(variant.data));
+            break :blk AttributeValue{ .boolean = value_ptr.* };
+        },
+        .data_type => blk: {
+            if (variant.type != &c.UA_TYPES[c.UA_TYPES_NODEID]) {
+                break :blk AttributeValue{ .status_error = c.UA_STATUSCODE_BADTYPEMISMATCH };
+            }
+            const node_id_ptr: *const c.UA_NodeId = @ptrCast(@alignCast(variant.data));
+            const nid = NodeId.fromC(node_id_ptr.*);
+            // Deep copy the NodeId
+            const result = switch (nid) {
+                .numeric => |n| NodeId.initNumeric(n.namespace, n.identifier),
+                .string => |s| blk2: {
+                    const id_copy = try allocator.dupe(u8, s.identifier);
+                    break :blk2 NodeId.initString(s.namespace, id_copy);
+                },
+                .guid => |g| NodeId.initGuid(g.namespace, g.identifier),
+                .byte_string => |b| blk2: {
+                    const id_copy = try allocator.dupe(u8, b.identifier);
+                    break :blk2 NodeId.initByteString(b.namespace, id_copy);
+                },
+            };
+            break :blk AttributeValue{ .node_id = result };
+        },
+        .array_dimensions => blk: {
+            if (variant.type != &c.UA_TYPES[c.UA_TYPES_UINT32]) {
+                break :blk AttributeValue{ .status_error = c.UA_STATUSCODE_BADTYPEMISMATCH };
+            }
+            if (variant.arrayLength == 0) {
+                break :blk AttributeValue{ .uint32_array = &[_]u32{} };
+            }
+            const array_ptr: [*]const u32 = @ptrCast(@alignCast(variant.data));
+            const array_slice = array_ptr[0..variant.arrayLength];
+            const array_copy = try allocator.dupe(u32, array_slice);
+            break :blk AttributeValue{ .uint32_array = array_copy };
+        },
+        else => AttributeValue{ .status_error = c.UA_STATUSCODE_BADATTRIBUTEIDINVALID },
+    };
+}
+
+/// Map OPC UA status codes to ReadAttributeError
+fn mapReadError(status: c.UA_StatusCode) ReadAttributeError {
+    return switch (status) {
+        c.UA_STATUSCODE_GOOD => ReadAttributeError.UnexpectedError, // Should not be called with GOOD
+
+        // Connection/Session errors
+        c.UA_STATUSCODE_BADSERVERNOTCONNECTED => ReadAttributeError.ServerNotConnected,
+        c.UA_STATUSCODE_BADSESSIONCLOSED => ReadAttributeError.SessionClosed,
+        c.UA_STATUSCODE_BADTIMEOUT => ReadAttributeError.Timeout,
+        c.UA_STATUSCODE_BADREQUESTTIMEOUT => ReadAttributeError.Timeout,
+        c.UA_STATUSCODE_BADCOMMUNICATIONERROR => ReadAttributeError.CommunicationError,
+
+        // Node/Attribute errors
+        c.UA_STATUSCODE_BADNODEIDUNKNOWN => ReadAttributeError.NodeIdUnknown,
+        c.UA_STATUSCODE_BADNODEIDINVALID => ReadAttributeError.NodeIdInvalid,
+        c.UA_STATUSCODE_BADATTRIBUTEIDINVALID => ReadAttributeError.AttributeIdInvalid,
+        c.UA_STATUSCODE_BADNOTREADABLE => ReadAttributeError.NotReadable,
+        c.UA_STATUSCODE_BADUSERACCESSDENIED => ReadAttributeError.UserAccessDenied,
+        c.UA_STATUSCODE_BADOBJECTDELETED => ReadAttributeError.ObjectDeleted,
+        c.UA_STATUSCODE_BADNOTFOUND => ReadAttributeError.NotFound,
+
+        // Data errors
+        c.UA_STATUSCODE_BADINDEXRANGEINVALID => ReadAttributeError.IndexRangeInvalid,
+        c.UA_STATUSCODE_BADINDEXRANGENODATA => ReadAttributeError.IndexRangeNoData,
+        c.UA_STATUSCODE_BADDATAENCODINGINVALID => ReadAttributeError.DataEncodingInvalid,
+        c.UA_STATUSCODE_BADDATAENCODINGUNSUPPORTED => ReadAttributeError.DataEncodingUnsupported,
+
+        // System errors
+        c.UA_STATUSCODE_BADOUTOFMEMORY => ReadAttributeError.OutOfMemory,
+        c.UA_STATUSCODE_BADINTERNALERROR => ReadAttributeError.InternalError,
+        c.UA_STATUSCODE_BADSERVICEUNSUPPORTED => ReadAttributeError.ServiceUnsupported,
+        c.UA_STATUSCODE_BADSECURITYCHECKSFAILED => ReadAttributeError.SecurityChecksFailed,
+
+        // Catch-all
+        c.UA_STATUSCODE_BADUNEXPECTEDERROR => ReadAttributeError.UnexpectedError,
+        else => ReadAttributeError.UnexpectedError,
+    };
+}
 
 /// Map OPC UA status codes to BrowseError
 fn mapBrowseError(status: c.UA_StatusCode) BrowseError {
