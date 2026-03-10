@@ -1,328 +1,256 @@
-# zopcua - Zig Bindings for open62541 OPC UA
+<div align="center">
+  <h1>🏭 zopcua</h1>
+  <p>A Zig wrapper for <a href="https://github.com/open62541/open62541">open62541</a>, an open-source OPC UA implementation.</p>
+  <p>
+    <a href="https://opensource.org/licenses/MIT"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-e0af68.svg?style=for-the-badge&logo=opensourceinitiative&logoColor=white" /></a>
+    <a href="https://github.com/xentropic-dev/zopcua/actions"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/xentropic-dev/zopcua/ci.yml?style=for-the-badge&label=CI&logo=github&color=9ece6a" /></a>
+    <a href="https://github.com/xentropic-dev/zopcua/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/xentropic-dev/zopcua?style=for-the-badge&color=7aa2f7&logo=github" /></a>
+    <img alt="Zig 0.14" src="https://img.shields.io/badge/Zig-0.15.2-f7a41d.svg?style=for-the-badge&logo=zig&logoColor=white" />
+  </p>
+</div>
 
-Zig language bindings for the open62541 OPC UA (Open Platform Communications Unified Architecture) library. Provides type-safe, memory-safe access to OPC UA client and server functionality with complete authentication support.
+## ⚠️ Development Status
 
-## 🚀 Features
+**This library is under active development and NOT ready for production use.**
 
-### ✅ Implemented
-- **Client Core**: Connection management, read/write operations, browsing
-- **Server Core**: Node management, namespace handling, lifecycle
-- **Data Types**: Full Variant support, NodeId, QualifiedName, LocalizedText
-- **Authentication**: Complete OPC UA authentication support (Issue #23)
-  - Username/password authentication
-  - X.509 certificate authentication  
-  - Anonymous authentication
-  - Server authentication callbacks
-  - Access control callbacks
-- **Subscriptions**: Data change monitoring with callbacks
-- **Error Handling**: Comprehensive error types and status code mapping
+**Feature Parity:** 28% complete (see [ROADMAP.md](docs/ROADMAP.md))
 
-### 🔄 In Progress
-- Issued token authentication (JWT/SAML)
-- Advanced security policies
-- Method calls and events
-
-### 📋 Planned
-- PubSub functionality
-- History read/write
-- Advanced monitoring scenarios
-
-## 📦 Installation
-
-Add to your `build.zig.zon`:
-```zig
-.{
-    .name = "my-project",
-    .version = "0.1.0",
-    .dependencies = .{
-        .zopcua = .{
-            .url = "https://github.com/xentropic-dev/zopcua/archive/refs/heads/main.tar.gz",
-            .hash = "1220...",
-        },
-    },
-}
+```
+Progress: [█████░░░░░░░░░░░░░░░] 28%
 ```
 
-And in `build.zig`:
-```zig
-const zopcua = b.dependency("zopcua", .{});
-exe.root_module.addImport("zopcua", zopcua.module("zopcua"));
+- Requires Zig 0.15.2
+- See branch/tag history for previous Zig versions
+- APIs are unstable and subject to change
+
+### Project Goals
+
+This wrapper aims to make working with open62541 feel native to Zig by:
+
+1. **Memory Safety** - Proper allocator usage, clear ownership semantics, no manual memory management
+2. **Zig Idioms** - Error return types, tagged unions, comptime features instead of C conventions
+3. **Type Safety** - Strongly-typed wrappers eliminating void pointers and C-style type erasure
+4. **Abstraction** - Hide C complexities like bitfields, null-terminated strings, and manual struct initialization
+
+This library will not reach full feature parity with open62541 for some time. If you need functionality that isn't yet wrapped, please open an issue!
+
+## Features
+
+### ✅ Currently Implemented
+
+**Server:**
+- Server lifecycle (init, start, stop, iterate, runUntilInterrupt)
+- Variable nodes (add with full attribute control)
+- Object nodes (add with attributes)
+- Namespace management (add, lookup by name/index)
+- Custom server configuration (port, security mode)
+
+**Client:**
+- Client lifecycle (init, connect, disconnect)
+- Read operations (readValueAttribute)
+- Write operations (writeValueAttribute)
+- Browse operations (browse, browseNext with full control)
+- Custom client configuration (timeout, security mode)
+
+**Data Types:**
+- NodeId (numeric, string, GUID, bytestring)
+- Variant (scalars and arrays for all basic types)
+- QualifiedName, LocalizedText, ExpandedNodeId
+- VariableAttributes, ObjectAttributes
+- Browse types and masks
+- Comprehensive error types
+
+### 🚧 Planned/In Progress
+
+- Subscriptions & monitored items (high priority)
+- Method calls (medium priority)
+- Events & alarms (medium priority)
+- Server-side read/write operations
+- Client node management
+- History access
+- PubSub
+- Security & certificates
+- Discovery services
+
+See [ROADMAP.md](docs/ROADMAP.md) for detailed progress tracking.
+
+## Documentation
+
+📚 **[View the full API documentation](https://xentropic-dev.github.io/zopcua/)**
+
+**Guides:**
+- [Examples Guide](docs/EXAMPLES.md) - Complete examples for common operations
+- [Memory Policy](docs/MEMORY_POLICY.md) - Understanding memory management
+- [Roadmap](docs/ROADMAP.md) - Feature parity tracking
+
+## Installation
+
+Add zopcua to your project:
+
+```bash
+zig fetch --save git+https://github.com/xentropic-dev/zopcua.git
 ```
 
-## 🎯 Quick Start
+Then in your `build.zig`:
 
-### Client Example with Authentication
 ```zig
-const zopcua = @import("zopcua");
 const std = @import("std");
+const zopcua = @import("zopcua");
 
-pub fn main() !void {
-    const allocator = std.heap.page_allocator;
-    
-    // Create client
-    var client = try zopcua.Client.init(allocator);
-    defer client.deinit();
-    
-    // Connect with username/password authentication
-    try client.connectWithUsername(
-        "opc.tcp://localhost:4840",
-        "admin",
-        "password"
-    );
-    defer client.disconnect() catch {};
-    
-    // Or connect with certificate authentication
-    // try client.connectWithAuth("opc.tcp://localhost:4840", .{
-    //     .identity_token = .{
-    //         .x509_certificate = .{
-    //             .certificate = cert_pem_data,
-    //             .private_key = key_pem_data,
-    //         },
-    //     },
-    //     .security_policy_uri = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
-    // });
-    
-    // Read a value
-    const node_id = zopcua.NodeId.initString(1, "temperature");
-    const variant = try client.readValueAttribute(allocator, node_id);
-    defer variant.deinit(allocator);
-    
-    std.debug.print("Temperature: {}\n", .{variant});
+pub fn build(b: *std.Build) void {
+    const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+
+    const exe = b.addExecutable(.{
+        .name = "my-app",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+
+    // Add zopcua - automatically handles module import and platform-specific linking
+    zopcua.setup(exe, .{});
+
+    b.installArtifact(exe);
 }
 ```
 
-### Server Example with Authentication
+That's it! The `setup` function automatically:
+
+- Adds the `ua` module to your executable
+- Links required system libraries (ws2_32, advapi32, crypt32, bcrypt on Windows)
+- Links required frameworks (Security, CoreFoundation on macOS)
+- Handles all platform-specific configuration
+
+### mbedTLS Dependency
+
+zopcua requires mbedTLS for cryptographic operations and secure communication. **By default, mbedTLS is statically linked from vendored sources** - no system installation required.
+
+If you prefer to use system-installed mbedTLS libraries instead:
+
 ```zig
-const zopcua = @import("zopcua");
+zopcua.setup(exe, .{
+    .mbedtls = .system,  // Use system mbedTLS instead of vendored
+});
+```
+
+When using system mbedTLS, ensure the libraries are installed:
+
+- **macOS**: `brew install mbedtls`
+- **Ubuntu/Debian**: `sudo apt install libmbedtls-dev`
+- **Other Linux**: Use your distribution's package manager
+
+## Quick Start
+
+### Minimal Server
+
+```zig
+const std = @import("std");
+const ua = @import("ua");
 
 pub fn main() !void {
-    // Create server with authentication configuration
-    var server = try zopcua.Server.init();
+    var server = try ua.Server.init();
     defer server.deinit();
-    
-    // Configure authentication
-    const auth_config = zopcua.ServerAuthConfig{
-        .allow_anonymous = true,
-        .allow_username_password = true,
-        .username_password_callback = myValidator,
-        .access_control_callback = myAccessControl,
-        .userdata = &my_context,
-    };
-    
-    // Apply authentication configuration
-    try server.applyAuthConfig(auth_config);
-    
-    // Add a variable node
+
+    try server.runUntilInterrupt(); // Blocks until Ctrl-C
+}
+```
+
+### Server with Variable
+
+```zig
+const std = @import("std");
+const ua = @import("ua");
+
+pub fn main() !void {
+    var server = try ua.Server.init();
+    defer server.deinit();
+
     _ = try server.addVariableNode(
-        zopcua.NodeId.initString(1, "temperature"),
-        zopcua.StandardNodeId.objects_folder,
-        zopcua.ReferenceType.organizes,
-        zopcua.QualifiedName.init(1, "Temperature"),
-        zopcua.StandardNodeId.base_data_variable_type,
+        ua.NodeId.initString(1, "temperature"),
+        ua.StandardNodeId.objects_folder,
+        ua.ReferenceType.organizes,
+        ua.QualifiedName.init(1, "Temperature"),
+        ua.StandardNodeId.base_data_variable_type,
         .{
-            .value = zopcua.Variant.scalar(f64, 23.5),
+            .value = ua.Variant.scalar(f64, 23.5),
+            .display_name = ua.LocalizedText.init("en-US", "Temperature"),
             .access_level = .{ .read = true, .write = true },
         },
     );
-    
-    // Start server
-    try server.start();
-    defer server.stop() catch {};
-    
-    // Run until interrupted
+
     try server.runUntilInterrupt();
 }
+```
 
-fn myValidator(
-    server: *zopcua.c.UA_Server,
-    session_handle: ?*anyopaque,
-    token: ?*anyopaque,
-    username: []const u8,
-    password: []const u8,
-    userdata: ?*anyopaque,
-) bool {
-    _ = server; _ = session_handle; _ = token; _ = userdata;
-    // Validate credentials
-    return std.mem.eql(u8, username, "admin") and 
-           std.mem.eql(u8, password, "password");
-}
+### Client Reading Values
 
-fn myAccessControl(
-    server: *zopcua.c.UA_Server,
-    session_handle: ?*anyopaque,
-    node_id: *const zopcua.c.UA_NodeId,
-    attribute_id: zopcua.c.UA_AttributeId,
-    access_level: u8,
-    userdata: ?*anyopaque,
-) bool {
-    _ = server; _ = session_handle; _ = node_id; _ = attribute_id; 
-    _ = access_level; _ = userdata;
-    // Implement access control logic
-    return true;
+```zig
+const std = @import("std");
+const ua = @import("ua");
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    var client = try ua.Client.init();
+    defer client.deinit();
+
+    try client.connect("opc.tcp://localhost:4840");
+    defer client.disconnect() catch {};
+
+    const node_id = ua.NodeId.initString(1, "temperature");
+    const variant = try client.readValueAttribute(allocator, node_id);
+    defer variant.deinit(allocator);
+
+    std.debug.print("Temperature: {d}\n", .{variant.double});
 }
 ```
 
-## 🔐 Authentication
+**See [docs/EXAMPLES.md](docs/EXAMPLES.md) for more examples including writing values, browsing, arrays, objects, namespaces, and error handling.**
 
-### Client Authentication Methods
-```zig
-// Anonymous connection
-try client.connectAnonymous("opc.tcp://localhost:4840");
+## Building
 
-// Username/password authentication
-try client.connectWithUsername(
-    "opc.tcp://localhost:4840",
-    "admin",
-    "password"
-);
-
-// Advanced authentication configuration
-const auth_config = zopcua.AuthenticationConfig{
-    .identity_token = .{
-        .username_password = .{
-            .username = "admin",
-            .password = "secret",
-        },
-    },
-    .security_policy_uri = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
-    .security_mode = .sign_and_encrypt,
-};
-try client.connectWithAuth("opc.tcp://localhost:4840", auth_config);
-
-// X.509 certificate authentication
-const cert_auth_config = zopcua.AuthenticationConfig{
-    .identity_token = .{
-        .x509_certificate = .{
-            .certificate = cert_pem_data,
-            .private_key = key_pem_data,
-        },
-    },
-    .security_policy_uri = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
-};
-try client.connectWithAuth("opc.tcp://localhost:4840", cert_auth_config);
-```
-
-### Server Authentication Configuration
-```zig
-const auth_config = zopcua.ServerAuthConfig{
-    .allow_anonymous = true,
-    .allow_username_password = true,
-    .allow_x509_certificate = true,
-    .username_password_callback = myValidator,
-    .certificate_callback = myCertValidator,
-    .access_control_callback = myAccessControl,
-    .userdata = &my_context,
-};
-```
-
-## 🧪 Testing
-
-Run the test suite:
 ```bash
-zig build test
-```
+# Build the library (uses vendored mbedTLS by default)
+zig build
 
-Run authentication-specific tests:
-```bash
-zig build test-auth
-```
-
-Run integration tests:
-```bash
-zig build test-integration
-```
-
-## 📚 Documentation
-
-- [Examples](./docs/EXAMPLES.md) - Comprehensive usage examples
-- [Roadmap](./docs/ROADMAP.md) - Feature implementation progress (updated for Issue #23)
-- [Memory Policy](./docs/MEMORY_POLICY.md) - Memory management guidelines
-- [Authentication Guide](./docs/AUTHENTICATION.md) - Complete authentication guide
-
-## 🏗️ Architecture
-
-### Core Components
-- **`src/c.zig`** - Auto-generated C bindings for open62541
-- **`src/client.zig`** - Client API with complete authentication support
-- **`src/server.zig`** - Server API with node management
-- **`src/variant.zig`** - Type-safe Variant implementation
-- **`src/client_auth.zig`** - Client authentication types and functions
-- **`src/server_auth.zig`** - Server authentication configuration
-- **`src/ua_error.zig`** - Comprehensive error handling
-
-### Authentication Implementation
-The authentication system provides:
-1. **Type-safe authentication tokens** for all OPC UA methods
-2. **Memory-safe credential handling** with arena allocators
-3. **Callback-based server validation** for custom logic
-4. **Comprehensive error mapping** for authentication failures
-5. **Integration with Client struct** for seamless usage
-
-### Memory Management
-- Uses Zig's allocator system for explicit memory control
-- Arena allocators for temporary C string conversions
-- Automatic cleanup with `defer` statements
-- Deep copying for data crossing C/Zig boundary
-- Secure credential handling with zero-copy where possible
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make changes with tests
-4. Submit a pull request
-
-### Development Setup
-```bash
-# Clone with submodules
-git clone --recursive https://github.com/xentropic-dev/zopcua.git
-cd zopcua
+# Build with system mbedTLS
+zig build -Dmbedtls=system
 
 # Run tests
 zig build test
 
-# Run linter
-zlint
+# Generate documentation
+zig build docs
 ```
 
-## 📄 License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+## License
 
-## ⚠️ AI-Generated Code Disclosure
+This wrapper library is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
-**Important Notice**: This repository contains code that was partially generated or assisted by AI tools (GitHub Copilot, Claude, etc.). The authentication implementation in particular was developed with AI assistance to ensure:
+The underlying open62541 library is licensed under the Mozilla Public License 2.0. See the [open62541 repository](https://github.com/open62541/open62541) for details.
 
-1. **Correctness**: AI helped generate boilerplate code and ensure API compatibility with open62541
-2. **Safety**: Memory safety patterns and error handling were AI-assisted
-3. **Documentation**: Code comments and examples were AI-enhanced
-4. **Completeness**: AI helped ensure all OPC UA authentication methods are supported
+## Contributing
 
-**Human Oversight**: All AI-generated code has been reviewed, tested, and validated by human developers. The implementation follows Zig best practices and has been integrated into the existing codebase with proper testing.
+Contributions are welcome! Here's how you can help:
 
-**Transparency**: We believe in transparent development. If you have questions about specific code sections, please open an issue for discussion.
+1. **Check [ROADMAP.md](docs/ROADMAP.md)** to see what features need implementation
+2. **Look for missing features** - The library is at 28% parity with open62541, lots to do!
+3. **Submit PRs** with new features, bug fixes, or improved documentation
+4. **Open issues** for features you need or bugs you encounter
+5. **Add tests** for new functionality
 
-**Authentication Implementation Details**:
-- The authentication feature (Issue #23) was implemented with AI assistance
-- All authentication types are properly typed and memory-safe
-- Comprehensive tests verify correctness
-- Documentation includes AI-assisted examples
-- The implementation is feature-complete with underlying open62541
+### High Priority Areas
 
-## 🙏 Acknowledgments
+- Subscriptions & monitored items
+- Method calls
+- Server-side read/write operations
+- Client node management
+- Additional attribute operations
 
-- [open62541](https://open62541.org/) - The excellent C OPC UA library
-- [Zig](https://ziglang.org/) - The wonderful systems programming language
-- All contributors and users of this project
-- AI tools that assisted in development while maintaining code quality
-
-## 📞 Support
-
-- **Issues**: [GitHub Issues](https://github.com/xentropic-dev/zopcua/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/xentropic-dev/zopcua/discussions)
-
----
-
-**Project Status**: Active development. Authentication features fully implemented (Issue #23 completed).
-
-**Recent Update**: Implemented complete OPC UA authentication support including username/password, X.509 certificates, anonymous access, and server callbacks. Makes zopcua feature-complete with underlying open62541 authentication methods.
+See the roadmap for a complete breakdown of missing features.

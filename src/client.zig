@@ -269,7 +269,7 @@ pub const Client = struct {
     /// const node_id = try NodeId.numeric(0, 2253); // Server_ServerStatus_CurrentTime
     /// const value = try client.readAttribute(node_id, .Value);
     /// defer value.deinit(allocator);
-    /// std.debug.print("Current time: {}\\n", .{value});
+    /// std.debug.print("Current time: {}\n", .{value});
     /// ```
     ///
     /// **Errors:**
@@ -349,7 +349,7 @@ pub const Client = struct {
     /// const callback = struct {
     ///     fn handler(sub_id: u32, mon_id: u32, value: DataValue, userdata: ?*anyopaque) void {
     ///         _ = userdata;
-    ///         std.debug.print("Data changed: sub={}, mon={}, value={}\\n", .{sub_id, mon_id, value});
+    ///         std.debug.print("Data changed: sub={}, mon={}, value={}\n", .{sub_id, mon_id, value});
     ///     }
     /// }.handler;
     ///

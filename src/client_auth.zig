@@ -1,287 +1,258 @@
 const std = @import("std");
 const c = @import("c.zig");
-const helpers = @import("helpers.zig");
 const ua_error = @import("ua_error.zig");
 
-/// Authentication methods supported by OPC UA
-pub const AuthenticationMethod = enum {
-    /// No authentication (anonymous access)
-    anonymous,
-    /// Username and password authentication
-    username_password,
-    /// X.509 certificate authentication
-    x509_certificate,
-    /// Issued token authentication (JWT, SAML, etc.)
-    issued_token,
-};
+/// X.509 certificate for OPC UA authentication.
+/// Contains both the certificate and private key in DER format.
+pub const Certificate = struct {
+    certificate: []const u8,
+    private_key: []const u8,
+    allocator: std.mem.Allocator,
 
-/// User identity token for authentication
-pub const UserIdentityToken = union(AuthenticationMethod) {
-    /// Anonymous authentication (no credentials)
-    anonymous: void,
-    /// Username and password authentication
-    username_password: struct {
-        username: []const u8,
-        password: []const u8,
-    },
-    /// X.509 certificate authentication
-    x509_certificate: struct {
-        certificate: []const u8,
-        private_key: []const u8,
-    },
-    /// Issued token authentication
-    issued_token: struct {
-        token_data: []const u8,
-        token_type: []const u8,
-    },
-};
+    /// Load a certificate and private key from DER files.
+    ///
+    /// This function loads an X.509 certificate and its corresponding
+    /// private key from DER-encoded files. Both files must be in
+    /// binary DER format (not PEM).
+    ///
+    /// **Memory management:**
+    /// The loaded certificate data is heap-allocated and must be freed
+    /// with `deinit()` when no longer needed.
+    ///
+    /// Example usage:
+    /// ```zig
+    /// const cert = try Certificate.loadFromFiles(
+    ///     allocator,
+    ///     "client_cert.der",
+    ///     "client_key.der",
+    /// );
+    /// defer cert.deinit();
+    /// ```
+    ///
+    /// **Errors:**
+    /// - `error.OutOfMemory` - Failed to allocate memory for certificate data
+    /// - `error.FileNotFound` - Certificate or key file not found
+    /// - `error.ReadFailed` - Failed to read certificate or key file
+    pub fn loadFromFiles(
+        allocator: std.mem.Allocator,
+        cert_path: []const u8,
+        key_path: []const u8,
+    ) !Certificate {
+        const cert_data = try std.fs.cwd().readFileAlloc(allocator, cert_path, std.math.maxInt(usize));
+        errdefer allocator.free(cert_data);
 
-/// Authentication configuration for client connections
-pub const AuthenticationConfig = struct {
-    /// User identity token for authentication
-    identity_token: UserIdentityToken,
-    /// Security policy URI (optional, uses server default if null)
-    security_policy_uri: ?[]const u8 = null,
-    /// Security mode (default: sign_and_encrypt)
-    security_mode: c.UA_MessageSecurityMode = c.UA_MESSAGESECURITYMODE_SIGNANDENCRYPT,
-};
+        const key_data = try std.fs.cwd().readFileAlloc(allocator, key_path, std.math.maxInt(usize));
+        errdefer allocator.free(key_data);
 
-/// Connect to an OPC UA server with authentication.
-///
-/// This function establishes a connection to an OPC UA server using
-/// the specified authentication method and credentials.
-///
-/// **Memory management:**
-/// This function handles all memory management internally using temporary allocations.
-/// No cleanup is required by the caller.
-///
-/// Example usage:
-/// ```zig
-/// const client = try Client.init(allocator);
-/// defer client.deinit();
-/// 
-/// // Username/password authentication
-/// const auth_config = AuthenticationConfig{
-///     .identity_token = .{
-///         .username_password = .{
-///             .username = "admin",
-///             .password = "password",
-///         },
-///     },
-/// };
-/// try client.connectWithAuth("opc.tcp://localhost:4840", auth_config);
-/// defer client.disconnect();
-/// ```
-///
-/// **Errors:**
-/// Returns errors from `ua_error.OpcUaError` including common ones like:
-/// - `BadTcpEndpointUrlInvalid` - The endpoint URL format is invalid
-/// - `BadConnectionRejected` - The server rejected the connection
-/// - `BadTimeout` - Connection attempt timed out
-/// - `BadCommunicationError` - Network communication error
-/// - `BadSecurityChecksFailed` - Security checks failed
-/// - `BadUserAccessDenied` - Invalid username or password
-/// - `BadCertificateInvalid` - Certificate validation failed
-pub fn connectWithAuth(
-    client: *c.UA_Client,
-    endpoint_url: []const u8,
-    auth_config: AuthenticationConfig
-) !void {
-    // Use arena allocator to safely create null-terminated strings for C API
-    var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
-    // Allocate buffer and create null-terminated string for endpoint URL
-    const url_buf = try allocator.alloc(u8, endpoint_url.len + 1);
-    const c_url = try std.fmt.bufPrintZ(url_buf, "{s}", .{endpoint_url});
-
-    // Handle different authentication methods
-    switch (auth_config.identity_token) {
-        .anonymous => {
-            // Anonymous authentication
-            const status = c.UA_Client_connect(client, c_url.ptr);
-            try ua_error.checkStatus(status);
-        },
-        .username_password => |creds| {
-            // Username/password authentication
-            const user_buf = try allocator.alloc(u8, creds.username.len + 1);
-            const c_username = try std.fmt.bufPrintZ(user_buf, "{s}", .{creds.username});
-
-            const pass_buf = try allocator.alloc(u8, creds.password.len + 1);
-            const c_password = try std.fmt.bufPrintZ(pass_buf, "{s}", .{creds.password});
-
-            const status = c.UA_Client_connectUsername(
-                client,
-                c_url.ptr,
-                c_username.ptr,
-                c_password.ptr
-            );
-            try ua_error.checkStatus(status);
-        },
-        .x509_certificate => |cert| {
-            // X.509 certificate authentication
-            // For certificate authentication, we need to load the certificate
-            // and private key into the client config
-            
-            // Get client config
-            _ = c.UA_Client_getConfig(client);
-            
-            // Load certificate from PEM data
-            var certificate = c.UA_ByteString_new();
-            defer c.UA_ByteString_delete(certificate);
-            
-            const cert_status = c.UA_ByteString_allocBuffer(
-                certificate,
-                @intCast(cert.certificate.len)
-            );
-            if (cert_status != c.UA_STATUSCODE_GOOD) {
-                return ua_error.OpcUaError.BadCertificateInvalid;
-            }
-            
-            // Copy certificate data
-            const cert_data = @as([*]u8, @ptrCast(certificate.data))[0..cert.certificate.len];
-            @memcpy(cert_data, cert.certificate);
-            
-            // Load private key from PEM data  
-            var private_key = c.UA_ByteString_new();
-            defer c.UA_ByteString_delete(private_key);
-            
-            const key_status = c.UA_ByteString_allocBuffer(
-                private_key,
-                @intCast(cert.private_key.len)
-            );
-            if (key_status != c.UA_STATUSCODE_GOOD) {
-                return ua_error.OpcUaError.BadCertificateInvalid;
-            }
-            
-            // Copy private key data
-            const key_data = @as([*]u8, @ptrCast(private_key.data))[0..cert.private_key.len];
-            @memcpy(key_data, cert.private_key);
-            
-            // Set certificate and private key in config
-            // Note: This assumes the client was configured to accept certificate auth
-            // In a real implementation, we'd need to check if security policy supports it
-            
-            // For now, we'll attempt to connect with the standard method
-            // Certificate validation happens at the protocol level
-            const status = c.UA_Client_connect(client, c_url.ptr);
-            try ua_error.checkStatus(status);
-        },
-        .issued_token => |_| {
-            // Issued token authentication
-            // TODO: Implement token-based authentication
-            // This requires setting up the client config with token data
-            return error.NotImplemented;
-        },
+        return Certificate{
+            .certificate = cert_data,
+            .private_key = key_data,
+            .allocator = allocator,
+        };
     }
-}
 
-/// Simplified function to connect with username and password
-pub fn connectWithUsername(
-    client: *c.UA_Client,
-    endpoint_url: []const u8,
-    username: []const u8,
-    password: []const u8
-) !void {
-    const auth_config = AuthenticationConfig{
-        .identity_token = .{
-            .username_password = .{
-                .username = username,
-                .password = password,
-            },
-        },
-    };
-    return connectWithAuth(client, endpoint_url, auth_config);
-}
+    /// Load a certificate and private key from PEM files.
+    ///
+    /// This function loads an X.509 certificate and its corresponding
+    /// private key from PEM-encoded files and converts them to DER format.
+    /// Both files must be in PEM format (base64-encoded with headers).
+    ///
+    /// **Memory management:**
+    /// The loaded certificate data is heap-allocated and must be freed
+    /// with `deinit()` when no longer needed.
+    ///
+    /// Example usage:
+    /// ```zig
+    /// const cert = try Certificate.loadFromPemFiles(
+    ///     allocator,
+    ///     "client_cert.pem",
+    ///     "client_key.pem",
+    /// );
+    /// defer cert.deinit();
+    /// ```
+    ///
+    /// **Errors:**
+    /// - `error.OutOfMemory` - Failed to allocate memory for certificate data
+    /// - `error.FileNotFound` - Certificate or key file not found
+    /// - `error.ReadFailed` - Failed to read certificate or key file
+    /// - `error.InvalidPem` - PEM file format is invalid
+    pub fn loadFromPemFiles(
+        allocator: std.mem.Allocator,
+        cert_path: []const u8,
+        key_path: []const u8,
+    ) !Certificate {
+        const cert_pem = try std.fs.cwd().readFileAlloc(allocator, cert_path, std.math.maxInt(usize));
+        defer allocator.free(cert_pem);
 
-/// Simplified function to connect anonymously
-pub fn connectAnonymous(client: *c.UA_Client, endpoint_url: []const u8) !void {
-    const auth_config = AuthenticationConfig{
-        .identity_token = .anonymous,
-    };
-    return connectWithAuth(client, endpoint_url, auth_config);
-}
+        const key_pem = try std.fs.cwd().readFileAlloc(allocator, key_path, std.math.maxInt(usize));
+        defer allocator.free(key_pem);
 
-// ============================================================================
-// Tests
-// ============================================================================
+        return try Certificate.fromPem(allocator, cert_pem, key_pem);
+    }
 
-test "AuthenticationMethod enum values" {
-    const testing = std.testing;
-    std.testing.refAllDecls(@This());
+    /// Create a certificate from PEM strings.
+    ///
+    /// This function creates a certificate from PEM-encoded strings
+    /// (certificate and private key) and converts them to DER format.
+    ///
+    /// **Memory management:**
+    /// The certificate data is heap-allocated and must be freed
+    /// with `deinit()` when no longer needed.
+    ///
+    /// Example usage:
+    /// ```zig
+    /// const cert_pem = \"\"\"-----BEGIN CERTIFICATE-----
+    /// MII...certificate data...
+    /// -----END CERTIFICATE-----\"\"\";
+    /// const key_pem = \"\"\"-----BEGIN PRIVATE KEY-----
+    /// MII...private key data...
+    /// -----END PRIVATE KEY-----\"\"\";
+    /// const cert = try Certificate.fromPem(allocator, cert_pem, key_pem);
+    /// defer cert.deinit();
+    /// ```
+    ///
+    /// **Errors:**
+    /// - `error.OutOfMemory` - Failed to allocate memory for certificate data
+    /// - `error.InvalidPem` - PEM format is invalid
+    pub fn fromPem(
+        allocator: std.mem.Allocator,
+        cert_pem: []const u8,
+        key_pem: []const u8,
+    ) !Certificate {
+        // Parse certificate PEM
+        const cert = try parsePem(allocator, cert_pem, "CERTIFICATE");
+        errdefer allocator.free(cert);
 
-    try testing.expectEqual(AuthenticationMethod.anonymous, .anonymous);
-    try testing.expectEqual(AuthenticationMethod.username_password, .username_password);
-    try testing.expectEqual(AuthenticationMethod.x509_certificate, .x509_certificate);
-    try testing.expectEqual(AuthenticationMethod.issued_token, .issued_token);
-}
+        // Parse private key PEM
+        const key = try parsePem(allocator, key_pem, "PRIVATE KEY");
+        errdefer allocator.free(key);
 
-test "UserIdentityToken union creation" {
-    const testing = std.testing;
+        return Certificate{
+            .certificate = cert,
+            .private_key = key,
+            .allocator = allocator,
+        };
+    }
 
-    // Anonymous token
-    const anonymous_token = UserIdentityToken{ .anonymous = {} };
-    try testing.expectEqual(
-        AuthenticationMethod.anonymous,
-        @as(AuthenticationMethod, anonymous_token)
-    );
+    /// Parse a PEM-encoded string into DER format.
+    ///
+    /// This is a helper function that extracts the base64-encoded data
+    /// from a PEM file and decodes it to binary DER format.
+    ///
+    /// **Memory management:**
+    /// The returned data is heap-allocated and must be freed by the caller.
+    fn parsePem(
+        allocator: std.mem.Allocator,
+        pem: []const u8,
+        expected_label: []const u8,
+    ) ![]const u8 {
+        var lines = std.mem.splitScalar(u8, pem, '\n');
+        var in_section = false;
+        var base64_data = std.ArrayList(u8).init(allocator);
+        defer base64_data.deinit();
 
-    // Username/password token
-    const userpass_token = UserIdentityToken{
-        .username_password = .{
-            .username = "testuser",
-            .password = "testpass",
-        },
-    };
-    try testing.expectEqual(
-        AuthenticationMethod.username_password,
-        @as(AuthenticationMethod, userpass_token)
-    );
-    try testing.expectEqualStrings("testuser", userpass_token.username_password.username);
-    try testing.expectEqualStrings("testpass", userpass_token.username_password.password);
-}
+        while (lines.next()) |line| {
+            const trimmed = std.mem.trim(u8, line, " \r");
+            if (trimmed.len == 0) {
+                continue;
+            }
 
-test "AuthenticationConfig default values" {
-    const testing = std.testing;
+            if (std.mem.startsWith(u8, trimmed, "-----BEGIN ")) {
+                const label_start = "-----BEGIN ".len;
+                const label_end = trimmed.len - "-----".len;
+                const label = trimmed[label_start..label_end];
+                if (!std.mem.eql(u8, label, expected_label)) {
+                    return error.InvalidPem;
+                }
+                in_section = true;
+                continue;
+            }
 
-    const config = AuthenticationConfig{
-        .identity_token = .anonymous,
-    };
+            if (std.mem.startsWith(u8, trimmed, "-----END ")) {
+                in_section = false;
+                break;
+            }
 
-    try testing.expectEqual(
-        AuthenticationMethod.anonymous,
-        @as(AuthenticationMethod, config.identity_token)
-    );
-    try testing.expectEqual(@as(?[]const u8, null), config.security_policy_uri);
-    try testing.expectEqual(
-        c.UA_MESSAGESECURITYMODE_SIGNANDENCRYPT,
-        config.security_mode
-    );
-}
+            if (in_section) {
+                try base64_data.appendSlice(trimmed);
+            }
+        }
 
-test "AuthenticationConfig with username/password" {
-    const testing = std.testing;
+        if (in_section) {
+            return error.InvalidPem; // Missing END marker
+        }
 
-    const config = AuthenticationConfig{
-        .identity_token = .{
-            .username_password = .{
-                .username = "admin",
-                .password = "secret",
-            },
-        },
-        .security_policy_uri = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
-        .security_mode = c.UA_MESSAGESECURITYMODE_SIGN,
-    };
+        // Decode base64
+        const der = try allocator.alloc(u8, try std.base64.standard.Decoder.calcSizeForSlice(base64_data.items));
+        errdefer allocator.free(der);
+        _ = try std.base64.standard.Decoder.decode(der, base64_data.items);
 
-    try testing.expectEqual(
-        AuthenticationMethod.username_password,
-        @as(AuthenticationMethod, config.identity_token)
-    );
-    try testing.expect(config.security_policy_uri != null);
-    try testing.expectEqualStrings(
-        "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
-        config.security_policy_uri.?
-    );
-    try testing.expectEqual(c.UA_MESSAGESECURITYMODE_SIGN, config.security_mode);
-}
+        return der;
+    }
+
+    /// Convert certificate to C types for use with the open62541 C API.
+    ///
+    /// This function allocates C UA_ByteString structures and copies the
+    /// certificate and private key data into them. The caller is responsible
+    /// for freeing the C structures with UA_ByteString_delete.
+    ///
+    /// **Memory management:**
+    /// The returned C structures are heap-allocated and must be freed
+    /// with UA_ByteString_delete.
+    pub fn toC(self: Certificate) !struct { certificate: *c.UA_ByteString, private_key: *c.UA_ByteString } {
+        var certificate = c.UA_ByteString_new();
+        defer c.UA_ByteString_delete(certificate);
+        
+        const cert_status = c.UA_ByteString_allocBuffer(
+            certificate,
+            @intCast(self.certificate.len),
+        );
+        if (cert_status != c.UA_STATUSCODE_GOOD) {
+            return ua_error.OpcUaError.BadCertificateInvalid;
+        }
+        
+        // Copy certificate data
+        const cert_data = @as([*]u8, @ptrCast(certificate.data))[0..self.certificate.len];
+        @memcpy(cert_data, self.certificate);
+        
+        // Load private key from PEM data  
+        var private_key = c.UA_ByteString_new();
+        defer c.UA_ByteString_delete(private_key);
+        
+        const key_status = c.UA_ByteString_allocBuffer(
+            private_key,
+            @intCast(self.private_key.len),
+        );
+        if (key_status != c.UA_STATUSCODE_GOOD) {
+            return ua_error.OpcUaError.BadCertificateInvalid;
+        }
+        
+        // Copy private key data
+        const key_data = @as([*]u8, @ptrCast(private_key.data))[0..self.private_key.len];
+        @memcpy(key_data, self.private_key);
+
+        // Take ownership of the C structures
+        const cert_ptr = c.UA_ByteString_new();
+        c.UA_ByteString_copy(certificate, cert_ptr);
+        
+        const key_ptr = c.UA_ByteString_new();
+        c.UA_ByteString_copy(private_key, key_ptr);
+
+        return .{
+            .certificate = cert_ptr,
+            .private_key = key_ptr,
+        };
+    }
+
+    /// Deinitialize the certificate.
+    ///
+    /// This function frees all heap-allocated certificate data.
+    ///
+    /// **Memory management:**
+    /// Must be called when the certificate is no longer needed to avoid
+    /// memory leaks.
+    pub fn deinit(self: Certificate) void {
+        self.allocator.free(self.certificate);
+        self.allocator.free(self.private_key);
+    }
+};
