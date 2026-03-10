@@ -198,6 +198,7 @@ pub const Client = struct {
         node_id: c.UA_NodeId,
         attribute_id: AttributeId,
     ) !DataValue {
+        // SAFETY: Variable is initialized by UA_Client_readValueAttribute
         var value: c.UA_DataValue = undefined;
         const status = c.UA_Client_readValueAttribute(
             self.handle,
@@ -298,6 +299,7 @@ pub const Client = struct {
         config.publishingEnabled = c.UA_TRUE;
         config.priority = 0;
 
+        // SAFETY: Variable is initialized by UA_Client_Subscriptions_create
         var response: c.UA_CreateSubscriptionResponse = undefined;
         const status = c.UA_Client_Subscriptions_create(
             self.handle,
@@ -339,6 +341,7 @@ pub const Client = struct {
         item.requestedParameters.discardOldest = c.UA_TRUE;
         item.requestedParameters.queueSize = 1;
 
+        // SAFETY: Variable is initialized by UA_Client_MonitoredItems_createDataChange
         var result: c.UA_MonitoredItemCreateResult = undefined;
         const status = c.UA_Client_MonitoredItems_createDataChange(
             self.handle,
