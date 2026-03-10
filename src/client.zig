@@ -169,7 +169,12 @@ pub const Client = struct {
     /// - `BadSecurityChecksFailed` - Security checks failed
     /// - `BadUserAccessDenied` - Invalid username or password
     /// - `BadCertificateInvalid` - Certificate validation failed
-    pub fn connectWithUsername(self: *Client, endpoint_url: []const u8, username: []const u8, password: []const u8) !void {
+    pub fn connectWithUsername(
+        self: *Client,
+        endpoint_url: []const u8,
+        username: []const u8,
+        password: []const u8
+    ) !void {
         // Use arena allocator to safely create null-terminated strings for C API
         var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
         defer arena.deinit();
@@ -184,7 +189,12 @@ pub const Client = struct {
         const pass_buf = try arena.allocator().alloc(u8, password.len + 1);
         const c_password = try std.fmt.bufPrintZ(pass_buf, "{s}", .{password});
 
-        const status = c.UA_Client_connectUsername(self.handle, c_url.ptr, c_username.ptr, c_password.ptr);
+        const status = c.UA_Client_connectUsername(
+            self.handle,
+            c_url.ptr,
+            c_username.ptr,
+            c_password.ptr
+        );
         try ua_error.checkStatus(status);
     }
 
@@ -263,7 +273,11 @@ pub const Client = struct {
     /// - `BadSecurityChecksFailed` - Security checks failed
     /// - `BadUserAccessDenied` - Invalid username or password
     /// - `BadCertificateInvalid` - Certificate validation failed
-    pub fn connectWithAuth(self: *Client, endpoint_url: []const u8, auth_config: AuthenticationConfig) !void {
+    pub fn connectWithAuth(
+        self: *Client,
+        endpoint_url: []const u8,
+        auth_config: AuthenticationConfig
+    ) !void {
         // Use arena allocator to safely create null-terminated strings for C API
         var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
         defer arena.deinit();
@@ -288,7 +302,12 @@ pub const Client = struct {
                 const pass_buf = try allocator.alloc(u8, creds.password.len + 1);
                 const c_password = try std.fmt.bufPrintZ(pass_buf, "{s}", .{creds.password});
 
-                const status = c.UA_Client_connectUsername(self.handle, c_url.ptr, c_username.ptr, c_password.ptr);
+                const status = c.UA_Client_connectUsername(
+                    self.handle,
+                    c_url.ptr,
+                    c_username.ptr,
+                    c_password.ptr
+                );
                 try ua_error.checkStatus(status);
             },
             .x509_certificate => |cert| {
@@ -303,7 +322,10 @@ pub const Client = struct {
                 var certificate = c.UA_ByteString_new();
                 defer c.UA_ByteString_delete(certificate);
                 
-                const cert_status = c.UA_ByteString_allocBuffer(certificate, @intCast(cert.certificate.len));
+                const cert_status = c.UA_ByteString_allocBuffer(
+                    certificate,
+                    @intCast(cert.certificate.len)
+                );
                 if (cert_status != c.UA_STATUSCODE_GOOD) {
                     return ua_error.OpcUaError.BadCertificateInvalid;
                 }
@@ -314,7 +336,10 @@ pub const Client = struct {
                 var private_key = c.UA_ByteString_new();
                 defer c.UA_ByteString_delete(private_key);
                 
-                const key_status = c.UA_ByteString_allocBuffer(private_key, @intCast(cert.private_key.len));
+                const key_status = c.UA_ByteString_allocBuffer(
+                    private_key,
+                    @intCast(cert.private_key.len)
+                );
                 if (key_status != c.UA_STATUSCODE_GOOD) {
                     return ua_error.OpcUaError.BadCertificateInvalid;
                 }
