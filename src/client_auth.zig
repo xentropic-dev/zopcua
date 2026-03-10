@@ -139,7 +139,7 @@ pub fn connectWithAuth(
                 return ua_error.OpcUaError.BadCertificateInvalid;
             }
             
-            @memcpy(certificate.data, cert.certificate.ptr, cert.certificate.len);
+            @memcpy(certificate.data[0..cert.certificate.len], cert.certificate);
             
             // Load private key from PEM data  
             var private_key = c.UA_ByteString_new();
@@ -153,7 +153,7 @@ pub fn connectWithAuth(
                 return ua_error.OpcUaError.BadCertificateInvalid;
             }
             
-            @memcpy(private_key.data, cert.private_key.ptr, cert.private_key.len);
+            @memcpy(private_key.data[0..cert.private_key.len], cert.private_key);
             
             // Set certificate and private key in config
             // Note: This assumes the client was configured to accept certificate auth
