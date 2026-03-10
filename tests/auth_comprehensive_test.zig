@@ -5,8 +5,8 @@ const client_auth = @import("../src/client_auth.zig");
 const server_auth = @import("../src/server_auth.zig");
 const ua_error = @import("../src/ua_error.zig");
 
-/// Comprehensive authentication tests for zopcua
-/// These tests verify that all authentication features work correctly
+// Comprehensive authentication tests for zopcua
+// These tests verify that all authentication features work correctly
 
 test "authentication method enum completeness" {
     // Verify all OPC UA authentication methods are represented
