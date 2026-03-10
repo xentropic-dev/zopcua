@@ -82,7 +82,11 @@ pub const AuthenticationConfig = struct {
 /// - `BadSecurityChecksFailed` - Security checks failed
 /// - `BadUserAccessDenied` - Invalid username or password
 /// - `BadCertificateInvalid` - Certificate validation failed
-pub fn connectWithAuth(client: *c.UA_Client, endpoint_url: []const u8, auth_config: AuthenticationConfig) !void {
+pub fn connectWithAuth(
+    client: *c.UA_Client,
+    endpoint_url: []const u8,
+    auth_config: AuthenticationConfig
+) !void {
     // Use arena allocator to safely create null-terminated strings for C API
     var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
     defer arena.deinit();
@@ -107,7 +111,12 @@ pub fn connectWithAuth(client: *c.UA_Client, endpoint_url: []const u8, auth_conf
             const pass_buf = try allocator.alloc(u8, creds.password.len + 1);
             const c_password = try std.fmt.bufPrintZ(pass_buf, "{s}", .{creds.password});
 
-            const status = c.UA_Client_connectUsername(client, c_url.ptr, c_username.ptr, c_password.ptr);
+            const status = c.UA_Client_connectUsername(
+                client,
+                c_url.ptr,
+                c_username.ptr,
+                c_password.ptr
+            );
             try ua_error.checkStatus(status);
         },
         .x509_certificate => |cert| {
@@ -122,7 +131,10 @@ pub fn connectWithAuth(client: *c.UA_Client, endpoint_url: []const u8, auth_conf
             var certificate = c.UA_ByteString_new();
             defer c.UA_ByteString_delete(certificate);
             
-            const cert_status = c.UA_ByteString_allocBuffer(certificate, @intCast(cert.certificate.len));
+            const cert_status = c.UA_ByteString_allocBuffer(
+                certificate,
+                @intCast(cert.certificate.len)
+            );
             if (cert_status != c.UA_STATUSCODE_GOOD) {
                 return ua_error.OpcUaError.BadCertificateInvalid;
             }
@@ -133,7 +145,10 @@ pub fn connectWithAuth(client: *c.UA_Client, endpoint_url: []const u8, auth_conf
             var private_key = c.UA_ByteString_new();
             defer c.UA_ByteString_delete(private_key);
             
-            const key_status = c.UA_ByteString_allocBuffer(private_key, @intCast(cert.private_key.len));
+            const key_status = c.UA_ByteString_allocBuffer(
+                private_key,
+                @intCast(cert.private_key.len)
+            );
             if (key_status != c.UA_STATUSCODE_GOOD) {
                 return ua_error.OpcUaError.BadCertificateInvalid;
             }
@@ -159,7 +174,12 @@ pub fn connectWithAuth(client: *c.UA_Client, endpoint_url: []const u8, auth_conf
 }
 
 /// Simplified function to connect with username and password
-pub fn connectWithUsername(client: *c.UA_Client, endpoint_url: []const u8, username: []const u8, password: []const u8) !void {
+pub fn connectWithUsername(
+    client: *c.UA_Client,
+    endpoint_url: []const u8,
+    username: []const u8,
+    password: []const u8
+) !void {
     const auth_config = AuthenticationConfig{
         .identity_token = .{
             .username_password = .{
@@ -240,6 +260,9 @@ test "AuthenticationConfig with username/password" {
 
     try testing.expectEqual(AuthenticationMethod.username_password, @as(AuthenticationMethod, config.identity_token));
     try testing.expect(config.security_policy_uri != null);
-    try testing.expectEqualStrings("http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256", config.security_policy_uri.?);
+    try testing.expectEqualStrings(
+        "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
+        config.security_policy_uri.?
+    );
     try testing.expectEqual(c.UA_MESSAGESECURITYMODE_SIGN, config.security_mode);
 }
