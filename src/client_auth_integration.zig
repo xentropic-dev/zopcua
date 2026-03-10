@@ -1,20 +1,23 @@
-// This file contains authentication integration for the Client struct
-// It should be imported and the methods added to the Client struct
-
 const std = @import("std");
 const c = @import("c.zig");
 const helpers = @import("helpers.zig");
 const ua_error = @import("ua_error.zig");
+const client_auth = @import("client_auth.zig");
 
-/// Authentication methods to add to the Client struct
-pub const ClientAuthMethods = struct {
-    handle: *c.UA_Client,
+/// Client with integrated authentication support.
+/// This wrapper provides a more convenient API for authentication.
+pub const ClientWithAuth = struct {
+    client: *c.UA_Client,
+
+    /// Initialize a new client with authentication support.
+    pub fn init(client: *c.UA_Client) ClientWithAuth {
+        return .{ .client = client };
+    }
 
     /// Connect to an OPC UA server with username and password authentication.
     ///
     /// This function establishes a connection to an OPC UA server using
-    /// username/password authentication. It creates a secure channel and
-    /// activates a session with the provided credentials.
+    /// username and password authentication.
     ///
     /// **Memory management:**
     /// This function handles all memory management internally using temporary allocations.
@@ -24,9 +27,9 @@ pub const ClientAuthMethods = struct {
     /// ```zig
     /// const client = try Client.init(allocator);
     /// defer client.deinit();
-    /// try client.connectWithUsername("opc.tcp://localhost:4840", "admin", "password");
+    /// const auth_client = ClientWithAuth.init(client.handle);
+    /// try auth_client.connectWithUsername("opc.tcp://localhost:4840", "admin", "password");
     /// defer client.disconnect();
-    /// // ... do work ...
     /// ```
     ///
     /// **Errors:**
@@ -38,30 +41,41 @@ pub const ClientAuthMethods = struct {
     /// - `BadSecurityChecksFailed` - Security checks failed
     /// - `BadUserAccessDenied` - Invalid username or password
     /// - `BadCertificateInvalid` - Certificate validation failed
-    pub fn connectWithUsername(self: *const @This(), endpoint_url: []const u8, username: []const u8, password: []const u8) !void {
+    pub fn connectWithUsername(
+        self: *const @This(),
+        endpoint_url: []const u8,
+        username: []const u8,
+        password: []const u8
+    ) !void {
         // Use arena allocator to safely create null-terminated strings for C API
         var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
         defer arena.deinit();
+        const allocator = arena.allocator();
 
-        // Allocate buffers and create null-terminated strings
-        const url_buf = try arena.allocator().alloc(u8, endpoint_url.len + 1);
+        // Allocate buffer and create null-terminated string for endpoint URL
+        const url_buf = try allocator.alloc(u8, endpoint_url.len + 1);
         const c_url = try std.fmt.bufPrintZ(url_buf, "{s}", .{endpoint_url});
 
-        const user_buf = try arena.allocator().alloc(u8, username.len + 1);
+        // Allocate buffers and create null-terminated strings for credentials
+        const user_buf = try allocator.alloc(u8, username.len + 1);
         const c_username = try std.fmt.bufPrintZ(user_buf, "{s}", .{username});
 
-        const pass_buf = try arena.allocator().alloc(u8, password.len + 1);
+        const pass_buf = try allocator.alloc(u8, password.len + 1);
         const c_password = try std.fmt.bufPrintZ(pass_buf, "{s}", .{password});
 
-        const status = c.UA_Client_connectUsername(self.handle, c_url.ptr, c_username.ptr, c_password.ptr);
+        const status = c.UA_Client_connectUsername(
+            self.client,
+            c_url.ptr,
+            c_username.ptr,
+            c_password.ptr
+        );
         try ua_error.checkStatus(status);
     }
 
-    /// Connect to an OPC UA server with anonymous authentication (no credentials).
+    /// Connect to an OPC UA server with authentication configuration.
     ///
     /// This function establishes a connection to an OPC UA server using
-    /// anonymous authentication. This is equivalent to the standard `connect()`
-    /// method but explicitly indicates anonymous access.
+    /// the specified authentication method and credentials.
     ///
     /// **Memory management:**
     /// This function handles all memory management internally using temporary allocations.
@@ -71,9 +85,19 @@ pub const ClientAuthMethods = struct {
     /// ```zig
     /// const client = try Client.init(allocator);
     /// defer client.deinit();
-    /// try client.connectAnonymous("opc.tcp://localhost:4840");
+    /// const auth_client = ClientWithAuth.init(client.handle);
+    /// 
+    /// // Username/password authentication
+    /// const auth_config = client_auth.AuthenticationConfig{
+    ///     .identity_token = .{
+    ///         .username_password = .{
+    ///             .username = "admin",
+    ///             .password = "password",
+    ///         },
+    ///     },
+    /// };
+    /// try auth_client.connectWithAuth("opc.tcp://localhost:4840", auth_config);
     /// defer client.disconnect();
-    /// // ... do work ...
     /// ```
     ///
     /// **Errors:**
@@ -83,16 +107,21 @@ pub const ClientAuthMethods = struct {
     /// - `BadTimeout` - Connection attempt timed out
     /// - `BadCommunicationError` - Network communication error
     /// - `BadSecurityChecksFailed` - Security checks failed
+    /// - `BadUserAccessDenied` - Invalid username or password
     /// - `BadCertificateInvalid` - Certificate validation failed
-    pub fn connectAnonymous(self: *const @This(), endpoint_url: []const u8) !void {
-        // This calls the standard connect method
-        var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
-        defer arena.deinit();
+    pub fn connectWithAuth(
+        self: *const @This(),
+        endpoint_url: []const u8,
+        auth_config: client_auth.AuthenticationConfig
+    ) !void {
+        return client_auth.connectWithAuth(self.client, endpoint_url, auth_config);
+    }
 
-        const buf = try arena.allocator().alloc(u8, endpoint_url.len + 1);
-        const c_url = try std.fmt.bufPrintZ(buf, "{s}", .{endpoint_url});
-
-        const status = c.UA_Client_connect(self.handle, c_url.ptr);
-        try ua_error.checkStatus(status);
+    /// Simplified function to connect anonymously.
+    pub fn connectAnonymous(
+        self: *const @This(),
+        endpoint_url: []const u8
+    ) !void {
+        return client_auth.connectAnonymous(self.client, endpoint_url);
     }
 };
