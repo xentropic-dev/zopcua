@@ -18,6 +18,7 @@ const server_config_module = @import("server_config.zig");
 const client_config_module = @import("client_config.zig");
 const browse_module = @import("browse.zig");
 const subscription_module = @import("subscription.zig");
+const client_auth_module = @import("client_auth.zig");
 
 pub const Server = server_module.Server;
 pub const ServerConfig = server_config_module.ServerConfig;
@@ -75,6 +76,11 @@ pub const ReferenceDescription = browse_module.ReferenceDescription;
 pub const NodeClassMask = browse_module.NodeClassMask;
 pub const BrowseResultMask = browse_module.BrowseResultMask;
 
+// Authentication exports
+pub const AuthenticationMethod = client_auth_module.AuthenticationMethod;
+pub const UserIdentityToken = client_auth_module.UserIdentityToken;
+pub const AuthenticationConfig = client_auth_module.AuthenticationConfig;
+
 pub const types = types_module;
 pub const variant = variant_module;
 pub const server = server_module;
@@ -83,6 +89,7 @@ pub const browse = browse_module;
 pub const subscription = subscription_module;
 pub const attributes = attributes_module;
 pub const standard_data_types = standard_data_types_module;
+pub const client_auth = client_auth_module;
 
 test {
     _ = @import("ua_error.zig");
@@ -98,4 +105,5 @@ test {
     _ = @import("data_value.zig");
     _ = @import("attributes.zig");
     _ = @import("standard_data_types.zig");
+    _ = @import("client_auth.zig");
 }
