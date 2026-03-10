@@ -8,6 +8,8 @@ const attributes = @import("attributes.zig");
 const AttributeId = attributes.AttributeId;
 const AttributeValue = attributes.AttributeValue;
 const client_auth = @import("client_auth.zig");
+const data_value = @import("data_value.zig");
+const DataValue = data_value.DataValue;
 
 /// Internal context structure for monitored item callbacks.
 /// This is heap-allocated and managed by the C library's lifecycle.
@@ -450,7 +452,7 @@ pub const Client = struct {
                 // and private key into the client config
                 
                 // Get client config
-                var config: *c.UA_ClientConfig = c.UA_Client_getConfig(self.handle);
+                _ = c.UA_Client_getConfig(self.handle);
                 
                 // Load certificate from PEM data
                 var certificate = c.UA_ByteString_new();
@@ -464,7 +466,9 @@ pub const Client = struct {
                     return ua_error.OpcUaError.BadCertificateInvalid;
                 }
                 
-                @memcpy(certificate.data[0..cert.certificate.len], cert.certificate);
+                // Copy certificate data
+                const cert_data = @as([*]u8, @ptrCast(certificate.data))[0..cert.certificate.len];
+                @memcpy(cert_data, cert.certificate);
                 
                 // Load private key from PEM data  
                 var private_key = c.UA_ByteString_new();
@@ -478,7 +482,9 @@ pub const Client = struct {
                     return ua_error.OpcUaError.BadCertificateInvalid;
                 }
                 
-                @memcpy(private_key.data[0..cert.private_key.len], cert.private_key);
+                // Copy private key data
+                const key_data = @as([*]u8, @ptrCast(private_key.data))[0..cert.private_key.len];
+                @memcpy(key_data, cert.private_key);
                 
                 // Set certificate and private key in config
                 // Note: This assumes the client was configured to accept certificate auth
@@ -489,7 +495,7 @@ pub const Client = struct {
                 const status = c.UA_Client_connect(self.handle, c_url.ptr);
                 try ua_error.checkStatus(status);
             },
-            .issued_token => |token| {
+            .issued_token => |_| {
                 // Issued token authentication
                 // TODO: Implement token-based authentication
                 // This requires setting up the client config with token data

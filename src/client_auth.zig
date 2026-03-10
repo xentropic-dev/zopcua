@@ -125,7 +125,7 @@ pub fn connectWithAuth(
             // and private key into the client config
             
             // Get client config
-            var config: *c.UA_ClientConfig = c.UA_Client_getConfig(client);
+            _ = c.UA_Client_getConfig(client);
             
             // Load certificate from PEM data
             var certificate = c.UA_ByteString_new();
@@ -139,7 +139,9 @@ pub fn connectWithAuth(
                 return ua_error.OpcUaError.BadCertificateInvalid;
             }
             
-            @memcpy(certificate.data[0..cert.certificate.len], cert.certificate);
+            // Copy certificate data
+            const cert_data = @as([*]u8, @ptrCast(certificate.data))[0..cert.certificate.len];
+            @memcpy(cert_data, cert.certificate);
             
             // Load private key from PEM data  
             var private_key = c.UA_ByteString_new();
@@ -153,7 +155,9 @@ pub fn connectWithAuth(
                 return ua_error.OpcUaError.BadCertificateInvalid;
             }
             
-            @memcpy(private_key.data[0..cert.private_key.len], cert.private_key);
+            // Copy private key data
+            const key_data = @as([*]u8, @ptrCast(private_key.data))[0..cert.private_key.len];
+            @memcpy(key_data, cert.private_key);
             
             // Set certificate and private key in config
             // Note: This assumes the client was configured to accept certificate auth
@@ -164,7 +168,7 @@ pub fn connectWithAuth(
             const status = c.UA_Client_connect(client, c_url.ptr);
             try ua_error.checkStatus(status);
         },
-        .issued_token => |token| {
+        .issued_token => |_| {
             // Issued token authentication
             // TODO: Implement token-based authentication
             // This requires setting up the client config with token data
@@ -218,7 +222,10 @@ test "UserIdentityToken union creation" {
 
     // Anonymous token
     const anonymous_token = UserIdentityToken{ .anonymous = {} };
-    try testing.expectEqual(AuthenticationMethod.anonymous, @as(AuthenticationMethod, anonymous_token));
+    try testing.expectEqual(
+        AuthenticationMethod.anonymous,
+        @as(AuthenticationMethod, anonymous_token)
+    );
 
     // Username/password token
     const userpass_token = UserIdentityToken{
@@ -227,7 +234,10 @@ test "UserIdentityToken union creation" {
             .password = "testpass",
         },
     };
-    try testing.expectEqual(AuthenticationMethod.username_password, @as(AuthenticationMethod, userpass_token));
+    try testing.expectEqual(
+        AuthenticationMethod.username_password,
+        @as(AuthenticationMethod, userpass_token)
+    );
     try testing.expectEqualStrings("testuser", userpass_token.username_password.username);
     try testing.expectEqualStrings("testpass", userpass_token.username_password.password);
 }
@@ -239,9 +249,15 @@ test "AuthenticationConfig default values" {
         .identity_token = .anonymous,
     };
 
-    try testing.expectEqual(AuthenticationMethod.anonymous, @as(AuthenticationMethod, config.identity_token));
+    try testing.expectEqual(
+        AuthenticationMethod.anonymous,
+        @as(AuthenticationMethod, config.identity_token)
+    );
     try testing.expectEqual(@as(?[]const u8, null), config.security_policy_uri);
-    try testing.expectEqual(c.UA_MESSAGESECURITYMODE_SIGNANDENCRYPT, config.security_mode);
+    try testing.expectEqual(
+        c.UA_MESSAGESECURITYMODE_SIGNANDENCRYPT,
+        config.security_mode
+    );
 }
 
 test "AuthenticationConfig with username/password" {
@@ -258,7 +274,10 @@ test "AuthenticationConfig with username/password" {
         .security_mode = c.UA_MESSAGESECURITYMODE_SIGN,
     };
 
-    try testing.expectEqual(AuthenticationMethod.username_password, @as(AuthenticationMethod, config.identity_token));
+    try testing.expectEqual(
+        AuthenticationMethod.username_password,
+        @as(AuthenticationMethod, config.identity_token)
+    );
     try testing.expect(config.security_policy_uri != null);
     try testing.expectEqualStrings(
         "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
