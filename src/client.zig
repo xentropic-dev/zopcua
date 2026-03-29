@@ -224,6 +224,7 @@ pub const Client = struct {
         const c_url = try std.fmt.bufPrintZ(url_buf, "{s}", .{endpoint_url});
 
         // Convert authentication config to C types
+        // SAFETY: `undefined` is safe here because `convertAuthenticationConfig` will fully initialize the struct
         var c_auth_config: c.UA_ClientConfig_Authentication = undefined;
         try client_auth.convertAuthenticationConfig(&c_auth_config, auth_config, allocator);
 
@@ -270,10 +271,12 @@ pub const Client = struct {
         const node_id_buf = try allocator.alloc(u8, node_id.len + 1);
         const c_node_id = try std.fmt.bufPrintZ(node_id_buf, "{s}", .{node_id});
 
+        // SAFETY: `undefined` is safe here because `UA_NodeId_parse` will fully initialize the struct
         var c_node: c.UA_NodeId = undefined;
         const parse_status = c.UA_NodeId_parse(&c_node, c_node_id);
         try ua_error.checkStatus(parse_status);
 
+        // SAFETY: `undefined` is safe here because `UA_Client_readValueAttribute` will fully initialize the struct
         var value: c.UA_DataValue = undefined;
         const status = c.UA_Client_readValueAttribute(
             self.handle,
