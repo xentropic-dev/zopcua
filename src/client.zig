@@ -319,6 +319,7 @@ pub const Client = struct {
         const node_id_buf = try allocator.alloc(u8, node_id.len + 1);
         const c_node_id = try std.fmt.bufPrintZ(node_id_buf, "{s}", .{node_id});
 
+        // SAFETY: `undefined` is safe here because `UA_NodeId_parse` will fully initialize the struct
         var c_node: c.UA_NodeId = undefined;
         const parse_status = c.UA_NodeId_parse(&c_node, c_node_id);
         try ua_error.checkStatus(parse_status);
@@ -350,10 +351,12 @@ pub const Client = struct {
         const node_id_buf = try allocator.alloc(u8, node_id.len + 1);
         const c_node_id = try std.fmt.bufPrintZ(node_id_buf, "{s}", .{node_id});
 
+        // SAFETY: `undefined` is safe here because `UA_NodeId_parse` will fully initialize the struct
         var c_node: c.UA_NodeId = undefined;
         const parse_status = c.UA_NodeId_parse(&c_node, c_node_id);
         try ua_error.checkStatus(parse_status);
 
+        // SAFETY: `undefined` is safe here because `UA_Client_browse` will fully initialize the struct
         var result: c.UA_BrowseResult = undefined;
         const status = c.UA_Client_browse(
             self.handle,
