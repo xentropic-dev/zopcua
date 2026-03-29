@@ -168,11 +168,11 @@ pub const Client = struct {
         try ua_error.checkStatus(key_status);
 
         // Copy certificate data
-        @memcpy(cert.data, certificate.certificate.ptr, certificate.certificate.len);
+        @memcpy(cert.data[0..certificate.certificate.len], certificate.certificate);
         cert.length = @intCast(certificate.certificate.len);
 
         // Copy private key data
-        @memcpy(key.data, certificate.private_key.ptr, certificate.private_key.len);
+        @memcpy(key.data[0..certificate.private_key.len], certificate.private_key);
         key.length = @intCast(certificate.private_key.len);
 
         const status = c.UA_Client_connectCertificate(

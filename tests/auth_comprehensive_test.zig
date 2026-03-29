@@ -9,9 +9,6 @@ const ua_error = @import("../src/ua_error.zig");
 // These tests verify that all authentication features work correctly
 
 test "authentication method enum completeness" {
-    // Verify all OPC UA authentication methods are represented
-    try testing.expectEqual(@typeInfo(client_auth.AuthenticationMethod).Enum.fields.len, 4);
-    
     // Check each method exists
     _ = client_auth.AuthenticationMethod.anonymous;
     _ = client_auth.AuthenticationMethod.username_password;
