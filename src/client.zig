@@ -52,6 +52,22 @@ pub const Client = struct {
     /// This function establishes a connection to the specified OPC UA server
     /// endpoint URL using anonymous authentication.
     ///
+    /// Connect to an OPC UA server using anonymous authentication (no credentials).
+    /// This is a convenience wrapper for backward compatibility.
+    /// For more control over authentication, use `connectWithAuth()`.
+    ///
+    /// Example:
+    /// ```zig
+    /// const client = try Client.init();
+    /// defer client.deinit();
+    /// try client.connect("opc.tcp://localhost:4840");
+    /// ```
+    pub fn connect(self: *Client, endpoint_url: []const u8) !void {
+        return self.connectAnonymous(endpoint_url);
+    }
+
+    /// Connect to an OPC UA server using anonymous authentication (no credentials).
+    ///
     /// Example:
     /// ```zig
     /// const client = try Client.init();
