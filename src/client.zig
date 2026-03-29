@@ -256,8 +256,9 @@ pub const Client = struct {
     ///
     /// This function disconnects from the currently connected OPC UA server.
     /// It should be called before deinitializing the client.
-    pub fn disconnect(self: *Client) void {
-        c.UA_Client_disconnect(self.handle);
+    pub fn disconnect(self: *Client) !void {
+        const status = c.UA_Client_disconnect(self.handle);
+        try ua_error.checkStatus(status);
     }
 
     /// Read a node attribute value from the OPC UA server.
