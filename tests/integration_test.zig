@@ -102,15 +102,15 @@ pub fn main() !void {
     const node_id = ua.NodeId.initString(1, "test.value");
 
     // Read initial value
-    const initial_value = try rw_client.readValueAttribute(allocator, node_id);
+    const initial_value = try rw_client.readNodeAttribute(allocator, node_id);
     defer initial_value.deinit(allocator);
 
     // Write new value
     const new_value = ua.Variant.scalar(i32, 999);
-    try rw_client.writeValueAttribute(node_id, new_value);
+    try rw_client.writeNodeAttribute(node_id, new_value);
 
     // Read it back
-    const read_back = try rw_client.readValueAttribute(allocator, node_id);
+    const read_back = try rw_client.readNodeAttribute(allocator, node_id);
     defer read_back.deinit(allocator);
 
     // Cleanup
