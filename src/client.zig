@@ -290,19 +290,28 @@ pub const Client = struct {
 
         // SAFETY: `undefined` is safe here because `UA_NodeId_parse` will fully initialize the struct
         var c_node: c.UA_NodeId = undefined;
-        const parse_status = c.UA_NodeId_parse(&c_node, c_node_id);
+        const parse_status = c.UA_NodeId_parse(&c_node, c.UA_STRING(c_node_id.ptr));
         try ua_error.checkStatus(parse_status);
 
         // SAFETY: `undefined` is safe here because `UA_Client_readValueAttribute` will fully initialize the struct
-        var value: c.UA_DataValue = undefined;
+        var value: c.UA_Variant = undefined;
         const status = c.UA_Client_readValueAttribute(
             self.handle,
-            &c_node,
+            c_node,
             &value,
         );
         try ua_error.checkStatus(status);
 
-        return value;
+        // Convert UA_Variant to UA_DataValue
+        var data_value: c.UA_DataValue = undefined;
+        data_value.value = value;
+        data_value.hasValue = true;
+        data_value.hasStatus = false;
+        data_value.hasSourceTimestamp = false;
+        data_value.hasServerTimestamp = false;
+        data_value.hasSourcePicoseconds = false;
+        data_value.hasServerPicoseconds = false;
+        return data_value;
     }
 
     /// Write a node attribute value to the OPC UA server.
@@ -338,12 +347,12 @@ pub const Client = struct {
 
         // SAFETY: `undefined` is safe here because `UA_NodeId_parse` will fully initialize the struct
         var c_node: c.UA_NodeId = undefined;
-        const parse_status = c.UA_NodeId_parse(&c_node, c_node_id);
+        const parse_status = c.UA_NodeId_parse(&c_node, c.UA_STRING(c_node_id.ptr));
         try ua_error.checkStatus(parse_status);
 
         const status = c.UA_Client_writeValueAttribute(
             self.handle,
-            &c_node,
+            c_node,
             value,
         );
         try ua_error.checkStatus(status);
@@ -370,14 +379,14 @@ pub const Client = struct {
 
         // SAFETY: `undefined` is safe here because `UA_NodeId_parse` will fully initialize the struct
         var c_node: c.UA_NodeId = undefined;
-        const parse_status = c.UA_NodeId_parse(&c_node, c_node_id);
+        const parse_status = c.UA_NodeId_parse(&c_node, c.UA_STRING(c_node_id.ptr));
         try ua_error.checkStatus(parse_status);
 
         // SAFETY: `undefined` is safe here because `UA_Client_browse` will fully initialize the struct
         var result: c.UA_BrowseResult = undefined;
         const status = c.UA_Client_browse(
             self.handle,
-            &c_node,
+            c_node,
             &result,
         );
         try ua_error.checkStatus(status);
