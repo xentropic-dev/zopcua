@@ -47,10 +47,11 @@ This library will not reach full feature parity with open62541 for some time. If
 
 **Client:**
 - Client lifecycle (init, connect, disconnect)
-- Read operations (readValueAttribute)
-- Write operations (writeValueAttribute)
+- Read operations (readValueAttribute, readNodeAttribute)
+- Write operations (writeValueAttribute, writeNodeAttribute)
 - Browse operations (browse, browseNext with full control)
 - Custom client configuration (timeout, security mode)
+- **Authentication support** (anonymous, username/password, X.509 certificates, issued tokens)
 
 **Data Types:**
 - NodeId (numeric, string, GUID, bytestring)

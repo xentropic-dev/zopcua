@@ -118,6 +118,35 @@ pub const NodeId = union(enum) {
             else => NodeId.null_id,
         };
     }
+
+    /// Convert NodeId to string representation (e.g., "ns=1;i=1001" or "ns=1;s=test")
+    pub fn toString(self: NodeId, buf: []u8) ![]const u8 {
+        return switch (self) {
+            .numeric => |n| try std.fmt.bufPrint(buf, "ns={};i={}", .{ n.namespace, n.identifier }),
+            .string => |s| try std.fmt.bufPrint(buf, "ns={};s={s}", .{ s.namespace, s.identifier }),
+            .guid => |g| {
+                const guid_str = try g.identifier.toString(buf);
+                return std.fmt.bufPrint(buf, "ns={};g={s}", .{ g.namespace, guid_str });
+            },
+            .byte_string => |b| {
+                // Convert byte string to hex
+                // We need to allocate a buffer for the hex string
+                // Byte string node IDs are rarely used, so we'll use a fixed-size buffer
+                var hex_buf: [1024]u8 = undefined;
+                if (b.identifier.len * 2 > hex_buf.len) {
+                    return error.BufferTooSmall;
+                }
+                // Manually convert bytes to hex
+                const hex_digits = "0123456789ABCDEF";
+                for (b.identifier, 0..) |byte, i| {
+                    hex_buf[i * 2] = hex_digits[byte >> 4];
+                    hex_buf[i * 2 + 1] = hex_digits[byte & 0x0F];
+                }
+                const hex = hex_buf[0 .. b.identifier.len * 2];
+                return std.fmt.bufPrint(buf, "ns={};b={s}", .{ b.namespace, hex });
+            },
+        };
+    }
 };
 
 /// QualifiedName wrapper
@@ -177,6 +206,26 @@ pub const Guid = struct {
             .data3 = self.data3,
             .data4 = self.data4,
         };
+    }
+
+    pub fn toString(self: Guid, buf: []u8) ![]const u8 {
+        return std.fmt.bufPrint(
+            buf,
+            "{X:0>8}-{X:0>4}-{X:0>4}-{X:0>2}{X:0>2}-{X:0>2}{X:0>2}{X:0>2}{X:0>2}{X:0>2}{X:0>2}",
+            .{
+                self.data1,
+                self.data2,
+                self.data3,
+                self.data4[0],
+                self.data4[1],
+                self.data4[2],
+                self.data4[3],
+                self.data4[4],
+                self.data4[5],
+                self.data4[6],
+                self.data4[7],
+            },
+        );
     }
 };
 

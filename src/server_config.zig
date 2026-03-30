@@ -1,6 +1,7 @@
 const std = @import("std");
 const c = @import("c.zig");
 const helpers = @import("helpers.zig");
+const server_auth = @import("server_auth.zig");
 
 /// Security mode for OPC UA connections
 pub const SecurityMode = enum {
@@ -68,6 +69,9 @@ pub const ServerConfig = struct {
 
     /// Security configuration (optional, default: no security)
     security: ?SecurityConfig = null,
+
+    /// Authentication configuration (optional, default: anonymous only)
+    auth: ?server_auth.ServerAuthConfig = null,
 
     /// Apply this configuration to a C UA_ServerConfig
     ///
@@ -151,6 +155,11 @@ pub const ServerConfig = struct {
         c_config.shutdownDelay = self.shutdown_delay;
         c_config.tcpEnabled = self.tcp_enabled;
         c_config.tcpBufSize = self.tcp_buf_size;
+
+        // Apply authentication configuration
+        if (self.auth) |auth| {
+            try server_auth.applyServerAuthConfig(allocator, auth, c_config);
+        }
     }
 };
 

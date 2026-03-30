@@ -18,7 +18,7 @@ pub fn main() !void {
             std.debug.print("\n❌ Memory leak detected!\n", .{});
         }
     }
-    _ = gpa.allocator(); // Not used in this simple test
+    const allocator = gpa.allocator();
 
     // Test 1: Client lifecycle
     var client = try ua.Client.init();
@@ -73,7 +73,6 @@ pub fn main() !void {
 
     // Create server with a writable variable
     var rw_server = try ua.Server.init();
-    const allocator = std.heap.page_allocator;
 
     // Add a simple writable integer variable
     _ = try rw_server.addVariableNode(
@@ -99,19 +98,23 @@ pub fn main() !void {
     var rw_client = try ua.Client.init();
     try rw_client.connect("opc.tcp://localhost:4840");
 
-    const node_id = ua.NodeId.initString(1, "test.value");
+    const node_id = "ns=1;s=test.value"; // String representation of NodeId
 
     // Read initial value
-    const initial_value = try rw_client.readValueAttribute(allocator, node_id);
-    defer initial_value.deinit(allocator);
+    const initial_value = try rw_client.readNodeAttribute(node_id, 13); // UA_ATTRIBUTEID_VALUE
+    // Note: c.UA_DataValue doesn't have deinit, but UA_DataValue_clear should be called
+    // For now, we'll rely on the C library to clean up
+    _ = initial_value; // Mark as used
 
     // Write new value
     const new_value = ua.Variant.scalar(i32, 999);
-    try rw_client.writeValueAttribute(node_id, new_value);
+    var c_variant = try new_value.toC(allocator);
+    defer ua.Variant.freeCVariant(allocator, c_variant);
+    try rw_client.writeNodeAttribute(node_id, 13, &c_variant); // UA_ATTRIBUTEID_VALUE
 
     // Read it back
-    const read_back = try rw_client.readValueAttribute(allocator, node_id);
-    defer read_back.deinit(allocator);
+    const read_back = try rw_client.readNodeAttribute(node_id, 13); // UA_ATTRIBUTEID_VALUE
+    _ = read_back; // Mark as used
 
     // Cleanup
     try rw_client.disconnect();
