@@ -8,7 +8,7 @@ test "AuthenticationConfig default values" {
     const config = AuthenticationConfig{
         .identity_token = .anonymous,
     };
-    
+
     try testing.expectEqual(UserIdentityToken.anonymous, config.identity_token);
     try testing.expect(config.security_policy_uri == null);
     try testing.expectEqual(c.UA_MESSAGESECURITYMODE_SIGNANDENCRYPT, config.security_mode);
@@ -25,13 +25,10 @@ test "AuthenticationConfig with username/password" {
         .security_policy_uri = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
         .security_mode = c.UA_MESSAGESECURITYMODE_SIGN,
     };
-    
+
     try testing.expectEqual(UserIdentityToken.username_password, userpass_config.identity_token);
     try testing.expect(userpass_config.security_policy_uri != null);
-    try testing.expectEqualStrings(
-        "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
-        userpass_config.security_policy_uri.?
-    );
+    try testing.expectEqualStrings("http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256", userpass_config.security_policy_uri.?);
     try testing.expectEqual(c.UA_MESSAGESECURITYMODE_SIGN, userpass_config.security_mode);
 }
 
@@ -39,7 +36,7 @@ test "UserIdentityToken union" {
     // Anonymous token
     const anonymous = UserIdentityToken{ .anonymous = {} };
     try testing.expectEqual(UserIdentityToken.anonymous, anonymous);
-    
+
     // Username/password token
     const userpass = UserIdentityToken{
         .username_password = .{

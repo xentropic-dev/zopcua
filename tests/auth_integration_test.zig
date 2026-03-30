@@ -38,7 +38,7 @@ fn testUsernamePasswordValidator(
 
     // Accept only "testuser"/"testpass"
     return std.mem.eql(u8, username, "testuser") and
-           std.mem.eql(u8, password, "testpass");
+        std.mem.eql(u8, password, "testpass");
 }
 
 test "Client authentication types" {
@@ -111,17 +111,17 @@ test "Authentication callback validation" {
 test "Client authentication method integration" {
     // This test verifies that authentication methods are properly integrated
     // into the Client struct without actually connecting to a server
-    
+
     // Create a client (won't actually connect in this test)
     var client = try Client.init();
     defer client.deinit();
-    
+
     // Verify client has authentication methods
     // The methods exist at compile time, so if this compiles, the test passes
     _ = client.connectWithAuth;
     _ = client.connectWithUsername;
     _ = client.connectAnonymous;
-    
+
     // Test passes if compilation succeeds
     try testing.expect(true);
 }
@@ -132,14 +132,14 @@ test "Authentication type exports" {
     _ = zopcua.UserIdentityToken;
     _ = zopcua.AuthenticationConfig;
     _ = zopcua.ServerAuthConfig;
-    
+
     // Test passes if compilation succeeds
     try testing.expect(true);
 }
 
 test "Memory safety in authentication types" {
     const allocator = testing.allocator;
-    
+
     // Test that UserIdentityToken doesn't leak memory
     // (it's a union with slices, but slices don't own memory)
     const token = UserIdentityToken{
@@ -148,12 +148,12 @@ test "Memory safety in authentication types" {
             .password = "secret",
         },
     };
-    
+
     // The token should be valid
     try testing.expectEqual(UserIdentityToken.username_password, token);
     try testing.expectEqualStrings("test", token.username_password.username);
     try testing.expectEqualStrings("secret", token.username_password.password);
-    
+
     // No cleanup needed - slices don't own memory
 }
 
@@ -163,7 +163,7 @@ test "AuthenticationConfig with security policy" {
         .security_policy_uri = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
         .security_mode = c.UA_MESSAGESECURITYMODE_SIGN,
     };
-    
+
     try testing.expect(config.security_policy_uri != null);
     try testing.expectEqualStrings(
         "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
@@ -194,20 +194,20 @@ fn skipIfNoServer() bool {
 
 test "Authentication documentation examples compile" {
     // Test that the example code from documentation compiles
-    
+
     // Client authentication example
     const client_auth_example = struct {
         fn example() !void {
             var client = try Client.init();
             defer client.deinit();
-            
+
             // These should compile
             _ = client.connectWithAuth;
             _ = client.connectWithUsername;
             _ = client.connectAnonymous;
         }
     }.example;
-    
+
     // Server authentication example
     const server_auth_example = struct {
         fn example() !void {
@@ -219,7 +219,7 @@ test "Authentication documentation examples compile" {
             _ = config;
         }
     }.example;
-    
+
     // If we get here, the examples compile
     try testing.expect(true);
 }

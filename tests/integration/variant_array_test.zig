@@ -244,7 +244,6 @@ fn testEmptyArrays(_: *ua.Client, allocator: std.mem.Allocator) !void {
     defer test_server.deinit();
 
     const empty_node = try test_server.server.addVariableNode(
-
         ua.NodeId.initString(1, "test.empty_array"),
         ua.StandardNodeId.objects_folder,
         ua.ReferenceType.organizes,

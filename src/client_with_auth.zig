@@ -67,12 +67,7 @@ pub const Client = struct {
     /// - `BadSecurityChecksFailed` - Security checks failed
     /// - `BadUserAccessDenied` - Invalid username or password
     /// - `BadCertificateInvalid` - Certificate validation failed
-    pub fn connectWithUsername(
-        self: Client,
-        endpoint_url: []const u8,
-        username: []const u8,
-        password: []const u8
-    ) !void {
+    pub fn connectWithUsername(self: Client, endpoint_url: []const u8, username: []const u8, password: []const u8) !void {
         const auth_config = client_auth.AuthenticationConfig{
             .identity_token = .{
                 .username_password = .{
@@ -97,7 +92,7 @@ pub const Client = struct {
     /// ```zig
     /// const client = try Client.init(allocator);
     /// defer client.deinit();
-    /// 
+    ///
     /// // Username/password authentication
     /// const auth_config = client_auth.AuthenticationConfig{
     ///     .identity_token = .{
@@ -120,19 +115,12 @@ pub const Client = struct {
     /// - `BadSecurityChecksFailed` - Security checks failed
     /// - `BadUserAccessDenied` - Invalid username or password
     /// - `BadCertificateInvalid` - Certificate validation failed
-    pub fn connectWithAuth(
-        self: Client,
-        endpoint_url: []const u8,
-        auth_config: client_auth.AuthenticationConfig
-    ) !void {
+    pub fn connectWithAuth(self: Client, endpoint_url: []const u8, auth_config: client_auth.AuthenticationConfig) !void {
         return client_auth.connectWithAuth(self.handle, endpoint_url, auth_config);
     }
 
     /// Simplified function to connect anonymously.
-    pub fn connectAnonymous(
-        self: Client,
-        endpoint_url: []const u8
-    ) !void {
+    pub fn connectAnonymous(self: Client, endpoint_url: []const u8) !void {
         return client_auth.connectAnonymous(self.handle, endpoint_url);
     }
 

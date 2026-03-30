@@ -15,7 +15,6 @@ fn addDemoVariables(server: *ua.Server, allocator: std.mem.Allocator) !void {
 
     // Integer variable - "the answer"
     _ = try server.addVariableNode(
-
         ua.NodeId.initString(1, "the.answer"),
         parent,
         ua.ReferenceType.organizes,
@@ -27,12 +26,10 @@ fn addDemoVariables(server: *ua.Server, allocator: std.mem.Allocator) !void {
             .display_name = ua.LocalizedText.init("en-US", "The Answer"),
             .access_level = .{ .read = true, .write = true },
         },
-
     );
 
     // Temperature sensor (double)
     _ = try server.addVariableNode(
-
         ua.NodeId.initString(1, "temperature"),
         parent,
         ua.ReferenceType.organizes,
@@ -44,12 +41,10 @@ fn addDemoVariables(server: *ua.Server, allocator: std.mem.Allocator) !void {
             .display_name = ua.LocalizedText.init("en-US", "Temperature (°C)"),
             .access_level = .{ .read = true },
         },
-
     );
 
     // Status string
     _ = try server.addVariableNode(
-
         ua.NodeId.initString(1, "status"),
         parent,
         ua.ReferenceType.organizes,
@@ -61,12 +56,10 @@ fn addDemoVariables(server: *ua.Server, allocator: std.mem.Allocator) !void {
             .display_name = ua.LocalizedText.init("en-US", "System Status"),
             .access_level = .{ .read = true },
         },
-
     );
 
     // Boolean flag
     _ = try server.addVariableNode(
-
         ua.NodeId.initString(1, "enabled"),
         parent,
         ua.ReferenceType.organizes,
@@ -78,14 +71,12 @@ fn addDemoVariables(server: *ua.Server, allocator: std.mem.Allocator) !void {
             .display_name = ua.LocalizedText.init("en-US", "Enabled"),
             .access_level = .{ .read = true, .write = true },
         },
-
     );
 
     // Array of measurements
     const measurements = [_]f64{ 10.1, 20.2, 30.3, 40.4, 50.5 };
     const array_dims = [_]u32{5}; // Specify the array dimension size
     _ = try server.addVariableNode(
-
         ua.NodeId.initString(1, "measurements"),
         parent,
         ua.ReferenceType.organizes,
@@ -103,7 +94,6 @@ fn addDemoVariables(server: *ua.Server, allocator: std.mem.Allocator) !void {
 
     // Counter (unsigned int)
     _ = try server.addVariableNode(
-
         ua.NodeId.initString(1, "counter"),
         parent,
         ua.ReferenceType.organizes,
@@ -115,12 +105,10 @@ fn addDemoVariables(server: *ua.Server, allocator: std.mem.Allocator) !void {
             .display_name = ua.LocalizedText.init("en-US", "Event Counter"),
             .access_level = .{ .read = true, .write = true },
         },
-
     );
 
     // Pressure reading (float)
     _ = try server.addVariableNode(
-
         ua.NodeId.initString(1, "pressure"),
         parent,
         ua.ReferenceType.organizes,
@@ -132,12 +120,10 @@ fn addDemoVariables(server: *ua.Server, allocator: std.mem.Allocator) !void {
             .display_name = ua.LocalizedText.init("en-US", "Pressure (kPa)"),
             .access_level = .{ .read = true },
         },
-
     );
 
     // Byte value
     _ = try server.addVariableNode(
-
         ua.NodeId.initString(1, "byte_value"),
         parent,
         ua.ReferenceType.organizes,
@@ -149,7 +135,6 @@ fn addDemoVariables(server: *ua.Server, allocator: std.mem.Allocator) !void {
             .display_name = ua.LocalizedText.init("en-US", "Byte Value"),
             .access_level = .{ .read = true, .write = true },
         },
-
     );
 
     std.log.info("Successfully created 8 demo variables", .{});

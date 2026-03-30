@@ -86,7 +86,7 @@ pub fn applyServerAuthConfig(
         if (auth_config.username_password_callback == null) {
             return error.UsernamePasswordCallbackRequired;
         }
-        
+
         // Note: In open62541, username/password authentication requires
         // setting up a user token policy and configuring the server
         // to accept username/password tokens. This is typically done
@@ -100,7 +100,7 @@ pub fn applyServerAuthConfig(
         if (auth_config.certificate_callback == null) {
             return error.CertificateCallbackRequired;
         }
-        
+
         // Note: Certificate authentication requires proper certificate
         // and private key configuration in the server config, which
         // should be done at server creation time.
@@ -183,7 +183,7 @@ test "ServerAuthConfig default values" {
     std.testing.refAllDecls(@This());
 
     const config = ServerAuthConfig{};
-    
+
     try testing.expect(config.allow_anonymous == true);
     try testing.expect(config.allow_username_password == false);
     try testing.expect(config.allow_x509_certificate == false);
@@ -202,7 +202,7 @@ test "ServerAuthConfig with username/password" {
         .username_password_callback = simpleUsernamePasswordValidator,
         .userdata = @ptrFromInt(0x1234),
     };
-    
+
     try testing.expect(config.allow_anonymous == false);
     try testing.expect(config.allow_username_password == true);
     try testing.expect(config.username_password_callback != null);

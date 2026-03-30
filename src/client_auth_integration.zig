@@ -41,12 +41,7 @@ pub const ClientWithAuth = struct {
     /// - `BadSecurityChecksFailed` - Security checks failed
     /// - `BadUserAccessDenied` - Invalid username or password
     /// - `BadCertificateInvalid` - Certificate validation failed
-    pub fn connectWithUsername(
-        self: *const @This(),
-        endpoint_url: []const u8,
-        username: []const u8,
-        password: []const u8
-    ) !void {
+    pub fn connectWithUsername(self: *const @This(), endpoint_url: []const u8, username: []const u8, password: []const u8) !void {
         // Use arena allocator to safely create null-terminated strings for C API
         var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
         defer arena.deinit();
@@ -63,12 +58,7 @@ pub const ClientWithAuth = struct {
         const pass_buf = try allocator.alloc(u8, password.len + 1);
         const c_password = try std.fmt.bufPrintZ(pass_buf, "{s}", .{password});
 
-        const status = c.UA_Client_connectUsername(
-            self.client,
-            c_url.ptr,
-            c_username.ptr,
-            c_password.ptr
-        );
+        const status = c.UA_Client_connectUsername(self.client, c_url.ptr, c_username.ptr, c_password.ptr);
         try ua_error.checkStatus(status);
     }
 
@@ -86,7 +76,7 @@ pub const ClientWithAuth = struct {
     /// const client = try Client.init(allocator);
     /// defer client.deinit();
     /// const auth_client = ClientWithAuth.init(client.handle);
-    /// 
+    ///
     /// // Username/password authentication
     /// const auth_config = client_auth.AuthenticationConfig{
     ///     .identity_token = .{
@@ -109,19 +99,12 @@ pub const ClientWithAuth = struct {
     /// - `BadSecurityChecksFailed` - Security checks failed
     /// - `BadUserAccessDenied` - Invalid username or password
     /// - `BadCertificateInvalid` - Certificate validation failed
-    pub fn connectWithAuth(
-        self: *const @This(),
-        endpoint_url: []const u8,
-        auth_config: client_auth.AuthenticationConfig
-    ) !void {
+    pub fn connectWithAuth(self: *const @This(), endpoint_url: []const u8, auth_config: client_auth.AuthenticationConfig) !void {
         return client_auth.connectWithAuth(self.client, endpoint_url, auth_config);
     }
 
     /// Simplified function to connect anonymously.
-    pub fn connectAnonymous(
-        self: *const @This(),
-        endpoint_url: []const u8
-    ) !void {
+    pub fn connectAnonymous(self: *const @This(), endpoint_url: []const u8) !void {
         return client_auth.connectAnonymous(self.client, endpoint_url);
     }
 };
