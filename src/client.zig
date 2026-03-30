@@ -3,6 +3,9 @@ const c = @import("c.zig");
 const ua_error = @import("ua_error.zig");
 const client_auth = @import("client_auth.zig");
 const client_config = @import("client_config.zig");
+const types = @import("types.zig");
+const variant = @import("variant.zig");
+const data_value = @import("data_value.zig");
 
 const AttributeId = u32;
 
@@ -304,15 +307,15 @@ pub const Client = struct {
 
         // Convert UA_Variant to UA_DataValue
         // SAFETY: `undefined` is safe here because we immediately initialize all fields
-        var data_value: c.UA_DataValue = undefined;
-        data_value.value = value;
-        data_value.hasValue = true;
-        data_value.hasStatus = false;
-        data_value.hasSourceTimestamp = false;
-        data_value.hasServerTimestamp = false;
-        data_value.hasSourcePicoseconds = false;
-        data_value.hasServerPicoseconds = false;
-        return data_value;
+        var c_data_value: c.UA_DataValue = undefined;
+        c_data_value.value = value;
+        c_data_value.hasValue = true;
+        c_data_value.hasStatus = false;
+        c_data_value.hasSourceTimestamp = false;
+        c_data_value.hasServerTimestamp = false;
+        c_data_value.hasSourcePicoseconds = false;
+        c_data_value.hasServerPicoseconds = false;
+        return c_data_value;
     }
 
     /// Write a node attribute value to the OPC UA server.
@@ -410,5 +413,48 @@ pub const Client = struct {
     /// to an OPC UA server, false otherwise.
     pub fn isConnected(self: *Client) bool {
         return self.getSessionState() != c.UA_SESSIONSTATE_DISCONNECTED;
+    }
+
+    // Compatibility methods for backward compatibility
+    // These will be deprecated in a future release
+
+    /// Read the value attribute of a node (legacy API).
+    /// This is a compatibility wrapper for `readNodeAttribute`.
+    /// Prefer using `readNodeAttribute` for new code.
+    pub fn readValueAttribute(
+        self: *Client,
+        allocator: std.mem.Allocator,
+        node_id: types.NodeId,
+    ) !variant.Variant {
+        // Convert NodeId to string representation
+        var buf: [256]u8 = undefined;
+        const node_id_str = try node_id.toString(&buf);
+        
+        // Read using new API
+        const c_data_value = try self.readNodeAttribute(node_id_str, 13); // UA_ATTRIBUTEID_VALUE
+        
+        // Convert c.UA_DataValue to variant.Variant
+        const data_val = try data_value.DataValue.fromC(c_data_value, allocator);
+        return data_val.value;
+    }
+
+    /// Write the value attribute of a node (legacy API).
+    /// This is a compatibility wrapper for `writeNodeAttribute`.
+    /// Prefer using `writeNodeAttribute` for new code.
+    pub fn writeValueAttribute(
+        self: *Client,
+        node_id: types.NodeId,
+        value: variant.Variant,
+    ) !void {
+        // Convert NodeId to string representation
+        var buf: [256]u8 = undefined;
+        const node_id_str = try node_id.toString(&buf);
+        
+        // Convert Variant to c.UA_Variant
+        var c_variant = try value.toC(std.heap.c_allocator);
+        defer variant.Variant.freeCVariant(std.heap.c_allocator, c_variant);
+        
+        // Write using new API
+        try self.writeNodeAttribute(node_id_str, 13, &c_variant); // UA_ATTRIBUTEID_VALUE
     }
 };
