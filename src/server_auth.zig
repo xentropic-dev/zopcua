@@ -73,6 +73,8 @@ pub fn applyServerAuthConfig(
     auth_config: ServerAuthConfig,
     c_config: *c.UA_ServerConfig,
 ) !void {
+    _ = allocator;
+    _ = c_config;
     // Configure authentication policies
     if (auth_config.allow_anonymous) {
         // Enable anonymous authentication
@@ -206,7 +208,7 @@ test "ServerAuthConfig with username/password" {
     try testing.expect(config.allow_anonymous == false);
     try testing.expect(config.allow_username_password == true);
     try testing.expect(config.username_password_callback != null);
-    try testing.expect(config.userdata == @ptrFromInt(0x1234));
+    try testing.expect(config.userdata == @as(?*anyopaque, @ptrFromInt(0x1234)));
 }
 
 test "simpleUsernamePasswordValidator" {
