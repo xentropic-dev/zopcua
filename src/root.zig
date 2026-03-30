@@ -19,6 +19,7 @@ const client_config_module = @import("client_config.zig");
 const browse_module = @import("browse.zig");
 const subscription_module = @import("subscription.zig");
 const client_auth_module = @import("client_auth.zig");
+const client_auth_integration_module = @import("client_auth_integration.zig");
 
 pub const Server = server_module.Server;
 pub const ServerConfig = server_config_module.ServerConfig;
@@ -80,6 +81,7 @@ pub const BrowseResultMask = browse_module.BrowseResultMask;
 pub const AuthenticationMethod = client_auth_module.AuthenticationMethod;
 pub const UserIdentityToken = client_auth_module.UserIdentityToken;
 pub const AuthenticationConfig = client_auth_module.AuthenticationConfig;
+pub const ClientWithAuth = client_auth_integration_module.ClientWithAuth;
 
 pub const types = types_module;
 pub const variant = variant_module;

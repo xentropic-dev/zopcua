@@ -275,6 +275,21 @@ pub fn build(b: *std.Build) void {
     const browse_step = b.step("test-browse", "Run browse integration tests");
     browse_step.dependOn(&run_browse.step);
 
+    // Authentication integration tests
+    const auth_anonymous_test = createIntegrationTest(
+        b,
+        "auth_anonymous_test",
+        "tests/auth_anonymous_test.zig",
+        target,
+        optimize,
+        module,
+        test_helpers_module,
+        mbedtls_link,
+    );
+    const run_auth_anonymous = b.addRunArtifact(auth_anonymous_test);
+    const auth_anonymous_step = b.step("test-auth-anonymous", "Run anonymous authentication integration tests");
+    auth_anonymous_step.dependOn(&run_auth_anonymous.step);
+
     // Comprehensive integration test suite
     const integration_all_step = b.step("test-integration-all", "Run all integration tests");
     integration_all_step.dependOn(&run_integration_test.step);
@@ -282,11 +297,13 @@ pub fn build(b: *std.Build) void {
     integration_all_step.dependOn(&run_variant_array.step);
     integration_all_step.dependOn(&run_concurrent.step);
     integration_all_step.dependOn(&run_browse.step);
+    integration_all_step.dependOn(&run_auth_anonymous.step);
 
     // Quick integration tests (non-concurrent for faster CI)
     const integration_quick_step = b.step("test-integration-quick", "Run quick integration tests (no concurrent)");
     integration_quick_step.dependOn(&run_variant_scalar.step);
     integration_quick_step.dependOn(&run_variant_array.step);
+    integration_quick_step.dependOn(&run_auth_anonymous.step);
     integration_quick_step.dependOn(&run_browse.step);
 
     const docs_lib = b.addLibrary(.{
