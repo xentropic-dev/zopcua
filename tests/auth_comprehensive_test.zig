@@ -21,7 +21,10 @@ test "authentication method enum completeness" {
 test "user identity token union" {
     // Test anonymous token
     const anonymous = client_auth.UserIdentityToken{ .anonymous = {} };
-    try testing.expectEqual(client_auth.AuthenticationMethod.anonymous, @as(client_auth.AuthenticationMethod, anonymous));
+    try testing.expectEqual(
+        client_auth.AuthenticationMethod.anonymous,
+        @as(client_auth.AuthenticationMethod, anonymous),
+    );
 
     // Test username/password token
     const userpass = client_auth.UserIdentityToken{
@@ -30,7 +33,10 @@ test "user identity token union" {
             .password = "testpass",
         },
     };
-    try testing.expectEqual(client_auth.AuthenticationMethod.username_password, @as(client_auth.AuthenticationMethod, userpass));
+    try testing.expectEqual(
+        client_auth.AuthenticationMethod.username_password,
+        @as(client_auth.AuthenticationMethod, userpass),
+    );
     try testing.expectEqualStrings("testuser", userpass.username_password.username);
     try testing.expectEqualStrings("testpass", userpass.username_password.password);
 
@@ -41,7 +47,10 @@ test "user identity token union" {
             .private_key = "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----",
         },
     };
-    try testing.expectEqual(client_auth.AuthenticationMethod.x509_certificate, @as(client_auth.AuthenticationMethod, cert));
+    try testing.expectEqual(
+        client_auth.AuthenticationMethod.x509_certificate,
+        @as(client_auth.AuthenticationMethod, cert),
+    );
     try testing.expect(cert.x509_certificate.certificate.len > 0);
 
     // Test issued token
@@ -51,7 +60,10 @@ test "user identity token union" {
             .token_type = "JWT",
         },
     };
-    try testing.expectEqual(client_auth.AuthenticationMethod.issued_token, @as(client_auth.AuthenticationMethod, token));
+    try testing.expectEqual(
+        client_auth.AuthenticationMethod.issued_token,
+        @as(client_auth.AuthenticationMethod, token),
+    );
     try testing.expect(token.issued_token.token_data.len > 0);
 }
 
@@ -60,7 +72,10 @@ test "authentication config default values" {
         .identity_token = .anonymous,
     };
 
-    try testing.expectEqual(client_auth.AuthenticationMethod.anonymous, @as(client_auth.AuthenticationMethod, default_config.identity_token));
+    try testing.expectEqual(
+        client_auth.AuthenticationMethod.anonymous,
+        @as(client_auth.AuthenticationMethod, default_config.identity_token),
+    );
     try testing.expect(default_config.security_policy_uri == null);
     try testing.expectEqual(c.UA_MESSAGESECURITYMODE_SIGNANDENCRYPT, default_config.security_mode);
 }
@@ -77,9 +92,15 @@ test "authentication config with username/password" {
         .security_mode = c.UA_MESSAGESECURITYMODE_SIGN,
     };
 
-    try testing.expectEqual(client_auth.AuthenticationMethod.username_password, @as(client_auth.AuthenticationMethod, userpass_config.identity_token));
+    try testing.expectEqual(
+        client_auth.AuthenticationMethod.username_password,
+        @as(client_auth.AuthenticationMethod, userpass_config.identity_token),
+    );
     try testing.expect(userpass_config.security_policy_uri != null);
-    try testing.expectEqualStrings("http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256", userpass_config.security_policy_uri.?);
+    try testing.expectEqualStrings(
+        "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
+        userpass_config.security_policy_uri.?,
+    );
     try testing.expectEqual(c.UA_MESSAGESECURITYMODE_SIGN, userpass_config.security_mode);
 }
 
@@ -95,9 +116,15 @@ test "authentication config with x509 certificate" {
         .security_mode = c.UA_MESSAGESECURITYMODE_SIGNANDENCRYPT,
     };
 
-    try testing.expectEqual(client_auth.AuthenticationMethod.x509_certificate, @as(client_auth.AuthenticationMethod, cert_config.identity_token));
+    try testing.expectEqual(
+        client_auth.AuthenticationMethod.x509_certificate,
+        @as(client_auth.AuthenticationMethod, cert_config.identity_token),
+    );
     try testing.expect(cert_config.security_policy_uri != null);
-    try testing.expectEqualStrings("http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss", cert_config.security_policy_uri.?);
+    try testing.expectEqualStrings(
+        "http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss",
+        cert_config.security_policy_uri.?,
+    );
     try testing.expectEqual(c.UA_MESSAGESECURITYMODE_SIGNANDENCRYPT, cert_config.security_mode);
 }
 
@@ -143,11 +170,20 @@ test "server authentication callback registration" {
 
 test "authentication error mapping" {
     // Test that authentication errors are properly mapped
-    try testing.expectError(ua_error.OpcUaError.BadUserAccessDenied, ua_error.checkStatus(c.UA_STATUSCODE_BADUSERACCESSDENIED));
+    try testing.expectError(
+        ua_error.OpcUaError.BadUserAccessDenied,
+        ua_error.checkStatus(c.UA_STATUSCODE_BADUSERACCESSDENIED),
+    );
 
-    try testing.expectError(ua_error.OpcUaError.BadCertificateInvalid, ua_error.checkStatus(c.UA_STATUSCODE_BADCERTIFICATEINVALID));
+    try testing.expectError(
+        ua_error.OpcUaError.BadCertificateInvalid,
+        ua_error.checkStatus(c.UA_STATUSCODE_BADCERTIFICATEINVALID),
+    );
 
-    try testing.expectError(ua_error.OpcUaError.BadSecurityChecksFailed, ua_error.checkStatus(c.UA_STATUSCODE_BADSECURITYCHECKSFAILED));
+    try testing.expectError(
+        ua_error.OpcUaError.BadSecurityChecksFailed,
+        ua_error.checkStatus(c.UA_STATUSCODE_BADSECURITYCHECKSFAILED),
+    );
 
     std.debug.print("✓ Authentication errors are properly mapped\n", .{});
 }
@@ -220,7 +256,10 @@ test "authentication memory safety" {
     };
 
     // Verify config was created successfully
-    try testing.expectEqual(client_auth.AuthenticationMethod.username_password, @as(client_auth.AuthenticationMethod, config.identity_token));
+    try testing.expectEqual(
+        client_auth.AuthenticationMethod.username_password,
+        @as(client_auth.AuthenticationMethod, config.identity_token),
+    );
     try testing.expect(config.security_policy_uri != null);
 
     std.debug.print("✓ Authentication config memory safety verified\n", .{});

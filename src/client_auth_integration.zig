@@ -41,7 +41,12 @@ pub const ClientWithAuth = struct {
     /// - `BadSecurityChecksFailed` - Security checks failed
     /// - `BadUserAccessDenied` - Invalid username or password
     /// - `BadCertificateInvalid` - Certificate validation failed
-    pub fn connectWithUsername(self: *const @This(), endpoint_url: []const u8, username: []const u8, password: []const u8) !void {
+    pub fn connectWithUsername(
+        self: *const @This(),
+        endpoint_url: []const u8,
+        username: []const u8,
+        password: []const u8,
+    ) !void {
         // Use arena allocator to safely create null-terminated strings for C API
         var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
         defer arena.deinit();
@@ -99,7 +104,11 @@ pub const ClientWithAuth = struct {
     /// - `BadSecurityChecksFailed` - Security checks failed
     /// - `BadUserAccessDenied` - Invalid username or password
     /// - `BadCertificateInvalid` - Certificate validation failed
-    pub fn connectWithAuth(self: *const @This(), endpoint_url: []const u8, auth_config: client_auth.AuthenticationConfig) !void {
+    pub fn connectWithAuth(
+        self: *const @This(),
+        endpoint_url: []const u8,
+        auth_config: client_auth.AuthenticationConfig,
+    ) !void {
         return client_auth.connectWithAuth(self.client, endpoint_url, auth_config);
     }
 

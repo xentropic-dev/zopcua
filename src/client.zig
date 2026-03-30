@@ -303,6 +303,7 @@ pub const Client = struct {
         try ua_error.checkStatus(status);
 
         // Convert UA_Variant to UA_DataValue
+        // SAFETY: `undefined` is safe here because we immediately initialize all fields
         var data_value: c.UA_DataValue = undefined;
         data_value.value = value;
         data_value.hasValue = true;

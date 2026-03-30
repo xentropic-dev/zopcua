@@ -28,7 +28,10 @@ test "AuthenticationConfig with username/password" {
 
     try testing.expectEqual(UserIdentityToken.username_password, userpass_config.identity_token);
     try testing.expect(userpass_config.security_policy_uri != null);
-    try testing.expectEqualStrings("http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256", userpass_config.security_policy_uri.?);
+    try testing.expectEqualStrings(
+        "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
+        userpass_config.security_policy_uri.?,
+    );
     try testing.expectEqual(c.UA_MESSAGESECURITYMODE_SIGN, userpass_config.security_mode);
 }
 
