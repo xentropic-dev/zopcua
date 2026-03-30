@@ -281,7 +281,10 @@ pub const Client = struct {
         node_id: []const u8,
         attribute_id: AttributeId,
     ) !c.UA_DataValue {
-        _ = attribute_id; // Mark as intentionally unused for now
+        // Currently only support reading value attribute (UA_ATTRIBUTEID_VALUE = 13)
+        if (attribute_id != 13) {
+            return error.UnsupportedAttribute;
+        }
         // Use arena allocator to safely create null-terminated strings for C API
         var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
         defer arena.deinit();
@@ -339,7 +342,10 @@ pub const Client = struct {
         attribute_id: AttributeId,
         value: *const c.UA_Variant,
     ) !void {
-        _ = attribute_id; // Mark as intentionally unused for now
+        // Currently only support writing value attribute (UA_ATTRIBUTEID_VALUE = 13)
+        if (attribute_id != 13) {
+            return error.UnsupportedAttribute;
+        }
         // Use arena allocator to safely create null-terminated strings for C API
         var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
         defer arena.deinit();
@@ -450,6 +456,38 @@ pub const Client = struct {
         var buf: [256]u8 = undefined;
         const node_id_str = try node_id.toString(&buf);
         
+        // Convert Variant to c.UA_Variant
+        var c_variant = try value.toC(std.heap.c_allocator);
+        defer variant.Variant.freeCVariant(std.heap.c_allocator, c_variant);
+        
+        // Write using new API
+        try self.writeNodeAttribute(node_id_str, 13, &c_variant); // UA_ATTRIBUTEID_VALUE
+    }
+
+    /// Read the value of a node using a string node ID.
+    /// This is a convenience method for reading values when you have
+    /// the node ID as a string (e.g., "ns=1;i=1001" or "ns=1;s=MyNode").
+    pub fn readValueString(
+        self: *Client,
+        allocator: std.mem.Allocator,
+        node_id_str: []const u8,
+    ) !variant.Variant {
+        // Read using new API
+        const c_data_value = try self.readNodeAttribute(node_id_str, 13); // UA_ATTRIBUTEID_VALUE
+        
+        // Convert c.UA_DataValue to variant.Variant
+        const data_val = try data_value.DataValue.fromC(c_data_value, allocator);
+        return data_val.value;
+    }
+
+    /// Write the value of a node using a string node ID.
+    /// This is a convenience method for writing values when you have
+    /// the node ID as a string (e.g., "ns=1;i=1001" or "ns=1;s=MyNode").
+    pub fn writeValueString(
+        self: *Client,
+        node_id_str: []const u8,
+        value: variant.Variant,
+    ) !void {
         // Convert Variant to c.UA_Variant
         var c_variant = try value.toC(std.heap.c_allocator);
         defer variant.Variant.freeCVariant(std.heap.c_allocator, c_variant);
