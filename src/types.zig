@@ -126,7 +126,7 @@ pub const NodeId = union(enum) {
             .string => |s| try std.fmt.bufPrint(buf, "ns={};s={s}", .{ s.namespace, s.identifier }),
             .guid => |g| {
                 const guid_str = try g.identifier.toString(buf);
-                return try std.fmt.bufPrint(buf, "ns={};g={s}", .{ g.namespace, guid_str });
+                return std.fmt.bufPrint(buf, "ns={};g={s}", .{ g.namespace, guid_str });
             },
             .byte_string => |b| {
                 // Convert byte string to hex
@@ -143,7 +143,7 @@ pub const NodeId = union(enum) {
                     hex_buf[i * 2 + 1] = hex_digits[byte & 0x0F];
                 }
                 const hex = hex_buf[0 .. b.identifier.len * 2];
-                return try std.fmt.bufPrint(buf, "ns={};b={s}", .{ b.namespace, hex });
+                return std.fmt.bufPrint(buf, "ns={};b={s}", .{ b.namespace, hex });
             },
         };
     }
@@ -209,7 +209,7 @@ pub const Guid = struct {
     }
 
     pub fn toString(self: Guid, buf: []u8) ![]const u8 {
-        return try std.fmt.bufPrint(
+        return std.fmt.bufPrint(
             buf,
             "{X:0>8}-{X:0>4}-{X:0>4}-{X:0>2}{X:0>2}-{X:0>2}{X:0>2}{X:0>2}{X:0>2}{X:0>2}{X:0>2}",
             .{
